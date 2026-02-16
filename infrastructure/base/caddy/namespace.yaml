@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: caddy-system
+  labels:
+    app.kubernetes.io/part-of: caddy
+    app.kubernetes.io/managed-by: flux

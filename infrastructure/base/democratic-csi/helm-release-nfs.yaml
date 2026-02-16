@@ -1,0 +1,117 @@
+# ══════════════════════════════════════════════════════════════════
+# democratic-csi NFS Driver — Dynamic NFS Provisioning from TrueNAS
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — TWO COMPONENTS, ONE HELM RELEASE:
+#   Each democratic-csi HelmRelease deploys TWO things:
+#
+#   1. Controller (Deployment, 1 replica):
+#      - Runs the CSI controller plugin
+#      - Talks to TrueNAS API to create/delete datasets + NFS shares
+#      - Handles provisioning, snapshotting, resizing
+#
+#   2. Node Agent (DaemonSet, runs on EVERY node):
+#      - Runs the CSI node plugin
+#      - Handles mounting NFS shares into pods on that node
+#      - Reports node capabilities (what this node can mount)
+#
+#   You deploy SEPARATE HelmReleases for NFS and iSCSI because
+#   they're different CSI drivers with different capabilities.
+#   Each gets its own StorageClass.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: truenas-nfs
+  namespace: democratic-csi
+spec:
+  interval: 1h
+  chart:
+    spec:
+      chart: democratic-csi
+      version: "*"          # Lab: always use latest
+      sourceRef:
+        kind: HelmRepository
+        name: democratic-csi
+        namespace: flux-system
+      interval: 1h
+
+  # ── Inject TrueNAS API key from 1Password-synced secret ──────
+  # valuesFrom merges secret data into the Helm values at a
+  # specific JSON path. This means the API key never appears in Git.
+  #
+  # LEARNING NOTE — targetPath:
+  #   Without targetPath, the secret's key-value pairs are merged
+  #   at the ROOT of the values. With targetPath, they're injected
+  #   at a specific nested location. This is critical for
+  #   democratic-csi where the API key lives deep in the config.
+  valuesFrom:
+    - kind: Secret
+      name: truenas-api-key
+      valuesKey: credential
+      targetPath: driver.config.httpConnection.apiKey
+
+  values:
+    csiDriver:
+      # Globally unique CSI driver name — identifies this driver
+      # in StorageClass specs and CSI node registrations.
+      name: "org.democratic-csi.nfs"
+
+    # ── StorageClass: what developers use to request storage ─────
+    storageClasses:
+      - name: truenas-nfs
+        defaultClass: true    # Lab: make NFS the default StorageClass
+        reclaimPolicy: Delete
+        volumeBindingMode: Immediate
+        allowVolumeExpansion: true
+        parameters:
+          fsType: nfs
+        mountOptions:
+          - noatime    # Don't update access times (better performance)
+          - nfsvers=4  # Use NFSv4 (better security + performance)
+
+    # ── VolumeSnapshotClass: enables kubectl snapshot support ────
+    volumeSnapshotClasses:
+      - name: truenas-nfs-snap
+        parameters:
+          detachedSnapshots: "false"
+
+    driver:
+      config:
+        driver: freenas-api-nfs
+
+        httpConnection:
+          protocol: https
+          host: 10.2.0.232
+          port: 443
+          # apiKey is injected via valuesFrom above — NOT in Git
+          allowInsecure: true    # TrueNAS uses self-signed cert
+
+        # ── ZFS Dataset Configuration ────────────────────────────
+        # democratic-csi creates CHILD datasets under these parents
+        # for each PVC. e.g., a PVC named "caddy-data" in namespace
+        # "caddy-system" creates: tank/k8s/nfs/vols/pvc-<uuid>
+        #
+        # ⚠️  UPDATE THESE PATHS to match your pool name!
+        # Replace "tank" with your actual ZFS pool name.
+        zfs:
+          datasetParentName: tank/k8s/nfs/vols
+          detachedSnapshotsDatasetParentName: tank/k8s/nfs/snaps
+
+          # Properties set on each auto-created dataset
+          datasetProperties:
+            "org.freenas:description": >-
+              {{parameters.[csi.storage.k8s.io/pvc/namespace]}}/{{parameters.[csi.storage.k8s.io/pvc/name]}}
+
+          datasetEnableQuotas: true
+          datasetEnableReservation: false
+
+        nfs:
+          shareHost: 10.2.0.232
+          shareAlldirs: false
+          shareAllowedHosts: []
+          shareAllowedNetworks: []
+          shareMaprootUser: root
+          shareMaprootGroup: root
+          shareMapallUser: ""
+          shareMapallGroup: ""

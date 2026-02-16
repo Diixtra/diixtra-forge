@@ -1,0 +1,21 @@
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: apps
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./apps/homelab
+  prune: true
+  wait: true
+  # Apps only deploy after the platform layer is healthy.
+  # This means Kyverno policies are enforced and Grafana Alloy
+  # is collecting metrics before any application workloads start.
+  dependsOn:
+    - name: platform

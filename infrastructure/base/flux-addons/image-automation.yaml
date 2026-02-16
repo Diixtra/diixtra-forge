@@ -1,0 +1,108 @@
+# ══════════════════════════════════════════════════════════════════
+# Flux Image Automation for Container Images
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — HOW IMAGE AUTOMATION WORKS:
+#   Three resources work together to auto-update container images:
+#
+#   1. ImageRepository → "Which registry to scan?" (GHCR, Docker Hub, etc.)
+#   2. ImagePolicy     → "How to pick the latest?" (semver, alphabetical, digest)
+#   3. ImageUpdateAutomation → "Where to commit the update?" (which Git repo + path)
+#
+#   The image-reflector-controller handles (1) and (2).
+#   The image-automation-controller handles (3).
+#
+#   Both must be installed via --components-extra at bootstrap time.
+#   They're not included by default because most production clusters
+#   don't want fully automated image updates.
+# ══════════════════════════════════════════════════════════════════
+
+---
+# ── ImageRepository: Tell Flux WHERE to look for images ──────────
+# This creates a scanner that polls GHCR every 5 minutes for new
+# tags/digests under the caddybuilds/caddy-cloudflare image.
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageRepository
+metadata:
+  name: caddy-cloudflare
+  namespace: flux-system
+spec:
+  image: ghcr.io/caddybuilds/caddy-cloudflare
+  interval: 5m0s
+  # No secretRef needed — this is a public image on GHCR.
+  # For private registries, you'd add a secretRef pointing to
+  # a dockerconfigjson secret with registry credentials.
+
+---
+# ── ImagePolicy: Tell Flux HOW to pick the latest image ──────────
+#
+# LEARNING NOTE — WHY DIGEST PINNING FOR :latest:
+#   The `:latest` tag is mutable — it can point to different images
+#   at different times. By using `digest: true`, Flux pins the exact
+#   digest (sha256:abc...) in Git. This means:
+#     - Every node pulls the exact same image (no drift)
+#     - Git history shows exactly when each image changed
+#     - Rollback is a `git revert` away
+#
+#   The policy watches the `:latest` tag specifically, and when its
+#   digest changes, triggers an update in Git.
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImagePolicy
+metadata:
+  name: caddy
+  namespace: flux-system
+spec:
+  imageRepositoryRef:
+    name: caddy-cloudflare
+  policy:
+    alphabetical:
+      order: asc
+  filterTags:
+    # Match the "latest" tag specifically
+    pattern: '^latest$'
+
+---
+# ── ImageUpdateAutomation: Tell Flux WHERE to commit updates ─────
+#
+# LEARNING NOTE — THE GIT COMMIT FLOW:
+#   When a new image is detected, this resource tells the
+#   image-automation-controller to:
+#     1. Clone the Git repo
+#     2. Find files with image policy markers (special comments)
+#     3. Update the image reference in those files
+#     4. Commit and push the change
+#     5. Normal Flux reconciliation picks up the new commit
+#
+#   The commit message template uses Go templating to include
+#   which images were updated and their new versions.
+apiVersion: image.toolkit.fluxcd.io/v1beta2
+kind: ImageUpdateAutomation
+metadata:
+  name: flux-system
+  namespace: flux-system
+spec:
+  interval: 5m0s
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+    namespace: flux-system
+  git:
+    checkout:
+      ref:
+        branch: main
+    commit:
+      author:
+        email: flux@kazie.co.uk
+        name: Flux Image Automation
+      messageTemplate: |
+        chore(images): automated update
+
+        Automation: Flux Image Update Automation
+        {{- range $image, $_ := .Changed.Objects }}
+        - {{ $image.Name }}
+        {{- end }}
+    push:
+      branch: main
+  update:
+    path: ./infrastructure
+    strategy: Setters

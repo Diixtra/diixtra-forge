@@ -1,0 +1,47 @@
+# ══════════════════════════════════════════════════════════════════
+# Renovate Bot — Self-Hosted via GitHub Actions
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHY SELF-HOSTED RENOVATE:
+#   There are two ways to run Renovate:
+#     1. The Renovate GitHub App (hosted by Mend) — easiest but requires
+#        granting a third-party app access to your repo
+#     2. Self-hosted via GitHub Actions — runs on your own runner,
+#        uses your own GITHUB_TOKEN, no third-party access
+#
+#   For a private infrastructure repo with secrets and configs,
+#   self-hosted is the safer choice. It runs as a scheduled Action
+#   every 6 hours and creates/merges PRs just like the app would.
+# ══════════════════════════════════════════════════════════════════
+
+name: Renovate
+
+on:
+  # Run every 6 hours
+  schedule:
+    - cron: "0 */6 * * *"
+  # Allow manual trigger from the Actions tab
+  workflow_dispatch:
+
+# Prevent parallel Renovate runs (they'd conflict on PR creation)
+concurrency:
+  group: renovate
+  cancel-in-progress: true
+
+jobs:
+  renovate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Run Renovate
+        uses: renovatebot/github-action@v41
+        with:
+          # The renovate.json in the repo root configures behavior
+          configurationFile: renovate.json
+          token: ${{ secrets.RENOVATE_TOKEN }}
+        env:
+          # RENOVATE_TOKEN needs repo scope (Contents R/W, PRs R/W)
+          # Create a GitHub PAT and add it as a repo secret
+          LOG_LEVEL: info

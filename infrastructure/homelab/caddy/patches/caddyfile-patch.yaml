@@ -1,0 +1,32 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: caddy-config
+  namespace: caddy-system
+data:
+  Caddyfile: |
+    {
+      email james@kazie.co.uk
+    }
+
+    # Catch-all test endpoint — proves TLS and DNS-01 challenge work
+    test.lab.kazie.co.uk {
+      tls {
+        dns cloudflare {env.CF_API_TOKEN}
+        resolvers 1.1.1.1
+      }
+      respond "Caddy is working on {host}" 200
+    }
+
+    # Add new service routes below this line.
+    # Each service gets a subdomain under lab.kazie.co.uk
+    # and automatic TLS via Cloudflare DNS-01 challenge.
+    #
+    # Example:
+    # grafana.lab.kazie.co.uk {
+    #   tls {
+    #     dns cloudflare {env.CF_API_TOKEN}
+    #     resolvers 1.1.1.1
+    #   }
+    #   reverse_proxy grafana.monitoring.svc.cluster.local:3000
+    # }

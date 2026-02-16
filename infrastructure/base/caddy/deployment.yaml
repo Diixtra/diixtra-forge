@@ -1,0 +1,61 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: caddy
+  namespace: caddy-system
+  labels:
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/part-of: caddy
+    app.kubernetes.io/managed-by: flux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: caddy
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: caddy
+        app.kubernetes.io/part-of: caddy
+    spec:
+      containers:
+        - name: caddy
+          # Multi-arch image with Cloudflare DNS plugin built in.
+          # Supports both amd64 and arm64 — works across all homelab nodes.
+          # The comment marker below tells Flux Image Automation to update
+          # this line when a new image digest is detected.
+          image: ghcr.io/caddybuilds/caddy-cloudflare:latest # {"$imagepolicy": "flux-system:caddy"}
+          ports:
+            - containerPort: 80
+              name: http
+            - containerPort: 443
+              name: https
+          env:
+            - name: CF_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  # This secret is created by the 1Password Operator from the
+                  # OnePasswordItem resource. The key "credential" matches the
+                  # field name in the 1Password item.
+                  name: cloudflare-api-token
+                  key: credential
+          volumeMounts:
+            - name: config
+              mountPath: /etc/caddy/Caddyfile
+              subPath: Caddyfile
+            - name: data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 200m
+              memory: 128Mi
+      volumes:
+        - name: config
+          configMap:
+            name: caddy-config
+        - name: data
+          persistentVolumeClaim:
+            claimName: caddy-data

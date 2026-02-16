@@ -1,0 +1,25 @@
+---
+# IPAddressPool defines the range of IPs MetalLB can assign to
+# LoadBalancer services. This range must be outside your DHCP range
+# and not conflict with any static IPs on the Kaznet VLAN.
+apiVersion: metallb.io/v1beta1
+kind: IPAddressPool
+metadata:
+  name: homelab-pool
+  namespace: metallb-system
+spec:
+  addresses:
+    - 10.2.0.200-10.2.0.210
+---
+# L2Advertisement tells MetalLB to use Layer 2 mode (ARP).
+# MetalLB responds to ARP requests on the LAN, making the
+# virtual IPs reachable from any device on the same subnet.
+# No BGP or router configuration needed.
+apiVersion: metallb.io/v1beta1
+kind: L2Advertisement
+metadata:
+  name: homelab-l2
+  namespace: metallb-system
+spec:
+  ipAddressPools:
+    - homelab-pool
