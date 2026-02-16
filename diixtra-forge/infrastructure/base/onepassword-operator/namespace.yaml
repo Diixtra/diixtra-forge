@@ -1,7 +1,0 @@
-apiVersion: v1
-kind: Namespace
-metadata:
-  name: onepassword-system
-  labels:
-    app.kubernetes.io/part-of: onepassword
-    app.kubernetes.io/managed-by: flux
