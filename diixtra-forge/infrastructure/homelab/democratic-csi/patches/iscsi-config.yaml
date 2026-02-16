@@ -1,0 +1,15 @@
+# ══════════════════════════════════════════════════════════════════
+# Homelab iSCSI Configuration Patch
+# ══════════════════════════════════════════════════════════════════
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: truenas-iscsi
+  namespace: democratic-csi
+spec:
+  values:
+    driver:
+      config:
+        zfs:
+          datasetParentName: kaz.cloud/kozmox/k8/iscsi/vols
+          detachedSnapshotsDatasetParentName: kaz.cloud/kozmox/k8/iscsi/snaps

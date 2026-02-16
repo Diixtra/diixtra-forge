@@ -1,0 +1,8 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: democratic-csi
+  labels:
+    app.kubernetes.io/managed-by: flux
+    # democratic-csi needs privileged access to mount volumes on nodes
+    pod-security.kubernetes.io/enforce: privileged

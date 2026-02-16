@@ -1,0 +1,31 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: onepassword-operator
+  namespace: onepassword-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: connect
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: onepassword
+        namespace: flux-system
+      interval: 1h
+  values:
+    connect:
+      create: false              # No Connect server — using Service Account mode
+    operator:
+      create: true
+      authMethod: service-account
+  # The SA token comes from a Kubernetes Secret, NOT from Git.
+  # This is the one "bootstrap" secret that must be created manually
+  # before Flux can deploy this HelmRelease. Once running, it manages
+  # every other secret via OnePasswordItem CRDs.
+  valuesFrom:
+    - kind: Secret
+      name: op-service-account-token
+      valuesKey: token
+      targetPath: operator.serviceAccountToken.value

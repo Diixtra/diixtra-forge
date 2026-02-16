@@ -1,0 +1,34 @@
+# Terraform
+*.tfstate
+*.tfstate.backup
+*.tfplan
+.terraform/
+.terraform.lock.hcl
+crash.log
+
+# Secrets — never commit these
+*.pem
+*.key
+*secret*
+!**/onepassword-item.yaml
+!**/op-service-account-token*
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Node (for Backstage)
+node_modules/
+dist/
+.next/
+
+# Python
+__pycache__/
+*.pyc
+.venv/

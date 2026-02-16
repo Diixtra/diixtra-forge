@@ -1,0 +1,5 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+# Diixtra application services will be added here.
+# Each service gets its own directory with deployment, service, and ingress manifests.
+resources: []

@@ -1,0 +1,32 @@
+# ══════════════════════════════════════════════════════════════════
+# Caddy Persistent Volume Claim
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHY CADDY NEEDS PERSISTENT STORAGE:
+#   Caddy stores TLS certificates in /data. Without persistence:
+#   - Every pod restart triggers a new Let's Encrypt request
+#   - You'll hit Let's Encrypt rate limits (5 duplicate certs/week)
+#   - There's a brief TLS downtime while new certs are issued
+#
+#   With a PVC, certs survive restarts, rescheduling, and upgrades.
+#   NFS is fine here — Caddy only needs ReadWriteOnce for /data
+#   and the I/O is minimal (just cert storage, not serving).
+# ══════════════════════════════════════════════════════════════════
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: caddy-data
+  namespace: caddy-system
+  labels:
+    app.kubernetes.io/name: caddy
+    app.kubernetes.io/part-of: caddy
+    app.kubernetes.io/managed-by: flux
+spec:
+  accessModes:
+    - ReadWriteOnce
+  # Uses the default StorageClass (truenas-nfs)
+  # democratic-csi will auto-create a ZFS dataset on TrueNAS
+  # and configure NFS sharing — zero manual steps.
+  resources:
+    requests:
+      storage: 1Gi

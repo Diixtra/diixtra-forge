@@ -1,0 +1,95 @@
+---
+# Policy: Require resource limits on all containers.
+# Audit mode = reports violations but doesn't block deployments.
+# Switch to "Enforce" once all existing workloads comply.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-resource-limits
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Require Resource Limits
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      All containers must define CPU and memory limits to prevent
+      runaway resource consumption on shared homelab hardware.
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: validate-limits
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "All containers must have CPU and memory limits defined."
+        pattern:
+          spec:
+            containers:
+              - resources:
+                  limits:
+                    cpu: "?*"
+                    memory: "?*"
+---
+# Policy: Require standard labels on all resources.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: require-standard-labels
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Require Standard Labels
+    policies.kyverno.io/category: Best Practices
+    policies.kyverno.io/severity: low
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: require-managed-by
+      match:
+        any:
+          - resources:
+              kinds:
+                - Deployment
+                - StatefulSet
+                - DaemonSet
+      validate:
+        message: "Resources must have 'app.kubernetes.io/managed-by' label."
+        pattern:
+          metadata:
+            labels:
+              app.kubernetes.io/managed-by: "?*"
+---
+# Policy: Disallow privileged containers.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-privileged
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Disallow Privileged Containers
+    policies.kyverno.io/category: Security
+    policies.kyverno.io/severity: high
+spec:
+  validationFailureAction: Audit
+  background: true
+  rules:
+    - name: deny-privileged
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      validate:
+        message: "Privileged containers are not allowed."
+        pattern:
+          spec:
+            containers:
+              - =(securityContext):
+                  =(privileged): "false"

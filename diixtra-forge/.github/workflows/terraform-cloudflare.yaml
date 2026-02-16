@@ -1,0 +1,96 @@
+name: Terraform — Cloudflare
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - 'terraform/cloudflare/**'
+  push:
+    branches: [main]
+    paths:
+      - 'terraform/cloudflare/**'
+
+# Prevent concurrent Terraform runs against the same state
+concurrency:
+  group: terraform-cloudflare
+  cancel-in-progress: false
+
+env:
+  TF_WORKING_DIR: terraform/cloudflare
+
+jobs:
+  plan:
+    name: Terraform Plan
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # 1Password GitHub Action injects secrets as environment variables.
+      # This keeps the secret flow consistent: 1Password is always the source of truth.
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: op://Homelab/cloudflare dns API Credentials/credential
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Plan
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform plan -no-color -out=tfplan
+        env:
+          TF_VAR_cloudflare_api_token: ${{ env.CLOUDFLARE_API_TOKEN }}
+
+      - name: Comment Plan on PR
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const output = `#### Terraform Plan 📖
+            \`\`\`
+            ${{ steps.plan.outputs.stdout }}
+            \`\`\`
+            *Pushed by: @${{ github.actor }}*`;
+            github.rest.issues.createComment({
+              issue_number: context.issue.number,
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              body: output
+            })
+
+  apply:
+    name: Terraform Apply
+    runs-on: ubuntu-latest
+    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v2
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CLOUDFLARE_API_TOKEN: op://Homelab/cloudflare dns API Credentials/credential
+
+      - name: Setup Terraform
+        uses: hashicorp/setup-terraform@v3
+
+      - name: Terraform Init
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform init
+
+      - name: Terraform Apply
+        working-directory: ${{ env.TF_WORKING_DIR }}
+        run: terraform apply -auto-approve
+        env:
+          TF_VAR_cloudflare_api_token: ${{ env.CLOUDFLARE_API_TOKEN }}
