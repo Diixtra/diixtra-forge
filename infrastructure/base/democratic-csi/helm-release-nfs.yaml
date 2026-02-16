@@ -95,8 +95,8 @@ spec:
         # ⚠️  UPDATE THESE PATHS to match your pool name!
         # Replace "tank" with your actual ZFS pool name.
         zfs:
-          datasetParentName: tank/k8s/nfs/vols
-          detachedSnapshotsDatasetParentName: tank/k8s/nfs/snaps
+          datasetParentName: OVERRIDE_IN_ENV_PATCH
+          detachedSnapshotsDatasetParentName: OVERRIDE_IN_ENV_PATCH
 
           # Properties set on each auto-created dataset
           datasetProperties:

@@ -21,3 +21,16 @@ patches:
       name: caddy-config
       namespace: caddy-system
     path: caddy/patches/caddyfile-patch.yaml
+
+  # TrueNAS dataset paths — homelab uses kaz.cloud pool
+  - target:
+      kind: HelmRelease
+      name: truenas-nfs
+      namespace: democratic-csi
+    path: democratic-csi/patches/nfs-config.yaml
+
+  - target:
+      kind: HelmRelease
+      name: truenas-iscsi
+      namespace: democratic-csi
+    path: democratic-csi/patches/iscsi-config.yaml

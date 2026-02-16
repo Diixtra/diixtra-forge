@@ -77,8 +77,8 @@ spec:
 
         zfs:
           # ⚠️  UPDATE THESE PATHS to match your pool name!
-          datasetParentName: tank/k8s/iscsi/vols
-          detachedSnapshotsDatasetParentName: tank/k8s/iscsi/snaps
+          datasetParentName: OVERRIDE_IN_ENV_PATCH
+          detachedSnapshotsDatasetParentName: OVERRIDE_IN_ENV_PATCH
 
           # zvol block size — 16K is optimal for most database workloads
           zvolBlocksize: "16K"
