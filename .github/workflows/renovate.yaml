@@ -1,31 +1,6 @@
 # ══════════════════════════════════════════════════════════════════
 # Renovate Bot — Self-Hosted via GitHub Actions + 1Password
 # ══════════════════════════════════════════════════════════════════
-#
-# LEARNING NOTE — 1PASSWORD IN CI:
-#   Same bootstrap secret pattern as the Kubernetes cluster:
-#   ONE secret (OP_SERVICE_ACCOUNT_TOKEN) stored in GitHub,
-#   everything else fetched from 1Password at runtime.
-#
-#   The 1password/load-secrets-action reads op:// references
-#   and injects them as environment variables. The GitHub PAT
-#   for Renovate lives in 1Password — never stored in GitHub
-#   as a second copy.
-#
-#   This means rotation is: update 1Password → done.
-#   No need to also update GitHub Secrets.
-#
-# LEARNING NOTE — WHY SELF-HOSTED RENOVATE:
-#   There are two ways to run Renovate:
-#     1. The Renovate GitHub App (hosted by Mend) — easiest but requires
-#        granting a third-party app access to your repo
-#     2. Self-hosted via GitHub Actions — runs on your own runner,
-#        uses your own GITHUB_TOKEN, no third-party access
-#
-#   For a private infrastructure repo with secrets and configs,
-#   self-hosted is the safer choice. It runs as a scheduled Action
-#   every 6 hours and creates/merges PRs just like the app would.
-# ══════════════════════════════════════════════════════════════════
 name: Renovate
 on:
   schedule:
@@ -51,11 +26,31 @@ jobs:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
           RENOVATE_TOKEN: op://Homelab/renovate-github-pat/credential
 
+      - name: Verify token loaded
+        run: |
+          if [ -z "$RENOVATE_TOKEN" ]; then
+            echo "::error::RENOVATE_TOKEN is empty - 1Password load failed"
+            exit 1
+          fi
+          echo "Token loaded (length: ${#RENOVATE_TOKEN})"
+          # Test the token can access the repo API
+          HTTP_CODE=$(curl -s -o /dev/null -w "%{http_code}" \
+            -H "Authorization: Bearer $RENOVATE_TOKEN" \
+            -H "Accept: application/vnd.github+json" \
+            "https://api.github.com/repos/${{ github.repository }}")
+          echo "GitHub API response: $HTTP_CODE"
+          if [ "$HTTP_CODE" != "200" ]; then
+            echo "::error::Token cannot access repo (HTTP $HTTP_CODE)"
+            exit 1
+          fi
+        env:
+          RENOVATE_TOKEN: ${{ env.RENOVATE_TOKEN }}
+
       - name: Run Renovate
         uses: renovatebot/github-action@v46.1.1
         with:
           configurationFile: .renovaterc
           token: ${{ env.RENOVATE_TOKEN }}
         env:
-          LOG_LEVEL: info
+          LOG_LEVEL: debug
           RENOVATE_REPOSITORIES: ${{ github.repository }}
