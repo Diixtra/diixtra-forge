@@ -46,7 +46,7 @@ spec:
 #
 #   The policy watches the `:latest` tag specifically, and when its
 #   digest changes, triggers an update in Git.
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
   name: caddy
