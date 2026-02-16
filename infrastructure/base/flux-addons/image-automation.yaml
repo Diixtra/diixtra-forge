@@ -75,7 +75,7 @@ spec:
 #
 #   The commit message template uses Go templating to include
 #   which images were updated and their new versions.
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageUpdateAutomation
 metadata:
   name: flux-system
