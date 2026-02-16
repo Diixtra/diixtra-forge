@@ -58,3 +58,4 @@ jobs:
           token: ${{ env.RENOVATE_TOKEN }}
         env:
           LOG_LEVEL: info
+          RENOVATE_REPOSITORIES: ${{ github.repository }}
