@@ -1,0 +1,66 @@
+{
+  "$schema": "https://docs.renovatebot.com/renovate-schema.json",
+
+  "extends": [
+    "config:recommended",
+    ":automergeAll",
+    ":automergePatch",
+    ":automergeMinor"
+  ],
+
+  "automerge": true,
+  "automergeType": "pr",
+
+  "flux": {
+    "managerFilePatterns": [
+      "/(^|/)clusters/.+\\.ya?ml$/",
+      "/(^|/)infrastructure/.+\\.ya?ml$/",
+      "/(^|/)platform/.+\\.ya?ml$/",
+      "/(^|/)apps/.+\\.ya?ml$/"
+    ]
+  },
+
+  "kubernetes": {
+    "managerFilePatterns": [
+      "/(^|/)infrastructure/.+\\.ya?ml$/",
+      "/(^|/)platform/.+\\.ya?ml$/",
+      "/(^|/)apps/.+\\.ya?ml$/"
+    ]
+  },
+
+  "github-actions": {
+    "managerFilePatterns": ["/^.github/workflows/[^/]+\\.ya?ml$/"]
+  },
+
+  "terraform": {
+    "managerFilePatterns": ["/(^|/)terraform/.+\\.tf$/"]
+  },
+
+  "packageRules": [
+    {
+      "matchPackageNames": ["/^ghcr.io/fluxcd//"],
+      "groupName": "Flux controllers",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["github-actions"],
+      "groupName": "GitHub Actions",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["terraform"],
+      "groupName": "Terraform providers",
+      "automerge": true
+    },
+    {
+      "matchManagers": ["flux"],
+      "matchUpdateTypes": ["patch", "minor"],
+      "groupName": "Helm charts",
+      "automerge": true
+    }
+  ],
+
+  "prHourlyLimit": 10,
+  "prConcurrentLimit": 5,
+  "commitMessagePrefix": "chore(deps):"
+}
