@@ -2,6 +2,28 @@
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
+  name: platform-crds
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./platform/homelab/crds
+  prune: true
+  wait: true
+  dependsOn:
+    - name: infrastructure
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+---
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
   name: platform
   namespace: flux-system
 spec:
@@ -11,12 +33,12 @@ spec:
   sourceRef:
     kind: GitRepository
     name: flux-system
-  path: ./platform/homelab
+  path: ./platform/homelab/policies
   prune: true
   wait: true
-  # Platform only deploys after infrastructure is fully healthy.
-  # This guarantees the 1Password operator is running before Kyverno
-  # tries to pull policy configs, and MetalLB is ready before
-  # any platform services need LoadBalancer IPs.
   dependsOn:
-    - name: infrastructure
+    - name: platform-crds
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
