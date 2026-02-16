@@ -25,12 +25,12 @@ jobs:
     if: github.event_name == 'pull_request'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       # 1Password GitHub Action injects secrets as environment variables.
       # This keeps the secret flow consistent: 1Password is always the source of truth.
       - name: Load secrets from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v3
         with:
           export-env: true
         env:
@@ -51,7 +51,7 @@ jobs:
           TF_VAR_cloudflare_api_token: ${{ env.CLOUDFLARE_API_TOKEN }}
 
       - name: Comment Plan on PR
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           script: |
             const output = `#### Terraform Plan 📖
@@ -72,10 +72,10 @@ jobs:
     if: github.ref == 'refs/heads/main' && github.event_name == 'push'
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
 
       - name: Load secrets from 1Password
-        uses: 1password/load-secrets-action@v2
+        uses: 1password/load-secrets-action@v3
         with:
           export-env: true
         env:
