@@ -52,7 +52,7 @@ jobs:
           RENOVATE_TOKEN: op://Homelab/renovate-github-pat/credential
 
       - name: Run Renovate
-        uses: renovatebot/github-action@v41
+        uses: renovatebot/github-action@v46
         with:
           configurationFile: renovate.json
           token: ${{ env.RENOVATE_TOKEN }}
