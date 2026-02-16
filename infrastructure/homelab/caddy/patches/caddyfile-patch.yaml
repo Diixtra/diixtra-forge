@@ -6,11 +6,11 @@ metadata:
 data:
   Caddyfile: |
     {
-      email james@kazie.co.uk
+      email ${ACME_EMAIL}
     }
 
     # Catch-all test endpoint — proves TLS and DNS-01 challenge work
-    test.lab.kazie.co.uk {
+    test.${LAB_DOMAIN} {
       tls {
         dns cloudflare {env.CF_API_TOKEN}
         resolvers 1.1.1.1
@@ -19,11 +19,11 @@ data:
     }
 
     # Add new service routes below this line.
-    # Each service gets a subdomain under lab.kazie.co.uk
+    # Each service gets a subdomain under ${LAB_DOMAIN}
     # and automatic TLS via Cloudflare DNS-01 challenge.
     #
     # Example:
-    # grafana.lab.kazie.co.uk {
+    # grafana.${LAB_DOMAIN} {
     #   tls {
     #     dns cloudflare {env.CF_API_TOKEN}
     #     resolvers 1.1.1.1

@@ -14,5 +14,9 @@ spec:
   path: ./apps/dev
   prune: true
   wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
   dependsOn:
     - name: platform

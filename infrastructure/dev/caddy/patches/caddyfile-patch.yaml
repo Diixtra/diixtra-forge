@@ -6,7 +6,7 @@ metadata:
 data:
   Caddyfile: |
     {
-      email james@kazie.co.uk
+      email ${ACME_EMAIL}
     }
 
     # Dev cluster — local development endpoints

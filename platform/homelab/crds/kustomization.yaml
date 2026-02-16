@@ -1,3 +1,17 @@
+# ══════════════════════════════════════════════════════════════════
+# Platform Stage 1 — CRD-bearing HelmReleases
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHY TWO STAGES:
+#   Flux dry-runs ALL resources in a Kustomization before applying.
+#   If Kyverno CRDs don't exist yet, dry-running a ClusterPolicy
+#   fails the entire batch — even though the HelmRelease that
+#   installs those CRDs is in the same batch.
+#
+#   Solution: stage 1 installs HelmReleases (which bring CRDs),
+#   stage 2 installs policies (which require those CRDs).
+#   dependsOn between the two Flux Kustomizations ensures ordering.
+# ══════════════════════════════════════════════════════════════════
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:

@@ -48,3 +48,33 @@ metadata:
 spec:
   interval: 24h
   url: https://grafana.github.io/helm-charts
+---
+# Actions Runner Controller (ARC) — OCI registry
+#
+# LEARNING NOTE — OCI vs HTTPS HELM REPOSITORIES:
+#   Traditional Helm repos serve an index.yaml over HTTPS that lists
+#   all available charts and versions. The client downloads this index,
+#   finds the chart URL, and fetches the .tgz archive.
+#
+#   OCI Helm repos store charts as OCI artifacts (same format as
+#   container images) in a container registry. Benefits:
+#     - No index.yaml to maintain or cache
+#     - Content-addressable via SHA256 digests
+#     - Reuse existing container registry infrastructure and auth
+#     - Charts and images can live side-by-side in the same registry
+#
+#   Flux supports both via the `type` field:
+#     - type: default (or omitted) → HTTPS Helm repo
+#     - type: oci → OCI container registry
+#
+#   The URL format changes: oci://registry/path (no chart name yet).
+#   The chart name is specified in the HelmRelease chart.spec.chart field.
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: actions-runner-controller
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 24h
+  url: oci://ghcr.io/actions/actions-runner-controller-charts

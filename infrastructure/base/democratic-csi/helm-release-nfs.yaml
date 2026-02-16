@@ -82,18 +82,18 @@ spec:
 
         httpConnection:
           protocol: https
-          host: 10.2.0.232
+          host: ${TRUENAS_HOST}
           port: 443
           # apiKey is injected via valuesFrom above — NOT in Git
           allowInsecure: true    # TrueNAS uses self-signed cert
 
         # ── ZFS Dataset Configuration ────────────────────────────
         # democratic-csi creates CHILD datasets under these parents
-        # for each PVC. e.g., a PVC named "caddy-data" in namespace
-        # "caddy-system" creates: tank/k8s/nfs/vols/pvc-<uuid>
+        # for each PVC. e.g., a PVC creates: <parent>/pvc-<uuid>
         #
-        # ⚠️  UPDATE THESE PATHS to match your pool name!
-        # Replace "tank" with your actual ZFS pool name.
+        # These are PLACEHOLDERS — each environment MUST override
+        # them via Kustomize patch in infrastructure/<env>/
+        # See: infrastructure/homelab/democratic-csi/patches/
         zfs:
           datasetParentName: OVERRIDE_IN_ENV_PATCH
           detachedSnapshotsDatasetParentName: OVERRIDE_IN_ENV_PATCH
@@ -107,7 +107,7 @@ spec:
           datasetEnableReservation: false
 
         nfs:
-          shareHost: 10.2.0.232
+          shareHost: ${TRUENAS_HOST}
           shareAlldirs: false
           shareAllowedHosts: []
           shareAllowedNetworks: []

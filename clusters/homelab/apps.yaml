@@ -19,3 +19,7 @@ spec:
   # is collecting metrics before any application workloads start.
   dependsOn:
     - name: platform
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars

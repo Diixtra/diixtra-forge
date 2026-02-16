@@ -10,6 +10,7 @@ resources:
   - ../base/metallb
   - ../base/caddy
   - ../base/democratic-csi
+  - ../base/github-actions-runner
 
   # Homelab-only resources
   - metallb/patches/ip-pool.yaml

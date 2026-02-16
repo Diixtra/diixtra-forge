@@ -1,0 +1,117 @@
+# ══════════════════════════════════════════════════════════════════
+# ARC Runner Scale Set — The actual runner pool configuration
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — HOW SCALE SETS WORK:
+#   This HelmRelease creates an AutoScalingRunnerSet custom resource.
+#   The ARC controller watches it and creates:
+#
+#   1. A Listener pod — long-polls GitHub's API for queued jobs
+#      matching `runs-on: homelab` (the installation name)
+#   2. When a job is queued, the Listener scales up EphemeralRunnerSet
+#   3. A runner pod is created with a JIT (Just-In-Time) token
+#   4. The runner registers with GitHub, executes the job, terminates
+#   5. Fresh pod for every job — no state leakage between workflows
+#
+#   This ephemeral model is a security feature: each job gets a
+#   clean environment. No risk of one workflow's secrets being
+#   accessible to the next workflow via leftover files or env vars.
+#
+# LEARNING NOTE — INSTALLATION NAME = runs-on LABEL:
+#   Whatever you name this Helm installation becomes the label
+#   you use in workflows: `runs-on: homelab`. Choose carefully —
+#   changing it later means updating every workflow that references it.
+#
+# LEARNING NOTE — dependsOn:
+#   Flux's dependsOn is different from Kustomize dependencies.
+#   It tells the helm-controller: "don't install this HelmRelease
+#   until the named HelmRelease is Ready." This ensures the ARC
+#   CRDs exist before we try to create an AutoScalingRunnerSet.
+#
+#   Same pattern as Kyverno: CRDs must exist before CRs that use them.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-runner-set
+  namespace: arc-runners
+spec:
+  interval: 30m
+  # LEARNING NOTE — releaseName vs metadata.name:
+  #   Flux defaults the Helm release name to the HelmRelease's
+  #   metadata.name. But ARC uses the Helm release name as the
+  #   `runs-on` label in GitHub Actions workflows.
+  #
+  #   We want `runs-on: homelab` (clean, descriptive), not
+  #   `runs-on: arc-runner-set`. So we override releaseName.
+  #
+  #   metadata.name stays as `arc-runner-set` for Flux management,
+  #   but the actual Helm release in the cluster is called `homelab`.
+  releaseName: homelab
+  # Wait for the controller to be healthy before installing runners
+  dependsOn:
+    - name: arc-controller
+      namespace: arc-system
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+      interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
+  # LEARNING NOTE — githubConfigUrl SCOPE:
+  #   - Repository URL (github.com/org/repo): runners serve only that repo
+  #   - Organisation URL (github.com/org): runners serve any repo in the org
+  #
+  #   Org-level is more flexible but requires broader PAT scope.
+  #   For homelab, repo-level is fine — we only have diixtra-forge.
+  #   Change to org-level when you add more repos.
+  values:
+    # The GitHub entity this runner pool serves
+    githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"
+    # Reference the pre-defined K8s Secret (synced from 1Password)
+    githubConfigSecret: github-config-secret
+    # LEARNING NOTE — SCALING STRATEGY:
+    #   minRunners: 0 means no idle pods consuming resources.
+    #   Runners spin up only when a job is queued (10-30s cold start).
+    #   For a homelab, this is perfect — save resources.
+    #   In production, minRunners: 1+ keeps a warm runner for faster starts.
+    minRunners: 0
+    maxRunners: 2
+    # Runner pod spec customisation
+    template:
+      spec:
+        # LEARNING NOTE — MULTI-ARCH NODE SCHEDULING:
+        #   The ARC runner image (ghcr.io/actions/actions-runner) is amd64-only.
+        #   Your cluster has mixed architectures (amd64 control plane + ARM
+        #   Raspberry Pi workers). Without a nodeSelector, Kubernetes might
+        #   schedule the runner pod on an ARM node where the image can't run.
+        #
+        #   nodeSelector is the simplest scheduling constraint — it tells
+        #   the scheduler "only place this pod on nodes with this label."
+        #   Every node automatically gets kubernetes.io/arch from kubelet.
+        #
+        #   Alternatives (increasing flexibility):
+        #   - nodeSelector: exact match, simplest (what we use)
+        #   - nodeAffinity: supports set-based matching (In, NotIn, Exists)
+        #   - tolerations + taints: allow but don't force scheduling
+        #   - topology spread constraints: distribute across failure domains
+        nodeSelector:
+          kubernetes.io/arch: amd64
+        containers:
+          - name: runner
+            image: ghcr.io/actions/actions-runner:latest
+            command: ["/home/runner/run.sh"]
+            resources:
+              requests:
+                cpu: 250m
+                memory: 256Mi
+              limits:
+                cpu: "1"
+                memory: 1Gi

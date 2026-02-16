@@ -4,10 +4,10 @@ on:
   pull_request:
     branches: [main]
     paths:
-      - 'infrastructure/**'
-      - 'platform/**'
-      - 'apps/**'
-      - 'clusters/**'
+      - "infrastructure/**"
+      - "platform/**"
+      - "apps/**"
+      - "clusters/**"
 
 jobs:
   validate:
@@ -17,16 +17,21 @@ jobs:
       matrix:
         # Validate every cluster overlay independently.
         # If any single overlay fails to build, the PR is blocked.
+        # Each entry must be a directory containing kustomization.yaml.
+        # Platform uses a two-stage split (CRDs install before policies),
+        # so each stage is validated independently.
         overlay:
           - infrastructure/homelab
           - infrastructure/dev
-          - platform/homelab
-          - platform/dev
+          - platform/homelab/crds
+          - platform/homelab/policies
+          - platform/dev/crds
+          - platform/dev/policies
           - apps/homelab
           - apps/dev
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
 
       - name: Setup Flux CLI
         uses: fluxcd/flux2/action@main

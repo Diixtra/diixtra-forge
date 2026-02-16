@@ -22,11 +22,21 @@ spec:
         name: kyverno
         namespace: flux-system
       interval: 1h
+  # ── Timeouts ──────────────────────────────────────────────────
+  # LEARNING NOTE — WHY 10m:
+  #   Kyverno installs 69 resources (4 controllers, CRDs, RBAC,
+  #   webhooks, services). On first install, Helm waits for ALL
+  #   resources to be ready. The default 5m timeout isn't enough
+  #   on resource-constrained nodes (ARM, homelab).
+  #   Helm records the install as "Failed" if timeout expires,
+  #   even if pods eventually come up healthy. A failed release
+  #   requires manual cleanup (delete helm secrets) to retry.
   install:
-    timeout: 10m
     crds: CreateReplace
+    timeout: 10m
   upgrade:
     crds: CreateReplace
+    timeout: 10m
   values:
     # Start with minimal resource footprint for homelab
     replicaCount: 1

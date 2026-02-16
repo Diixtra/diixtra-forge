@@ -9,7 +9,7 @@ metadata:
   namespace: metallb-system
 spec:
   addresses:
-    - 10.2.0.200-10.2.0.210
+    - ${METALLB_IP_RANGE}
 ---
 # L2Advertisement tells MetalLB to use Layer 2 mode (ARP).
 # MetalLB responds to ARP requests on the LAN, making the
