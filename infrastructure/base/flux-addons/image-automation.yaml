@@ -21,7 +21,7 @@
 # ── ImageRepository: Tell Flux WHERE to look for images ──────────
 # This creates a scanner that polls GHCR every 5 minutes for new
 # tags/digests under the caddybuilds/caddy-cloudflare image.
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: caddy-cloudflare
