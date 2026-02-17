@@ -1,0 +1,18 @@
+# ══════════════════════════════════════════════════════════════════
+# Cluster Entry Point — Dev
+# ══════════════════════════════════════════════════════════════════
+#
+# NOTE: When this cluster is bootstrapped with Flux, a flux-system/
+# subdirectory will be created. It MUST be added to the resources
+# list below or Flux will prune itself. See clusters/homelab/ for
+# the pattern.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Cluster variables ConfigMap — consumed by postBuild.substituteFrom
+  - vars.yaml
+  # Layer definitions (Flux capital-K Kustomizations)
+  - infrastructure.yaml
+  - platform.yaml
+  - apps.yaml
