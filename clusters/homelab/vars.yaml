@@ -42,19 +42,18 @@ data:
   LAB_DOMAIN: "lab.kazie.co.uk"
   ACME_EMAIL: "james@kazie.co.uk"
   FLUX_GIT_EMAIL: "flux@kazie.co.uk"
-
   # ── 1Password Configuration ────────────────────────────────────
   # Vault name and item titles must match EXACTLY what's in 1Password.
   # Spaces and capitalisation matter.
   OP_VAULT: "Homelab"
   OP_ITEM_CLOUDFLARE: "cloudflare dns API Credentials"
   OP_ITEM_TRUENAS: "Truenas API Credential"
-
   # ── Network Configuration ──────────────────────────────────────
   METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"
   TRUENAS_ISCSI_PORTAL: "10.2.0.232:3260"
-
+  # ── External Devices ───────────────────────────────────────────
+  HOME_ASSISTANT_HOST: "10.2.20.171"
   # ── GitHub Actions Runner ──────────────────────────────────────
   # URL of the GitHub entity runners will serve.
   # Repo-level: "https://github.com/Diixtra/diixtra-forge"

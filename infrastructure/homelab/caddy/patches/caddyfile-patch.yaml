@@ -1,32 +1,151 @@
 apiVersion: v1
+apiVersion: v1
 kind: ConfigMap
 metadata:
   name: caddy-config
   namespace: caddy-system
 data:
   Caddyfile: |
+    # ══════════════════════════════════════════════════════════════
+    # Homelab Caddyfile — Reverse Proxy Configuration
+    # ══════════════════════════════════════════════════════════════
+    #
+    # All domains use wildcard TLS via Cloudflare DNS-01 challenge.
+    # Variables (${...}) are substituted by Flux postBuild.
+    # {env.CF_API_TOKEN} is a Caddy runtime env var from the
+    # cloudflare-api-token Secret mounted in the Caddy deployment.
+    #
+    # Snippets reduce repetition — import them per-route.
+    # ══════════════════════════════════════════════════════════════
+
     {
       email ${ACME_EMAIL}
     }
 
-    # Catch-all test endpoint — proves TLS and DNS-01 challenge work
-    test.${LAB_DOMAIN} {
+    # ── Reusable Snippets ──────────────────────────────────────
+
+    # TLS via Cloudflare DNS-01 challenge
+    (tls-cloudflare) {
       tls {
         dns cloudflare {env.CF_API_TOKEN}
         resolvers 1.1.1.1
       }
+    }
+
+    # Common security headers
+    (security-headers) {
+      header {
+        X-Content-Type-Options nosniff
+        X-Frame-Options DENY
+        Referrer-Policy strict-origin-when-cross-origin
+      }
+    }
+
+    # Reverse proxy to upstream serving HTTPS with self-signed cert
+    (reverse-proxy-https) {
+      reverse_proxy https://{args[0]} {
+        transport http {
+          tls
+          tls_insecure_skip_verify
+        }
+      }
+    }
+
+    # ── Test Endpoint ──────────────────────────────────────────
+
+    test.${LAB_DOMAIN} {
+      import tls-cloudflare
       respond "Caddy is working on {host}" 200
     }
 
-    # Add new service routes below this line.
-    # Each service gets a subdomain under ${LAB_DOMAIN}
-    # and automatic TLS via Cloudflare DNS-01 challenge.
-    #
-    # Example:
-    # grafana.${LAB_DOMAIN} {
-    #   tls {
-    #     dns cloudflare {env.CF_API_TOKEN}
-    #     resolvers 1.1.1.1
-    #   }
-    #   reverse_proxy grafana.monitoring.svc.cluster.local:3000
-    # }
+    # ── TrueNAS WebUI ─────────────────────────────────────────
+    # Server: TrueNAS SCALE @ ${TRUENAS_HOST}
+
+    truenas.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:443
+    }
+
+    # ── TrueNAS Apps ──────────────────────────────────────────
+    # Server: TrueNAS SCALE apps @ ${TRUENAS_HOST}
+    # These are containerised apps managed by TrueNAS, exposed
+    # via NodePort on the TrueNAS host IP.
+
+    n8n.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:30109
+    }
+
+    # Nextcloud uses root domain (nc.kazie.co.uk), not lab subdomain
+    nc.${DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:30027
+    }
+
+    uptime-kuma.${LAB_DOMAIN} {
+      import tls-cloudflare
+      reverse_proxy http://${TRUENAS_HOST}:31050
+    }
+
+    grafana.${LAB_DOMAIN} {
+      import tls-cloudflare
+      reverse_proxy http://${TRUENAS_HOST}:30037
+    }
+
+    prometheus.${LAB_DOMAIN} {
+      import tls-cloudflare
+      reverse_proxy http://${TRUENAS_HOST}:30104
+    }
+
+    portainer.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:31015
+    }
+
+    playwright.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:30150
+    }
+
+    auth.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      import reverse-proxy-https ${TRUENAS_HOST}:30141
+    }
+
+    # ── External Devices ──────────────────────────────────────
+    # Server: Home Assistant @ ${HOME_ASSISTANT_HOST}
+    # Standalone device on the network, not managed by TrueNAS.
+
+    ha.${LAB_DOMAIN} {
+      import tls-cloudflare
+      reverse_proxy http://${HOME_ASSISTANT_HOST}:8123
+    }
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
