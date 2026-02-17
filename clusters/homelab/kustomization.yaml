@@ -1,0 +1,24 @@
+# ══════════════════════════════════════════════════════════════════
+# Cluster Entry Point — Homelab
+# ══════════════════════════════════════════════════════════════════
+#
+# CRITICAL: This file MUST exist and MUST include flux-system/.
+#
+# Without it, Kustomize auto-generates a resource list from
+# top-level .yaml files only — subdirectories are excluded.
+# The flux-system Kustomization (gotk-sync.yaml) points here
+# with prune: true, meaning anything NOT in the build output
+# gets deleted. If flux-system/ isn't listed, Flux treats its
+# own controllers as orphaned resources and prunes itself.
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # Flux GitOps controllers — MUST be included or Flux prunes itself
+  - flux-system
+  # Cluster variables ConfigMap — consumed by postBuild.substituteFrom
+  - vars.yaml
+  # Layer definitions (Flux capital-K Kustomizations)
+  - infrastructure.yaml
+  - platform.yaml
+  - apps.yaml
