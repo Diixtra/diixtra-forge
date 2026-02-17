@@ -1,0 +1,9 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  # HelmRepositories + Image Automation — no CRD dependencies
+  - ../../base/flux-addons
+  # CRD providers — these HelmReleases install the CRDs that
+  # other infrastructure resources depend on.
+  - ../../base/onepassword-operator
+  - ../../base/metallb
