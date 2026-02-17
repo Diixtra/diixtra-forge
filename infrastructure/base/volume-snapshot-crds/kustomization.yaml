@@ -1,0 +1,9 @@
+# VolumeSnapshot CRDs from kubernetes-csi/external-snapshotter v8.2.0
+# kubeadm does not ship these — they must be installed separately.
+# Required by any CSI driver that supports volume snapshots (e.g. democratic-csi).
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - volumesnapshotclasses.yaml
+  - volumesnapshotcontents.yaml
+  - volumesnapshots.yaml
