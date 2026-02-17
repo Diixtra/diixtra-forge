@@ -5,15 +5,17 @@ Flux CD Bootstrap Script for diixtra-forge
 
 PURPOSE:
     Automates the complete bootstrapping of Flux CD on a Kubernetes cluster,
-    from GitHub repo creation through to verified reconciliation.
+    from pre-flight validation through to verified reconciliation of all layers.
 
 WHAT THIS SCRIPT DOES (in order):
-    1. Pre-flight checks    — Verifies all required tools are installed and reachable
-    2. GitHub repo creation — Creates the private repo via `gh` CLI
-    3. Git push             — Initializes the local scaffold and pushes to GitHub
+    1. Pre-flight checks    — Verifies CLI tools, env vars, cluster connectivity,
+                              node-level dependencies (open-iscsi), scaffold structure
+    2. GitHub repo setup    — Creates the private repo via `gh` CLI (idempotent)
+    3. Git push             — Initializes local scaffold and pushes to GitHub
     4. Bootstrap secret     — Creates the 1Password SA token secret on the cluster
     5. Flux bootstrap       — Installs Flux controllers and configures GitOps sync
-    6. Verification         — Polls Flux resources until reconciliation is confirmed
+    6. RBAC recovery        — Applies gotk-components.yaml if controllers can't auth
+    7. Verification         — Polls all 6 Flux Kustomizations until fully reconciled
 
 LEARNING NOTES — WHY PYTHON AND NOT BASH:
     Bash is fine for linear "do A then B then C" scripts. But this bootstrap has:
@@ -42,16 +44,21 @@ USAGE:
     python3 scripts/bootstrap.py
 
     # Or inject secrets via 1Password CLI:
+    export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
     op run --env-file=.env -- python3 scripts/bootstrap.py
+
+    # Dry run (validates everything without making changes):
+    python3 scripts/bootstrap.py --dry-run
 """
 
+import argparse
 import json
 import os
 import shutil
 import subprocess
 import sys
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
@@ -75,10 +82,10 @@ class Config:
     """All bootstrap configuration. No hardcoded values below this class."""
 
     # ── GitHub ──────────────────────────────────────────────────────────
-    github_owner: str = "OWNER"              # Your GitHub username or org
+    github_owner: str = "Diixtra"
     github_repo: str = "diixtra-forge"
     github_branch: str = "main"
-    github_visibility: str = "private"       # "private" or "public"
+    github_visibility: str = "private"
 
     # ── Flux ────────────────────────────────────────────────────────────
     # The cluster path tells Flux "watch this directory for your config."
@@ -88,19 +95,27 @@ class Config:
     cluster_name: str = "homelab"
     cluster_path: str = "clusters/homelab"
 
+    # Extra Flux components beyond the default four controllers.
+    # Image reflector/automation enable automatic container image updates.
+    flux_extra_components: str = "image-reflector-controller,image-automation-controller"
+
     # ── 1Password Bootstrap Secret ──────────────────────────────────────
     # LEARNING NOTE — THE BOOTSTRAP SECRET CHICKEN-AND-EGG:
     #   Every secret management system has exactly one secret it can't
     #   manage itself — its own credential. For us, that's the 1Password
     #   Service Account token. This token must exist as a Kubernetes Secret
     #   BEFORE Flux deploys the 1Password Operator HelmRelease, because
-    #   the HelmRelease references it via `valuesFrom`. Once the operator
-    #   is running, it manages every other secret via OnePasswordItem CRDs.
+    #   the operator pod mounts it directly as a volume.
+    #
+    #   The secret name MUST match the Helm chart's default:
+    #   `onepassword-service-account-token` with key `token`.
+    #   This is set in the HelmRelease values at:
+    #   operator.serviceAccountToken.name
     #
     #   This is universal: HashiCorp Vault needs an unseal key, AWS Secrets
     #   Manager needs IAM credentials, External Secrets Operator needs a
     #   provider token. There's always exactly one manual secret per cluster.
-    op_secret_name: str = "op-service-account-token"
+    op_secret_name: str = "onepassword-service-account-token"
     op_secret_namespace: str = "onepassword-system"
     op_secret_key: str = "token"
 
@@ -109,21 +124,44 @@ class Config:
     kube_context: str = ""
 
     # ── Retry Configuration ─────────────────────────────────────────────
-    reconciliation_timeout_seconds: int = 300  # 5 minutes max wait
-    reconciliation_poll_interval: int = 10     # Check every 10 seconds
+    reconciliation_timeout_seconds: int = 600  # 10 minutes — HelmReleases take time
+    reconciliation_poll_interval: int = 15     # Check every 15 seconds
+
+    # ── RBAC Recovery ───────────────────────────────────────────────────
+    # LEARNING NOTE — THE RBAC BOOTSTRAP CATCH-22:
+    #   When Flux bootstrap installs controllers, it sometimes fails to
+    #   create the RBAC resources (ServiceAccounts, ClusterRoleBindings)
+    #   before the pods start. The pods crash with "the server has asked
+    #   for the client to provide credentials" because they have no
+    #   ServiceAccount. The fix is to manually apply gotk-components.yaml,
+    #   which contains ALL Flux resources including RBAC. Once applied,
+    #   the controllers restart and self-manage from there.
+    rbac_recovery_enabled: bool = True
 
     # ── Local Paths ─────────────────────────────────────────────────────
-    # Path to the repo scaffold (this directory)
     repo_root: str = ""
+
+    # ── Dry Run ─────────────────────────────────────────────────────────
+    dry_run: bool = False
+
+    # ── Expected Kustomizations ─────────────────────────────────────────
+    # All 6 layers that must reconcile for a healthy cluster.
+    # Order matches the dependency chain.
+    expected_kustomizations: list = field(default_factory=lambda: [
+        "flux-system",
+        "infrastructure-crds",
+        "infrastructure",
+        "platform-crds",
+        "platform",
+        "apps",
+    ])
 
     def __post_init__(self):
         """Resolve paths and override from environment variables."""
         if not self.repo_root:
-            # Script is in scripts/, repo root is one level up
             self.repo_root = str(Path(__file__).parent.parent.resolve())
 
-        # Environment variable overrides — allows runtime configuration
-        # without editing this file. Follows 12-Factor App principles.
+        # Environment variable overrides — follows 12-Factor App principles.
         self.github_owner = os.environ.get("GITHUB_OWNER", self.github_owner)
         self.github_repo = os.environ.get("GITHUB_REPO", self.github_repo)
         self.github_branch = os.environ.get("GITHUB_BRANCH", self.github_branch)
@@ -150,6 +188,7 @@ def run_cmd(
     check: bool = True,
     input_text: Optional[str] = None,
     cwd: Optional[str] = None,
+    timeout: Optional[int] = None,
 ) -> subprocess.CompletedProcess:
     """
     Execute a shell command with proper error handling.
@@ -169,15 +208,6 @@ def run_cmd(
         parameter is scoped to a single subprocess.run() call — it changes
         the working directory only for that child process, leaving the
         parent process unaffected. Always prefer cwd over os.chdir().
-
-    Args:
-        cmd:        Command as a list of strings (NOT a single string — avoids
-                    shell injection and handles spaces in arguments correctly)
-        capture:    If True, capture stdout/stderr instead of printing
-        env_extra:  Additional environment variables to set for this command
-        check:      If True (default), raise on non-zero exit code
-        input_text: String to pipe to stdin (for passing secrets safely)
-        cwd:        Working directory for the command (None = inherit from parent)
     """
     env = os.environ.copy()
     if env_extra:
@@ -186,18 +216,18 @@ def run_cmd(
     kwargs = {
         "env": env,
         "check": check,
-        "text": True,  # Decode stdout/stderr as UTF-8 strings
+        "text": True,
     }
 
     if capture:
         kwargs["stdout"] = subprocess.PIPE
         kwargs["stderr"] = subprocess.PIPE
-
     if input_text is not None:
         kwargs["input"] = input_text
-
     if cwd is not None:
         kwargs["cwd"] = cwd
+    if timeout is not None:
+        kwargs["timeout"] = timeout
 
     return subprocess.run(cmd, **kwargs)
 
@@ -205,6 +235,22 @@ def run_cmd(
 def cmd_exists(name: str) -> bool:
     """Check if a command-line tool is available on PATH."""
     return shutil.which(name) is not None
+
+
+def kube_cmd(config: Config, *args: str) -> list[str]:
+    """Build a kubectl command with optional context flag."""
+    cmd = ["kubectl"] + list(args)
+    if config.kube_context:
+        cmd.extend(["--context", config.kube_context])
+    return cmd
+
+
+def flux_cmd(config: Config, *args: str) -> list[str]:
+    """Build a flux command with optional context flag."""
+    cmd = ["flux"] + list(args)
+    if config.kube_context:
+        cmd.extend(["--context", config.kube_context])
+    return cmd
 
 
 # =============================================================================
@@ -226,6 +272,7 @@ def cmd_exists(name: str) -> bool:
 def preflight_checks(config: Config) -> None:
     """Verify all prerequisites before making any changes."""
     log("🔍", "Running pre-flight checks...")
+    errors: list[str] = []
 
     # ── Required CLI tools ──────────────────────────────────────────
     required_tools = {
@@ -233,77 +280,131 @@ def preflight_checks(config: Config) -> None:
         "kubectl": "Kubernetes CLI — install: https://kubernetes.io/docs/tasks/tools/",
         "gh": "GitHub CLI — install: https://cli.github.com/",
         "git": "Git — install: sudo apt install git",
+        "op": "1Password CLI — install: https://developer.1password.com/docs/cli/get-started/",
     }
 
-    missing = []
     for tool, install_hint in required_tools.items():
         if cmd_exists(tool):
-            # Get version for debugging context
             try:
-                result = run_cmd([tool, "version"], capture=True, check=False)
+                result = run_cmd([tool, "version" if tool != "op" else "--version"],
+                                 capture=True, check=False)
                 version = result.stdout.strip().split("\n")[0]
                 log("  ✅", f"{tool}: {version}")
             except Exception:
                 log("  ✅", f"{tool}: found")
         else:
             log("  ❌", f"{tool}: NOT FOUND — {install_hint}")
-            missing.append(tool)
-
-    if missing:
-        log("💀", f"Missing required tools: {', '.join(missing)}")
-        sys.exit(1)
+            errors.append(f"Missing tool: {tool}")
 
     # ── Environment variables ───────────────────────────────────────
     # LEARNING NOTE — GITHUB_TOKEN vs GH_TOKEN:
     #   The Flux CLI reads GITHUB_TOKEN. The GitHub CLI (gh) reads GH_TOKEN
     #   or GITHUB_TOKEN. We check for GITHUB_TOKEN since both tools use it.
-    #   The 1Password SA token is checked separately because it's only
-    #   needed for the bootstrap secret step.
-    if not os.environ.get("GITHUB_TOKEN"):
+    github_token = os.environ.get("GITHUB_TOKEN")
+    if not github_token:
         log("❌", "GITHUB_TOKEN environment variable is not set.")
-        log("  ", "Generate a PAT at: https://github.com/settings/tokens")
-        log("  ", "Required permissions: repo (all), admin:org (read)")
-        sys.exit(1)
-    log("  ✅", "GITHUB_TOKEN is set")
+        log("  ", "Generate a fine-grained PAT at: https://github.com/settings/tokens")
+        log("  ", "Required permissions: Contents R/W, Metadata R, Administration R/W")
+        errors.append("GITHUB_TOKEN not set")
+    else:
+        log("  ✅", "GITHUB_TOKEN is set")
 
-    if not os.environ.get("OP_SA_TOKEN"):
+    op_sa_token = os.environ.get("OP_SA_TOKEN")
+    if not op_sa_token:
         log("⚠️ ", "OP_SA_TOKEN not set — bootstrap secret step will be skipped.")
-        log("  ", "You'll need to create it manually before Flux can deploy 1Password Operator.")
+        log("  ", "You'll need to create it manually:")
+        log("  ", f"  kubectl create secret generic {config.op_secret_name} \\")
+        log("  ", f"    --namespace={config.op_secret_namespace} \\")
+        log("  ", f"    --from-literal={config.op_secret_key}=<your-token>")
     else:
         log("  ✅", "OP_SA_TOKEN is set")
 
     # ── Kubernetes cluster connectivity ─────────────────────────────
-    kube_cmd = ["kubectl", "cluster-info"]
-    if config.kube_context:
-        kube_cmd.extend(["--context", config.kube_context])
-
     try:
-        run_cmd(kube_cmd, capture=True)
+        run_cmd(kube_cmd(config, "cluster-info"), capture=True)
         log("  ✅", "Kubernetes cluster is reachable")
     except subprocess.CalledProcessError:
         log("❌", "Cannot connect to Kubernetes cluster.")
-        if config.kube_context:
-            log("  ", f"Context '{config.kube_context}' may be invalid.")
-        log("  ", "Check: kubectl cluster-info")
-        sys.exit(1)
+        errors.append("Cluster unreachable")
+
+    # ── Node-level dependency checks ────────────────────────────────
+    # LEARNING NOTE — WHY CHECK NODES FROM THE CONTROL PLANE:
+    #   open-iscsi must be installed on every worker node that will run
+    #   iSCSI-backed pods (democratic-csi). We can't install packages via
+    #   kubectl, but we CAN detect their absence by checking if the iscsid
+    #   socket exists on each node. If missing, the bootstrap warns early
+    #   instead of letting PVCs hang forever with no clear error.
+    #
+    #   This check uses `kubectl get nodes` to enumerate nodes, then for
+    #   each node creates a debug pod to check for /etc/iscsi. In a Packer
+    #   golden image world (KAZ-70), this check becomes a post-build
+    #   validation — but until then, it catches missing packages early.
+    try:
+        result = run_cmd(
+            kube_cmd(config, "get", "nodes", "-o", "jsonpath={.items[*].metadata.name}"),
+            capture=True,
+        )
+        nodes = result.stdout.strip().split()
+        log("  ✅", f"Found {len(nodes)} nodes: {', '.join(nodes)}")
+
+        # Check for open-iscsi on worker nodes (skip control plane)
+        for node in nodes:
+            role_result = run_cmd(
+                kube_cmd(config, "get", "node", node, "-o",
+                         "jsonpath={.metadata.labels.node-role\\.kubernetes\\.io/control-plane}"),
+                capture=True, check=False,
+            )
+            if role_result.stdout.strip():
+                continue  # Skip control plane nodes
+
+            # Check if iscsid is available on the node
+            iscsi_check = run_cmd(
+                kube_cmd(config, "debug", f"node/{node}", "--quiet", "--image=busybox",
+                         "--", "ls", "/host/etc/iscsi"),
+                capture=True, check=False, timeout=30,
+            )
+            if iscsi_check.returncode != 0:
+                log("  ⚠️ ", f"Node {node}: open-iscsi may not be installed (iSCSI PVCs will fail)")
+                log("  ", f"  Fix: ssh {node} && sudo apt install -y open-iscsi")
+            else:
+                log("  ✅", f"Node {node}: open-iscsi detected")
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired):
+        log("  ⚠️ ", "Could not validate node dependencies — check manually")
 
     # ── Flux pre-check ──────────────────────────────────────────────
-    # LEARNING NOTE — `flux check --pre`:
-    #   This is Flux's own pre-flight validation. It checks:
-    #     - Kubernetes version compatibility
-    #     - RBAC permissions (can Flux create CRDs, namespaces, etc.)
-    #     - Existing Flux installation (warns if already bootstrapped)
-    #   Running this before bootstrap prevents the most common failures.
-    flux_check_cmd = ["flux", "check", "--pre"]
-    if config.kube_context:
-        flux_check_cmd.extend(["--context", config.kube_context])
-
     try:
-        run_cmd(flux_check_cmd, capture=True)
+        run_cmd(flux_cmd(config, "check", "--pre"), capture=True)
         log("  ✅", "Flux pre-check passed")
     except subprocess.CalledProcessError as e:
-        log("⚠️ ", "Flux pre-check reported warnings (may be okay if Flux is already installed):")
+        log("⚠️ ", "Flux pre-check reported warnings (may be okay if already installed):")
         log("  ", e.stderr.strip() if e.stderr else "No details")
+
+    # ── Scaffold validation ─────────────────────────────────────────
+    required_dirs = [
+        config.cluster_path,
+        "infrastructure/base",
+        f"infrastructure/{config.cluster_name}",
+    ]
+    required_files = [
+        f"{config.cluster_path}/infrastructure.yaml",
+        f"{config.cluster_path}/platform.yaml",
+        f"{config.cluster_path}/apps.yaml",
+        f"{config.cluster_path}/vars.yaml",
+    ]
+
+    root = Path(config.repo_root)
+    missing_dirs = [d for d in required_dirs if not (root / d).is_dir()]
+    missing_files = [f for f in required_files if not (root / f).is_file()]
+
+    if missing_dirs or missing_files:
+        log("❌", "Scaffold validation failed:")
+        for d in missing_dirs:
+            log("  ", f"  Missing directory: {d}")
+        for f in missing_files:
+            log("  ", f"  Missing file: {f}")
+        errors.append("Scaffold incomplete")
+    else:
+        log("  ✅", f"Scaffold validated — {len(required_dirs)} dirs, {len(required_files)} files")
 
     # ── Config summary ──────────────────────────────────────────────
     log("📋", "Bootstrap configuration:")
@@ -312,54 +413,14 @@ def preflight_checks(config: Config) -> None:
     log("  ", f"Cluster:    {config.cluster_name}")
     log("  ", f"Flux path:  {config.cluster_path}")
     log("  ", f"Repo root:  {config.repo_root}")
+    log("  ", f"Dry run:    {config.dry_run}")
 
-    # ── Scaffold validation ─────────────────────────────────────────
-    # LEARNING NOTE — VALIDATE STATE BEFORE MUTATING:
-    #   This is the check that prevents the "empty repo" disaster. Without it,
-    #   the script happily `git add .` and commits whatever happens to be in
-    #   the working directory — which might be nothing, your home directory,
-    #   or a partial extraction. By verifying that the expected directories
-    #   and files exist, we fail fast with a clear message instead of pushing
-    #   garbage to GitHub and wasting 30 minutes debugging.
-    #
-    #   The principle: ANY step that creates or mutates state (git commit,
-    #   kubectl apply, flux bootstrap) should be preceded by a validation
-    #   step that confirms the inputs are correct. This is the same reason
-    #   Terraform has `plan` before `apply`.
-    required_dirs = [
-        config.cluster_path,         # clusters/homelab/
-        "infrastructure/base",       # Base infrastructure manifests
-        "infrastructure/" + config.cluster_name,  # Cluster overlay
-    ]
-    required_files = [
-        f"{config.cluster_path}/infrastructure.yaml",
-        f"{config.cluster_path}/platform.yaml",
-        f"{config.cluster_path}/apps.yaml",
-        "README.md",
-    ]
-
-    root = Path(config.repo_root)
-    missing_dirs = [d for d in required_dirs if not (root / d).is_dir()]
-    missing_files = [f for f in required_files if not (root / f).is_file()]
-
-    if missing_dirs or missing_files:
-        log("❌", "Scaffold validation failed — required files/directories missing:")
-        for d in missing_dirs:
-            log("  ", f"  Missing directory: {d}")
-        for f in missing_files:
-            log("  ", f"  Missing file: {f}")
-        log("  ", "")
-        log("  ", "This means either:")
-        log("  ", "  1. The scaffold tarball was not extracted into this directory")
-        log("  ", "  2. You're running the script from the wrong directory")
-        log("  ", "  3. The scaffold files were deleted or moved")
-        log("  ", "")
-        log("  ", f"Expected scaffold root: {config.repo_root}")
-        log("  ", "Extract the tarball: tar xzf diixtra-forge-scaffold.tar.gz")
-        log("  ", "Then run: cd diixtra-forge && python3 scripts/bootstrap.py")
+    # ── Fail if any hard errors ─────────────────────────────────────
+    if errors:
+        log("💀", f"Pre-flight failed with {len(errors)} error(s):")
+        for err in errors:
+            log("  ", f"  • {err}")
         sys.exit(1)
-
-    log("  ✅", f"Scaffold validated — {len(required_dirs)} dirs, {len(required_files)} files")
 
     log("✅", "Pre-flight checks passed.\n")
 
@@ -367,33 +428,24 @@ def preflight_checks(config: Config) -> None:
 # =============================================================================
 # STEP 2: CREATE GITHUB REPOSITORY
 # =============================================================================
-#
-# LEARNING NOTE — `gh` CLI vs GitHub API:
-#   We could use the GitHub REST API directly with Python's `requests`.
-#   But `gh` CLI handles authentication (reads GITHUB_TOKEN), pagination,
-#   and error formatting automatically. It's also idempotent-ish — creating
-#   a repo that already exists returns a clear error we can catch.
-#
-#   For production tooling, the GitHub API gives you more control, but
-#   for bootstrap scripts, `gh` is the pragmatic choice.
-# =============================================================================
 
 def create_github_repo(config: Config) -> None:
     """Create the GitHub repository if it doesn't exist."""
     log("📦", f"Creating GitHub repository: {config.github_owner}/{config.github_repo}")
 
-    # Check if repo already exists
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would create repository")
+        return
+
     check_result = run_cmd(
         ["gh", "repo", "view", f"{config.github_owner}/{config.github_repo}"],
-        capture=True,
-        check=False,
+        capture=True, check=False,
     )
 
     if check_result.returncode == 0:
         log("  ℹ️ ", "Repository already exists — skipping creation.")
         return
 
-    # Create the repository
     create_cmd = [
         "gh", "repo", "create",
         f"{config.github_owner}/{config.github_repo}",
@@ -401,20 +453,13 @@ def create_github_repo(config: Config) -> None:
         "--description", "Infrastructure monorepo — Flux CD, Terraform, IDP stack",
     ]
 
-    # LEARNING NOTE — DEFENSIVE ERROR HANDLING:
-    #   We check if the repo exists first with `gh repo view`, but that check
-    #   can fail for reasons other than "repo doesn't exist" — e.g. the token
-    #   lacks metadata read permissions on the org. So we also handle "already
-    #   exists" in the create step as a fallback. Belt and braces.
     create_result = run_cmd(create_cmd, capture=True, check=False)
     if create_result.returncode == 0:
         log("  ✅", "Repository created successfully.")
-    elif "already exists" in (create_result.stderr or "").lower() \
-         or "Name already exists" in (create_result.stderr or ""):
+    elif "already exists" in (create_result.stderr or "").lower():
         log("  ℹ️ ", "Repository already exists — continuing.")
     else:
-        # Unexpected error — raise it
-        log("💀", f"Command failed: {' '.join(create_cmd)}")
+        log("💀", f"Failed to create repository")
         if create_result.stderr:
             log("  ", create_result.stderr.strip())
         sys.exit(1)
@@ -423,82 +468,46 @@ def create_github_repo(config: Config) -> None:
 # =============================================================================
 # STEP 3: GIT INIT, COMMIT, AND PUSH
 # =============================================================================
-#
-# LEARNING NOTE — GIT INIT IN AN EXISTING DIRECTORY:
-#   `git init` in a directory that already has files is safe — it creates
-#   the .git/ directory without touching existing files. We then `git add .`
-#   to stage everything and make the initial commit. This is the standard
-#   pattern for "I have files locally, now I want them in a Git repo."
-#
-#   The `--set-upstream` on the first push establishes the tracking
-#   relationship between local `main` and `origin/main`. After this,
-#   plain `git push` knows where to push without specifying the remote.
-# =============================================================================
 
 def git_init_and_push(config: Config) -> None:
     """Initialize git in the scaffold directory and push to GitHub."""
     log("📤", "Initializing git and pushing scaffold to GitHub...")
 
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would init, commit, and push")
+        return
+
     repo_root = config.repo_root
     git_dir = Path(repo_root) / ".git"
 
-    # Helper to run git commands in the repo directory
     def git(*args: str) -> subprocess.CompletedProcess:
-        cmd = ["git"] + list(args)
-        return run_cmd(cmd, capture=True, check=True, cwd=repo_root)
+        return run_cmd(["git"] + list(args), capture=True, check=True, cwd=repo_root)
 
-    # Initialize git if not already initialized
     if not git_dir.exists():
         git("init", "-b", config.github_branch)
         log("  ✅", "Git initialized")
     else:
         log("  ℹ️ ", "Git already initialized — skipping init.")
 
-    # Configure git user (Flux uses these for commits)
     git("config", "user.email", "flux@kazie.co.uk")
     git("config", "user.name", "Flux Bootstrap")
 
-    # LEARNING NOTE — GIT AUTHENTICATION WITH TOKENS:
-    #   Raw `git push` doesn't know about GITHUB_TOKEN — that's a convention
-    #   used by `gh` CLI and GitHub Actions, not by git itself. Git has its
-    #   own credential system with "credential helpers" — programs that git
-    #   calls to get usernames and passwords.
-    #
-    #   We pass a credential helper via the `-c` flag on push commands.
-    #   The `-c` flag sets config for that single command invocation only —
-    #   nothing is written to .git/config or any file on disk. The token
-    #   exists only in the process memory for the duration of the push.
-    #
-    #   The username `x-access-token` is a GitHub convention — it tells
-    #   GitHub "this is a PAT, not a user password." Any non-empty string
-    #   works as the username; the token is what matters.
-    #
-    #   Why not embed the token in the URL (https://token@github.com/...)?
-    #   Because git stores the remote URL in .git/config, which persists
-    #   the token on disk. The -c flag approach is ephemeral.
     github_token = os.environ.get("GITHUB_TOKEN", "")
-    cred_helper = f"!f() {{ echo username=x-access-token; echo password={github_token}; }}; f"
+    cred_helper = (
+        f"!f() {{ echo username=x-access-token; echo password={github_token}; }}; f"
+    )
 
     def git_auth(*args: str) -> subprocess.CompletedProcess:
-        """Run a git command with GitHub token authentication (for push/pull).
-
-        SECURITY NOTE: Always captures output to prevent tokens leaking into
-        terminal history or logs. The credential helper string contains the
-        raw token — if git fails, the full command (including token) would
-        appear in the CalledProcessError traceback. We catch this and show
-        a sanitised error instead.
-        """
+        """Run a git command with token authentication. Captures output to
+        prevent tokens leaking into terminal history or logs."""
         cmd = ["git", "-c", f"credential.helper={cred_helper}"] + list(args)
         result = run_cmd(cmd, capture=True, check=False, cwd=repo_root)
         if result.returncode != 0:
-            # Sanitise: show the git args but NOT the credential helper
             safe_cmd = f"git {' '.join(args)}"
-            # Show stderr but redact anything that looks like a token
             safe_stderr = (result.stderr or "").replace(github_token, "***")
             raise subprocess.CalledProcessError(
                 result.returncode, safe_cmd,
-                output=result.stdout,
-                stderr=safe_stderr,
+                output=result.stdout, stderr=safe_stderr,
             )
         return result
 
@@ -512,80 +521,38 @@ def git_init_and_push(config: Config) -> None:
         git("remote", "add", "origin", remote_url)
         log("  ✅", f"Added remote origin: {remote_url}")
 
-    # Stage all files
+    # Stage and commit
     git("add", ".")
-
-    # Check if there's anything to commit
     status = git("status", "--porcelain")
     if status.stdout.strip():
         git("commit", "-m", "feat: initial scaffold for diixtra-forge\n\n"
-            "- Infrastructure layer: Caddy, 1Password Operator, MetalLB\n"
+            "- Infrastructure layer: Caddy, 1Password Operator, MetalLB, democratic-csi\n"
             "- Platform layer: Kyverno policies, Grafana Alloy\n"
             "- CI/CD: Flux validation, Terraform Cloudflare workflows\n"
-            "- ADRs: Flux, monorepo, Kyverno, Crossplane migration")
-        log("  ✅", "Initial commit created")
+            "- Scripts: bootstrap, ops runbooks")
+        log("  ✅", "Commit created")
     else:
         log("  ℹ️ ", "No changes to commit")
 
-    # Push to GitHub
-    # LEARNING NOTE — WHY `--set-upstream`:
-    #   The first push needs `-u` (--set-upstream) to create the tracking
-    #   relationship. After this, `git push` alone works. Flux will use
-    #   this tracking to detect new commits and trigger reconciliation.
-    #
-    # LEARNING NOTE — PULL REBASE VS FORCE PUSH:
-    #   When the remote has commits the local doesn't (e.g. Flux bootstrap
-    #   already pushed its own manifests), a naive push is rejected. There
-    #   are two strategies:
-    #
-    #   1. `git pull --rebase` — fetches remote commits and replays local
-    #      commits on top. This PRESERVES both the remote work (Flux's
-    #      self-management manifests) and the local work (scaffold files).
-    #      This is almost always what you want.
-    #
-    #   2. `git push --force` — overwrites the remote entirely. This DESTROYS
-    #      the remote commits. Dangerous if Flux already committed its
-    #      clusters/homelab/flux-system/ directory — you'd lose Flux's
-    #      self-management config and it would stop reconciling.
-    #
-    #   We use pull-rebase first, falling back to force-with-lease only if
-    #   the rebase itself fails (e.g. unresolvable conflicts).
+    # Push with rebase fallback
     try:
         git_auth("push", "-u", "origin", config.github_branch)
         log("  ✅", "Pushed to GitHub")
     except subprocess.CalledProcessError as e:
         stderr = str(e.stderr or "")
         if "rejected" in stderr or "fetch first" in stderr:
-            # LEARNING NOTE — STASH BEFORE REBASE:
-            #   `git pull --rebase` refuses to run if there are unstaged
-            #   changes in the working tree. This is a safety measure — rebase
-            #   replays commits on a new base, and uncommitted changes could
-            #   conflict. `git stash` saves the working tree state to a stack,
-            #   the rebase runs on a clean tree, then `git stash pop` restores
-            #   the saved changes. If pop has conflicts, they're shown as merge
-            #   conflicts in the affected files.
-            log("  ℹ️ ", "Remote has new commits — rebasing local work on top...")
-            try:
-                # Stash any uncommitted changes so rebase can proceed
-                stash_result = git("stash", "--include-untracked")
-                has_stash = "No local changes" not in (stash_result.stdout or "")
-
-                git_auth("pull", "--rebase", "origin", config.github_branch)
-
-                if has_stash:
-                    git("stash", "pop")
-                    # Re-commit any restored changes
-                    git("add", ".")
-                    status = git("status", "--porcelain")
-                    if status.stdout.strip():
-                        git("commit", "-m", "feat: add scaffold files after rebase")
-
-                git_auth("push", "-u", "origin", config.github_branch)
-                log("  ✅", "Rebased on remote changes and pushed to GitHub")
-            except subprocess.CalledProcessError:
-                log("  ⚠️ ", "Rebase failed — force pushing (remote will be overwritten)")
-                git_auth("push", "--force-with-lease", "-u", "origin", config.github_branch)
-                log("  ✅", "Force-pushed to GitHub")
+            log("  ℹ️ ", "Remote has new commits — rebasing...")
+            stash_result = git("stash", "--include-untracked")
+            has_stash = "No local changes" not in (stash_result.stdout or "")
+            git_auth("pull", "--rebase", "origin", config.github_branch)
+            if has_stash:
+                git("stash", "pop")
+                git("add", ".")
+                status = git("status", "--porcelain")
+                if status.stdout.strip():
+                    git("commit", "-m", "feat: add scaffold files after rebase")
+            git_auth("push", "-u", "origin", config.github_branch)
+            log("  ✅", "Rebased and pushed to GitHub")
         else:
             raise
 
@@ -593,23 +560,24 @@ def git_init_and_push(config: Config) -> None:
 # =============================================================================
 # STEP 4: CREATE 1PASSWORD BOOTSTRAP SECRET
 # =============================================================================
-#
-# LEARNING NOTE — WHY kubectl create secret AND NOT kubectl apply:
-#   `kubectl create` fails if the resource already exists (idempotent? no).
-#   `kubectl apply` creates or updates (idempotent? yes).
-#   BUT for secrets, `kubectl apply` would show the secret value in the
-#   command history and in the annotation that apply adds to resources.
-#
-#   The safest pattern is:
-#     1. Check if the secret exists (kubectl get)
-#     2. If not, create it with --from-literal (value from env var)
-#     3. If yes, skip or update via kubectl patch
-#
-#   We pipe the token via stdin to avoid it appearing in process listings.
-# =============================================================================
 
 def create_bootstrap_secret(config: Config) -> None:
-    """Create the 1Password Service Account token as a Kubernetes Secret."""
+    """Create the 1Password Service Account token as a Kubernetes Secret.
+
+    LEARNING NOTE — ONE SECRET, NO INDIRECTION:
+        The 1Password Helm chart mounts a Secret directly into the operator
+        pod. The chart defaults to looking for a Secret named
+        `onepassword-service-account-token` with key `token`.
+
+        Previous versions of this script created a differently-named secret
+        (`op-service-account-token`) and used HelmRelease `valuesFrom` to
+        pipe the value through — creating TWO secrets with the same content.
+        This broke on every re-bootstrap because the intermediate secret
+        didn't exist yet when the chart tried to mount the final one.
+
+        The fix (KAZ-71): create the secret with the EXACT name the chart
+        expects. No valuesFrom, no indirection, no duplicate secrets.
+    """
     op_token = os.environ.get("OP_SA_TOKEN")
     if not op_token:
         log("⏭️ ", "Skipping bootstrap secret — OP_SA_TOKEN not set.")
@@ -622,40 +590,34 @@ def create_bootstrap_secret(config: Config) -> None:
 
     log("🔐", "Creating 1Password bootstrap secret on cluster...")
 
-    kube_ctx = ["--context", config.kube_context] if config.kube_context else []
+    if config.dry_run:
+        log("  🏜️", f"DRY RUN — would create {config.op_secret_namespace}/{config.op_secret_name}")
+        return
 
-    # Ensure namespace exists
+    # Ensure namespace exists (idempotent)
     run_cmd(
-        ["kubectl", "create", "namespace", config.op_secret_namespace] + kube_ctx,
-        capture=True,
-        check=False,  # Ignore "already exists" error
+        kube_cmd(config, "create", "namespace", config.op_secret_namespace),
+        capture=True, check=False,
     )
 
     # Check if secret already exists
     check = run_cmd(
-        ["kubectl", "get", "secret", config.op_secret_name,
-         "-n", config.op_secret_namespace] + kube_ctx,
-        capture=True,
-        check=False,
+        kube_cmd(config, "get", "secret", config.op_secret_name,
+                 "-n", config.op_secret_namespace),
+        capture=True, check=False,
     )
 
     if check.returncode == 0:
         log("  ℹ️ ", "Bootstrap secret already exists — skipping.")
+        log("  ", "To recreate: python3 scripts/ops/rotate-1password-token.py")
         return
 
     # Create the secret
-    # LEARNING NOTE — --from-literal SECURITY:
-    #   Even with --from-literal, the token value appears in the process
-    #   listing briefly. For maximum security, you'd create the secret
-    #   from a file (--from-file) or use kubectl's stdin mode. For a
-    #   homelab bootstrap script, --from-literal is acceptable since
-    #   the value comes from an environment variable that's already in
-    #   the process environment.
-    run_cmd(
-        ["kubectl", "create", "secret", "generic", config.op_secret_name,
-         "--namespace", config.op_secret_namespace,
-         f"--from-literal={config.op_secret_key}={op_token}"] + kube_ctx,
-    )
+    run_cmd(kube_cmd(
+        config, "create", "secret", "generic", config.op_secret_name,
+        "--namespace", config.op_secret_namespace,
+        f"--from-literal={config.op_secret_key}={op_token}",
+    ))
     log("  ✅", f"Bootstrap secret created: {config.op_secret_namespace}/{config.op_secret_name}")
 
 
@@ -664,217 +626,298 @@ def create_bootstrap_secret(config: Config) -> None:
 # =============================================================================
 #
 # LEARNING NOTE — WHAT `flux bootstrap github` ACTUALLY DOES:
-#   This is the most important thing to understand. The bootstrap command
-#   does SIX distinct things in sequence:
+#   This command does SIX distinct things in sequence:
 #
 #   1. CONNECTS to GitHub and clones/creates the repository
-#   2. GENERATES component manifests — YAML for all Flux controllers:
-#        - source-controller     (watches Git repos, Helm repos, OCI)
-#        - kustomize-controller  (builds Kustomize overlays, applies to cluster)
-#        - helm-controller       (manages HelmRelease lifecycle)
-#        - notification-controller (sends/receives webhooks)
+#   2. GENERATES component manifests — YAML for all Flux controllers
 #   3. COMMITS these manifests to `clusters/<name>/flux-system/`
 #   4. PUSHES the commit to GitHub
 #   5. INSTALLS the controllers on your cluster (kubectl apply)
 #   6. CREATES a GitRepository + Kustomization that points back at itself
 #
 #   Step 6 is the clever part — the "self-referencing loop." After bootstrap,
-#   Flux watches the Git repo for changes to its own configuration. If you
-#   push an update to `clusters/homelab/flux-system/gotk-components.yaml`,
-#   Flux updates itself. Git becomes the source of truth for everything,
-#   including the GitOps tool itself.
+#   Flux watches the Git repo for changes to its own configuration.
 #
-#   The `--path` flag tells Flux which directory to watch. Combined with
-#   the three Flux Kustomization files we created (infrastructure.yaml,
-#   platform.yaml, apps.yaml), this is how the full dependency chain starts:
+#   CRITICAL — KUSTOMIZATION.YAML IN CLUSTER PATH:
+#   The flux-system Kustomization watches `clusters/homelab/` with
+#   `prune: true`. Without an explicit `kustomization.yaml` in that
+#   directory, Kustomize only discovers top-level .yaml files —
+#   subdirectories like `flux-system/` are invisible. Flux treats its
+#   own controllers as orphaned resources and PRUNES ITSELF.
+#   KAZ-67 fixed this by adding `clusters/homelab/kustomization.yaml`
+#   that explicitly lists `flux-system` as a resource.
 #
-#   flux-system/gotk-sync.yaml watches clusters/homelab/
-#   → finds infrastructure.yaml → builds infrastructure/homelab/ → applies
-#   → finds platform.yaml → waits for infrastructure → builds platform/homelab/
-#   → finds apps.yaml → waits for platform → builds apps/homelab/
-#
-#   The `--token-auth` flag tells Flux to use HTTPS + PAT for Git access
-#   instead of SSH keys. This is simpler for personal repos and avoids
-#   SSH key management. The PAT is stored as a Kubernetes Secret in the
-#   flux-system namespace.
+#   FLAGS EXPLAINED:
+#   --token-auth:     Use HTTPS + PAT (not SSH keys). Simpler for orgs.
+#   --personal=false: Repository belongs to an org, not a personal account.
+#   --components-extra: Install image reflector + automation controllers
+#                       beyond the default four. These enable automatic
+#                       container image updates via Git commits.
 # =============================================================================
 
 def flux_bootstrap(config: Config) -> None:
     """Run flux bootstrap github to install Flux and configure GitOps sync."""
     log("🚀", "Bootstrapping Flux CD on cluster...")
 
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would run flux bootstrap github")
+        return
+
     github_token = os.environ.get("GITHUB_TOKEN", "")
 
-    flux_cmd = [
-        "flux", "bootstrap", "github",
-        "--token-auth",                              # Use HTTPS + PAT (not SSH)
+    bootstrap_cmd = flux_cmd(
+        config,
+        "bootstrap", "github",
+        "--token-auth",
         f"--owner={config.github_owner}",
         f"--repository={config.github_repo}",
         f"--branch={config.github_branch}",
         f"--path={config.cluster_path}",
-        "--personal",                                # Personal account (not org)
-        "--reconcile",                               # Update if already bootstrapped
-        # Image Automation controllers — not installed by default.
-        # These enable automatic container image updates via Git commits.
-        # --read-write-key is required so the automation controller can
-        # push commits back to the repo (default deploy key is read-only).
-        "--components-extra=image-reflector-controller,image-automation-controller",
-        "--read-write-key",
-    ]
+        "--personal=false",
+        "--reconcile",
+        f"--components-extra={config.flux_extra_components}",
+    )
 
-    if config.kube_context:
-        flux_cmd.extend(["--context", config.kube_context])
+    result = run_cmd(bootstrap_cmd, env_extra={"GITHUB_TOKEN": github_token}, check=False)
 
-    # LEARNING NOTE — WHY WE PASS THE TOKEN VIA ENVIRONMENT:
-    #   The flux CLI reads GITHUB_TOKEN from the environment. We could also
-    #   pipe it via stdin (`echo $TOKEN | flux bootstrap github`), but
-    #   environment variables are the documented approach and cleaner in Python.
-    #   The token is NOT stored in shell history this way.
-    run_cmd(flux_cmd, env_extra={"GITHUB_TOKEN": github_token})
-
-    log("  ✅", "Flux bootstrap completed.")
+    if result.returncode == 0:
+        log("  ✅", "Flux bootstrap completed.")
+    else:
+        # Bootstrap can timeout but still succeed — controllers may just be slow.
+        # The RBAC recovery and verification steps handle this gracefully.
+        log("  ⚠️ ", "Flux bootstrap exited with non-zero code (may still succeed).")
+        log("  ", "Continuing to RBAC recovery and verification...")
 
 
 # =============================================================================
-# STEP 6: VERIFY RECONCILIATION
+# STEP 6: RBAC RECOVERY
 # =============================================================================
-#
-# LEARNING NOTE — RECONCILIATION IS THE CORE CONCEPT:
-#   "Reconciliation" is what makes GitOps different from CI/CD-push.
-#   In traditional CI/CD, a pipeline PUSHES changes to the cluster.
-#   In GitOps, a controller PULLS the desired state from Git and
-#   continuously reconciles the actual state to match.
-#
-#   When you see "reconciliation succeeded," it means:
-#     1. Flux pulled the latest Git commit
-#     2. Built the Kustomize overlays for your cluster
-#     3. Applied the rendered YAML to the cluster
-#     4. Verified that the applied resources are healthy
-#     5. Recorded the result as a Kubernetes condition
-#
-#   If reconciliation fails, Flux retries on the interval you specified
-#   (retryInterval: 1m in our Kustomizations). It also records the error
-#   in the resource's status, which you can see with:
-#     flux get kustomizations
-#     kubectl describe kustomization infrastructure -n flux-system
-#
-#   The verification loop below polls these conditions. In production,
-#   you'd use Flux's notification-controller to send alerts to Slack
-#   or PagerDuty instead of polling — but for bootstrap, polling is fine.
+
+def rbac_recovery(config: Config) -> None:
+    """Apply gotk-components.yaml to fix missing RBAC resources.
+
+    LEARNING NOTE — WHY THIS IS NEEDED:
+        The Flux bootstrap sometimes fails to create ServiceAccounts and
+        ClusterRoleBindings before starting controller pods. The pods crash
+        with auth errors because they have no identity.
+
+        The gotk-components.yaml file (created by bootstrap in the flux-system
+        directory) contains ALL Flux resources — CRDs, namespaces, RBAC, and
+        deployments. Applying it is idempotent and ensures everything exists.
+
+        This is NOT a workaround — it's a bootstrap prerequisite. The
+        controllers need RBAC to authenticate with the API server. Once RBAC
+        is in place, the controllers self-manage via GitOps and this manual
+        step is never needed again (until the next full re-bootstrap).
+    """
+    if not config.rbac_recovery_enabled:
+        log("⏭️ ", "RBAC recovery disabled — skipping.")
+        return
+
+    log("🔧", "Applying RBAC recovery (gotk-components.yaml)...")
+
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would apply gotk-components.yaml")
+        return
+
+    gotk_path = Path(config.repo_root) / config.cluster_path / "flux-system" / "gotk-components.yaml"
+
+    if not gotk_path.exists():
+        # Pull latest — bootstrap may have committed it
+        run_cmd(["git", "pull"], capture=True, check=False, cwd=config.repo_root)
+
+    if not gotk_path.exists():
+        log("  ⚠️ ", f"gotk-components.yaml not found at {gotk_path}")
+        log("  ", "This means bootstrap didn't create the flux-system directory.")
+        log("  ", "Run bootstrap again or check git log for the flux-system commit.")
+        return
+
+    run_cmd(kube_cmd(config, "apply", "-f", str(gotk_path)), check=False)
+    log("  ✅", "gotk-components.yaml applied")
+
+    # Also apply sync manifests if they exist
+    gotk_sync = gotk_path.parent / "gotk-sync.yaml"
+    if gotk_sync.exists():
+        run_cmd(kube_cmd(config, "apply", "-f", str(gotk_sync)), check=False)
+        log("  ✅", "gotk-sync.yaml applied")
+
+    # Give controllers time to restart with correct RBAC
+    log("  ⏳", "Waiting 15s for controllers to restart...")
+    time.sleep(15)
+
+
+# =============================================================================
+# STEP 7: VERIFY RECONCILIATION
 # =============================================================================
 
 def verify_reconciliation(config: Config) -> None:
-    """Poll Flux resources until reconciliation is confirmed or timeout."""
-    log("🔄", "Verifying Flux reconciliation...")
+    """Poll all 6 Flux Kustomizations until reconciled or timeout.
 
-    kube_ctx = ["--context", config.kube_context] if config.kube_context else []
+    LEARNING NOTE — RECONCILIATION IS THE CORE CONCEPT:
+        "Reconciliation" is what makes GitOps different from CI/CD-push.
+        In traditional CI/CD, a pipeline PUSHES changes to the cluster.
+        In GitOps, a controller PULLS the desired state from Git and
+        continuously reconciles the actual state to match.
+
+        When you see "reconciliation succeeded," it means:
+          1. Flux pulled the latest Git commit
+          2. Built the Kustomize overlays for your cluster
+          3. Applied the rendered YAML to the cluster
+          4. Verified that the applied resources are healthy
+          5. Recorded the result as a Kubernetes condition
+
+        We verify ALL 6 layers in the dependency chain:
+          flux-system → infrastructure-crds → infrastructure
+          → platform-crds → platform → apps
+    """
+    log("🔄", "Verifying Flux reconciliation (all 6 layers)...")
+
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would verify reconciliation")
+        return
+
     timeout = config.reconciliation_timeout_seconds
     interval = config.reconciliation_poll_interval
     start_time = time.time()
 
-    # Resources to verify — in dependency order
-    # LEARNING NOTE — WHAT EACH RESOURCE TYPE MEANS:
-    #   GitRepository: "Is Flux successfully pulling from GitHub?"
-    #   Kustomization: "Did the rendered manifests apply cleanly?"
-    #   HelmRelease:   "Did the Helm chart install/upgrade succeed?"
-    resources_to_check = [
-        ("gitrepository", "flux-system", "flux-system"),
-        ("kustomization", "flux-system", "flux-system"),
-        ("kustomization", "infrastructure", "flux-system"),
-    ]
-
-    log("  ", "Waiting for reconciliation (this may take a few minutes)...")
+    log("  ", f"Timeout: {timeout}s | Poll interval: {interval}s")
+    log("  ", f"Expected layers: {', '.join(config.expected_kustomizations)}")
 
     while (time.time() - start_time) < timeout:
-        all_ready = True
+        result = run_cmd(
+            flux_cmd(config, "get", "kustomizations", "--no-header"),
+            capture=True, check=False,
+        )
 
-        for kind, name, namespace in resources_to_check:
-            result = run_cmd(
-                ["flux", "get", kind, name, "-n", namespace] + kube_ctx,
-                capture=True,
-                check=False,
-            )
+        if result.returncode != 0:
+            elapsed = int(time.time() - start_time)
+            log("  ⏳", f"Flux not responding yet ({elapsed}s elapsed)...")
+            time.sleep(interval)
+            continue
 
-            if result.returncode != 0:
-                all_ready = False
+        # Parse flux output into name → ready status
+        statuses = {}
+        for line in result.stdout.strip().split("\n"):
+            if not line.strip():
                 continue
+            parts = line.split()
+            if len(parts) >= 4:
+                name = parts[0]
+                ready = parts[3]  # "True" or "False"
+                statuses[name] = ready
 
-            output = result.stdout.strip()
-            # Flux CLI output includes "True" in the Ready column when reconciled
-            if "True" in output:
-                log("  ✅", f"{kind}/{name}: Ready")
+        # Check all expected kustomizations
+        all_ready = True
+        for ks in config.expected_kustomizations:
+            status = statuses.get(ks)
+            if status == "True":
+                log("  ✅", f"{ks}: Ready")
+            elif status == "False":
+                all_ready = False
+                # Get error message for debugging
+                detail = run_cmd(
+                    flux_cmd(config, "get", "kustomization", ks, "-n", "flux-system"),
+                    capture=True, check=False,
+                )
+                msg = detail.stdout.strip().split("\n")[-1] if detail.stdout else "Unknown"
+                log("  ❌", f"{ks}: Failed — {msg}")
             else:
                 all_ready = False
-                # Extract status message for debugging
-                log("  ⏳", f"{kind}/{name}: Not ready yet")
+                log("  ⏳", f"{ks}: {'In progress' if status else 'Not found yet'}")
 
         if all_ready:
-            log("🎉", "All Flux resources reconciled successfully!")
-            break
+            elapsed = int(time.time() - start_time)
+            log("🎉", f"All 6 layers reconciled successfully! ({elapsed}s)")
+            return
 
         elapsed = int(time.time() - start_time)
         remaining = timeout - elapsed
-        log("  ", f"Elapsed: {elapsed}s / Timeout: {timeout}s — retrying in {interval}s...")
+        log("  ", f"[{elapsed}s / {timeout}s] — next check in {interval}s...")
+        print()  # Visual separator between poll rounds
         time.sleep(interval)
-    else:
-        log("⚠️ ", f"Reconciliation not complete after {timeout}s.")
-        log("  ", "This doesn't necessarily mean it failed — complex deployments take time.")
-        log("  ", "Check status manually:")
-        log("  ", "  flux get all")
-        log("  ", "  flux logs --all-namespaces")
 
-    # Final status dump for debugging
+    # Timeout reached
+    log("⚠️ ", f"Reconciliation not complete after {timeout}s.")
+    log("  ", "Check status manually:")
+    log("  ", "  flux get kustomizations")
+    log("  ", "  flux get helmreleases -A")
+    log("  ", "  flux logs --all-namespaces")
+
+    # Show final state
     log("\n📊", "Final Flux status:")
-    run_cmd(["flux", "get", "all"] + kube_ctx, check=False)
+    run_cmd(flux_cmd(config, "get", "kustomizations"), check=False)
 
 
 # =============================================================================
 # MAIN EXECUTION
 # =============================================================================
 
+def parse_args() -> argparse.Namespace:
+    """Parse command-line arguments."""
+    parser = argparse.ArgumentParser(
+        description="Bootstrap Flux CD on a Kubernetes cluster",
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        epilog="""
+Examples:
+  # Full bootstrap with all env vars set:
+  export GITHUB_TOKEN="ghp_..."
+  export OP_SA_TOKEN="ops_..."
+  python3 scripts/bootstrap.py
+
+  # Dry run — validate without making changes:
+  python3 scripts/bootstrap.py --dry-run
+
+  # Bootstrap with 1Password CLI:
+  export OP_SERVICE_ACCOUNT_TOKEN="ops_..."
+  export GITHUB_TOKEN=$(gh auth token)
+  export OP_SA_TOKEN=$(op read "op://Homelab/<item-id>/credential")
+  python3 scripts/bootstrap.py
+
+  # Custom cluster:
+  CLUSTER_NAME=dev python3 scripts/bootstrap.py
+        """,
+    )
+    parser.add_argument(
+        "--dry-run", action="store_true",
+        help="Validate everything without making changes",
+    )
+    parser.add_argument(
+        "--skip-rbac-recovery", action="store_true",
+        help="Skip the gotk-components.yaml apply step",
+    )
+    return parser.parse_args()
+
+
 def main():
     """Orchestrate the full bootstrap process."""
+    args = parse_args()
+
     log("🏗️ ", "Diixtra Forge — Flux CD Bootstrap")
     log("═" * 55, "")
 
     config = Config()
-
-    # Validate that the user has set their GitHub owner
-    if config.github_owner == "OWNER":
-        log("❌", "Please set GITHUB_OWNER environment variable to your GitHub username.")
-        log("  ", "Example: export GITHUB_OWNER=jameskazie")
-        sys.exit(1)
+    config.dry_run = args.dry_run
+    config.rbac_recovery_enabled = not args.skip_rbac_recovery
 
     try:
-        # Step 1: Validate everything before making changes
         preflight_checks(config)
-
-        # Step 2: Create the GitHub repo (idempotent — skips if exists)
         create_github_repo(config)
-
-        # Step 3: Push the scaffold to GitHub
         git_init_and_push(config)
-
-        # Step 4: Create the 1Password bootstrap secret
         create_bootstrap_secret(config)
-
-        # Step 5: Bootstrap Flux (the main event)
         flux_bootstrap(config)
-
-        # Step 6: Verify everything reconciled
+        rbac_recovery(config)
         verify_reconciliation(config)
 
         log("\n✅", "Bootstrap complete!")
         log("  ", "Next steps:")
-        log("  ", "  1. Verify with: flux get all")
-        log("  ", "  2. Check Flux logs: flux logs --all-namespaces")
-        log("  ", "  3. Make a change in Git and watch Flux reconcile it")
-        log("  ", "  4. Add the platform.yaml and apps.yaml Kustomizations")
+        log("  ", "  1. Verify:    flux get kustomizations")
+        log("  ", "  2. Logs:      flux logs --all-namespaces")
+        log("  ", "  3. Health:    python3 scripts/ops/validate-cluster-health.py")
+        log("  ", "  4. Git test:  make a change, push, watch Flux reconcile")
 
     except subprocess.CalledProcessError as e:
-        # Sanitise any token that might appear in error output
         github_token = os.environ.get("GITHUB_TOKEN", "")
-        cmd_str = ' '.join(e.cmd) if isinstance(e.cmd, list) else str(e.cmd)
+        cmd_str = " ".join(e.cmd) if isinstance(e.cmd, list) else str(e.cmd)
         if github_token:
             cmd_str = cmd_str.replace(github_token, "***")
         log("💀", f"Command failed: {cmd_str}")
