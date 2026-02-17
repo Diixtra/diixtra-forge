@@ -11,7 +11,7 @@ data:
     # ══════════════════════════════════════════════════════════════
     #
     # All domains use wildcard TLS via Cloudflare DNS-01 challenge.
-    # Variables (${...}) are substituted by Flux postBuild.
+    # Variables like ACME_EMAIL, LAB_DOMAIN etc are substituted by Flux postBuild.
     # {env.CF_API_TOKEN} is a Caddy runtime env var from the
     # cloudflare-api-token Secret mounted in the Caddy deployment.
     #
