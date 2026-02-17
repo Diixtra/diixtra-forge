@@ -1,0 +1,44 @@
+#cloud-config
+# GPU node autoinstall — identical to base Ubuntu template.
+# The GPU-specific packages are installed by provision-gpu-node.sh,
+# not during the OS installation phase.
+autoinstall:
+  version: 1
+  interactive-sections: []
+
+  locale: en_GB.UTF-8
+  keyboard:
+    layout: gb
+
+  network:
+    network:
+      version: 2
+      ethernets:
+        id0:
+          match:
+            name: "en*"
+          dhcp4: true
+
+  storage:
+    layout:
+      name: lvm
+      sizing-policy: all
+
+  identity:
+    hostname: k8s-gpu-template
+    username: packer
+    password: "$6$rounds=4096$randomsalt$LhFn8FzI3KlYLkR8ZkO.Nh0bQkx/TWXJVTgV5VpIJ5pE2QqOLO9VYdNp6.k3bGxjUhWLNVx5yLkPxCqYsQF1."
+
+  ssh:
+    install-server: true
+    allow-pw: true
+
+  packages:
+    - qemu-guest-agent
+    - cloud-init
+    # Build tools needed for NVIDIA DKMS kernel module compilation
+    - build-essential
+    - linux-headers-generic
+
+  late-commands:
+    - "systemctl enable qemu-guest-agent --root=/target"
