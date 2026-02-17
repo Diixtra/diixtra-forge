@@ -1,0 +1,55 @@
+# =============================================================================
+# Packer Variables — EXAMPLE FILE
+# =============================================================================
+#
+# Copy this file and fill in your values:
+#   cp variables.auto.pkrvars.hcl.example variables.auto.pkrvars.hcl
+#
+# The .auto.pkrvars.hcl extension means Packer loads it automatically —
+# no need to pass -var-file on the command line. The actual file is
+# gitignored because it contains sensitive values (API tokens).
+#
+# LEARNING NOTE — VARIABLE PRECEDENCE IN PACKER:
+#   Variables are resolved in this order (last wins):
+#     1. Default value in the variable block
+#     2. Environment variable (PKR_VAR_name)
+#     3. .auto.pkrvars.hcl file (loaded automatically)
+#     4. -var-file flag on command line
+#     5. -var flag on command line
+#
+#   For secrets, prefer environment variables or 1Password CLI injection:
+#     export PKR_VAR_proxmox_api_token_secret=$(op read "op://Homelab/proxmox-packer-token/credential")
+
+# ── Proxmox Connection ─────────────────────────────────────────────
+proxmox_api_url          = "https://10.2.0.159:8006/api2/json"
+proxmox_api_token_id     = "packer@pve!packer-token"
+proxmox_api_token_secret = "REPLACE_WITH_TOKEN_SECRET"
+proxmox_node             = "pve"
+
+# ── Storage ─────────────────────────────────────────────────────────
+proxmox_iso_storage  = "nas-1"
+proxmox_disk_storage = "nas-1"
+
+# ── ISOs ────────────────────────────────────────────────────────────
+ubuntu_iso_file = "Ubuntu_25.10_Live_Server.iso"
+debian_iso_file = "Debian_13.iso"
+
+# ── Network ─────────────────────────────────────────────────────────
+network_bridge = "vmbr0"
+
+# ── VM IDs ──────────────────────────────────────────────────────────
+# These are temporary IDs used during the build. Pick IDs that don't
+# conflict with existing VMs. They're freed after build completes.
+# vm_id = 9000  # Ubuntu (default)
+# vm_id = 9001  # Debian (default)
+
+# ── GPU Template Overrides ──────────────────────────────────────────
+# The GPU template reuses proxmox_* and ubuntu_iso_file variables above.
+# These override the defaults for GPU-specific sizing:
+# vm_cores    = 4      # More cores for DKMS compilation during build
+# vm_memory   = 4096   # More RAM for NVIDIA driver build
+# vm_disk_size = "64G" # Room for NVIDIA driver + K3s + model cache
+
+# ── Pi Image ────────────────────────────────────────────────────────
+# pi_base_image_url = "https://downloads.raspberrypi.com/raspios_lite_arm64/images/..."
+# pi_output_image   = "output/k8s-pi-debian12.img"
