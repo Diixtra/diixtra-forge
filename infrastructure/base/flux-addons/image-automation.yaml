@@ -21,7 +21,7 @@
 # ── ImageRepository: Tell Flux WHERE to look for images ──────────
 # This creates a scanner that polls GHCR every 5 minutes for new
 # tags/digests under the caddybuilds/caddy-cloudflare image.
-apiVersion: image.toolkit.fluxcd.io/v1
+apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
   name: caddy-cloudflare
@@ -46,7 +46,7 @@ spec:
 #
 #   The policy watches the `:latest` tag specifically, and when its
 #   digest changes, triggers an update in Git.
-apiVersion: image.toolkit.fluxcd.io/v1
+apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImagePolicy
 metadata:
   name: caddy
@@ -75,7 +75,7 @@ spec:
 #
 #   The commit message template uses Go templating to include
 #   which images were updated and their new versions.
-apiVersion: image.toolkit.fluxcd.io/v1
+apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageUpdateAutomation
 metadata:
   name: flux-system
@@ -92,7 +92,7 @@ spec:
         branch: main
     commit:
       author:
-        email: flux@kazie.co.uk
+        email: ${FLUX_GIT_EMAIL}
         name: Flux Image Automation
       messageTemplate: |
         chore(images): automated update

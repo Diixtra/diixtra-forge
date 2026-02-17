@@ -1,4 +1,21 @@
 ---
+# ══════════════════════════════════════════════════════════════════
+# Platform Layer — Split into two stages for CRD ordering
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHY TWO KUSTOMIZATIONS:
+#   Flux dry-runs ALL resources in a Kustomization before applying
+#   any of them. If Kyverno CRDs don't exist yet, dry-running a
+#   ClusterPolicy fails the entire batch — even though the
+#   HelmRelease that installs those CRDs is in the same batch.
+#
+#   Solution: split into two stages with dependsOn:
+#   1. platform-crds: installs Kyverno + Alloy (HelmReleases bring CRDs)
+#   2. platform: installs policies (CRDs now exist, dry-run passes)
+#
+#   dependsOn works BETWEEN Kustomizations, not between resources
+#   within one. This is the ONLY way to express this ordering.
+# ══════════════════════════════════════════════════════════════════
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:

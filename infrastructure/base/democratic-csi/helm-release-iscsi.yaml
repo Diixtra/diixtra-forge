@@ -70,13 +70,13 @@ spec:
 
         httpConnection:
           protocol: https
-          host: 10.2.0.232
+          host: ${TRUENAS_HOST}
           port: 443
           # apiKey injected via valuesFrom
           allowInsecure: true
 
         zfs:
-          # ⚠️  UPDATE THESE PATHS to match your pool name!
+          # PLACEHOLDERS — each environment MUST override via Kustomize patch
           datasetParentName: OVERRIDE_IN_ENV_PATCH
           detachedSnapshotsDatasetParentName: OVERRIDE_IN_ENV_PATCH
 
@@ -88,7 +88,7 @@ spec:
 
         iscsi:
           # TrueNAS iSCSI target settings
-          targetPortal: "10.2.0.232:3260"
+          targetPortal: "${TRUENAS_ISCSI_PORTAL}"
           # ⚠️  Verify this matches your TrueNAS iSCSI base name
           # Check: System → Services → iSCSI → pencil → Base Name
           namePrefix: csi-
@@ -99,7 +99,7 @@ spec:
 
           # ⚠️  Verify portal ID via API (WebUI can show wrong value):
           # curl -k -H "Authorization: Bearer API_KEY" \
-          #   https://10.2.0.232/api/v2.0/iscsi/portal
+          #   https://${TRUENAS_HOST}/api/v2.0/iscsi/portal
           targetGroups:
             - targetGroupPortalGroup: 1
               targetGroupInitiatorGroup: null

@@ -90,7 +90,7 @@ will create and manage NFS shares automatically for each PVC via the API.
 ## Step 4: Store the API Key in 1Password
 
 In 1Password:
-1. Go to the **Homela** vault
+1. Go to the **Homelab** vault
 2. Create a new item:
    - **Type**: API Credential (or Password)
    - **Title**: `truenas-api-key`
@@ -145,7 +145,7 @@ Once the above is complete, Flux will deploy democratic-csi automatically
 from the manifests in this repo. The dependency chain ensures:
 
 1. `infrastructure` Kustomization deploys democratic-csi namespace + HelmReleases
-2. 1Password Operator syncs the `truenas-api-key` secret
+2. 1Password Operator syncs the `Truenas API Credential` item → `truenas-api-key` K8s Secret
 3. democratic-csi controllers start and connect to TrueNAS at 10.2.0.232
 4. StorageClasses become available (`truenas-nfs` and `truenas-iscsi`)
 5. Any PVC referencing these StorageClasses gets auto-provisioned

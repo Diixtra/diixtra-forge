@@ -23,3 +23,7 @@ spec:
       kind: HelmRelease
       name: onepassword-operator
       namespace: onepassword-system
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars

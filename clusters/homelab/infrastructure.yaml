@@ -20,6 +20,18 @@ spec:
   path: ./infrastructure/homelab
   prune: true
   wait: true
+  # LEARNING NOTE — postBuild.substituteFrom:
+  #   After Kustomize renders the manifests, Flux replaces ${VARIABLE}
+  #   placeholders with values from this ConfigMap. This keeps all
+  #   environment-specific values (domains, IPs, vault names) in one
+  #   place instead of scattered across dozens of YAML files.
+  #
+  #   The ConfigMap is in flux-system namespace — same as this Kustomization.
+  #   Flux reads it directly; it doesn't need to be in the target namespace.
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
   # Health checks — Flux waits until these resources are healthy
   # before marking infrastructure as "ready". The platform layer
   # depends on infrastructure being ready, so these gates matter.
@@ -44,3 +56,7 @@ spec:
       kind: HelmRelease
       name: truenas-iscsi
       namespace: democratic-csi
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: arc-controller
+      namespace: arc-system

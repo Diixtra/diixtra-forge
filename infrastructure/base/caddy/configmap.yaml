@@ -11,7 +11,7 @@ data:
   Caddyfile: |
     {
       # Global options
-      email james@kazie.co.uk
+      email ${ACME_EMAIL}
     }
 
     # Service routes are defined per-environment via Kustomize overlays.

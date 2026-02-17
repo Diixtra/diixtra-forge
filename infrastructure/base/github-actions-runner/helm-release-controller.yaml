@@ -1,0 +1,65 @@
+# ══════════════════════════════════════════════════════════════════
+# ARC Controller — The operator that manages runner scale sets
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHAT THE CONTROLLER DOES:
+#   The controller installs four CRDs:
+#     - AutoScalingRunnerSet    (desired fleet of runners)
+#     - RunnerScaleSetListener  (long-polls GitHub for queued jobs)
+#     - EphemeralRunnerSet      (ReplicaSet-like, spawns per-job runners)
+#     - EphemeralRunner         (individual runner pod lifecycle)
+#
+#   When a workflow runs with `runs-on: homelab`, GitHub queues the job.
+#   The Listener detects it, patches the EphemeralRunnerSet to scale up,
+#   the controller creates a runner pod, the pod picks up the job,
+#   executes it, and terminates (ephemeral — fresh for every job).
+#
+#   This is the "operator pattern" — a controller loop that watches
+#   custom resources and reconciles actual state to desired state,
+#   the same pattern Flux itself uses.
+#
+# LEARNING NOTE — OCI HELM CHARTS:
+#   ARC doesn't use a traditional Helm repo (HTTPS index.yaml).
+#   Instead, it publishes charts as OCI artifacts to ghcr.io.
+#   Flux handles this via HelmRepository type: oci.
+#
+#   OCI (Open Container Initiative) is the standard for container
+#   registries. Helm 3.8+ supports storing charts in OCI registries
+#   alongside container images. Benefits:
+#     - Single registry for images AND charts
+#     - Leverage existing container registry auth/RBAC
+#     - Content-addressable (SHA256 digests)
+#     - No separate chart museum or index.yaml needed
+# ══════════════════════════════════════════════════════════════════
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-controller
+  namespace: arc-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: gha-runner-scale-set-controller
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+      interval: 1h
+  install:
+    crds: CreateReplace
+    timeout: 10m
+  upgrade:
+    crds: CreateReplace
+    timeout: 10m
+  # LEARNING NOTE — crds: CreateReplace:
+  #   ARC bundles its CRDs inside the Helm chart. By default, Helm
+  #   installs CRDs on first install but NEVER upgrades them (Helm's
+  #   "CRDs are special" philosophy — they're cluster-wide and
+  #   deleting them deletes ALL custom resources).
+  #
+  #   Flux's crds: CreateReplace tells the helm-controller to create
+  #   CRDs if missing AND replace them on upgrade. This is safe for
+  #   ARC because the CRDs are backwards-compatible across versions.
+  #   Without this, CRD schema updates would be silently skipped.

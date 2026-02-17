@@ -30,7 +30,7 @@ Before running the bootstrap script, ensure you have:
    - Repository: `diixtra-forge` (must exist first)
    - Contents: Read and write
    - Administration: Read and write (for deploy key creation)
-5. **1Password SA token** for the Homela vault
+5. **1Password SA token** for the Homelab vault
 
 ## Pre-Flight Checks
 
@@ -184,7 +184,10 @@ flux get images update -A
 ### Renovate Bot (GitHub Actions)
 - Check GitHub Actions tab for Renovate workflow runs
 - Renovate creates grouped PRs and auto-merges patch/minor updates
-- Requires `RENOVATE_TOKEN` secret in repo settings (see KAZ-56)
+- Uses 1Password for secrets — only `OP_SERVICE_ACCOUNT_TOKEN` in GitHub
+- Renovate PAT stored in 1Password: `op://Homelab/renovate-github-pat/credential`
+- PAT requires: Contents R/W, Pull Requests R/W, Issues R/W, Workflows R/W
+- See `docs/runbooks/secrets-management.md` for the full CI secrets pattern and permission details
 
 ## Troubleshooting
 

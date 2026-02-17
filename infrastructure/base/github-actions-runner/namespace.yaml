@@ -1,0 +1,34 @@
+# ══════════════════════════════════════════════════════════════════
+# ARC Namespaces — Controller and Runners separated
+# ══════════════════════════════════════════════════════════════════
+#
+# LEARNING NOTE — WHY TWO NAMESPACES:
+#   Runner pods execute arbitrary GitHub Actions workflow code.
+#   If a workflow is compromised (malicious PR, supply chain attack),
+#   the runner pod could attempt to escalate privileges.
+#
+#   By isolating the controller in arc-system and runners in arc-runners:
+#   - Compromised runners can't modify the controller
+#   - RBAC can be scoped independently per namespace
+#   - Kyverno policies can apply different rules to each
+#   - Network policies can restrict runner egress separately
+#
+#   This is the same principle as separating the 1Password Operator
+#   (onepassword-system) from the workloads that consume secrets.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-system
+  labels:
+    app.kubernetes.io/part-of: github-actions-runner
+    app.kubernetes.io/component: controller
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: arc-runners
+  labels:
+    app.kubernetes.io/part-of: github-actions-runner
+    app.kubernetes.io/component: runners
