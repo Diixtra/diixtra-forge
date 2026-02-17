@@ -1,5 +1,4 @@
 name: Validate Flux Manifests
-
 on:
   pull_request:
     branches: [main]
@@ -8,7 +7,6 @@ on:
       - "platform/**"
       - "apps/**"
       - "clusters/**"
-
 jobs:
   validate:
     name: Validate Kustomize Builds
@@ -18,10 +16,12 @@ jobs:
         # Validate every cluster overlay independently.
         # If any single overlay fails to build, the PR is blocked.
         # Each entry must be a directory containing kustomization.yaml.
-        # Platform uses a two-stage split (CRDs install before policies),
-        # so each stage is validated independently.
+        # Infrastructure and platform both use two-stage splits
+        # (CRDs install before consumers), so each stage is validated independently.
         overlay:
+          - infrastructure/homelab/crds
           - infrastructure/homelab
+          - infrastructure/dev/crds
           - infrastructure/dev
           - platform/homelab/crds
           - platform/homelab/policies
@@ -32,17 +32,14 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
       - name: Setup Flux CLI
         uses: fluxcd/flux2/action@main
-
       - name: Validate Kustomize build
         # 'kustomize build' renders the final YAML without applying it.
         # If this fails, the manifests have structural issues.
         run: |
           echo "Validating ${{ matrix.overlay }}..."
           kustomize build ${{ matrix.overlay }}
-
       - name: Validate Kubernetes schemas
         # kubeconform checks that the rendered YAML matches the Kubernetes API schema.
         # It catches things like wrong apiVersion, missing required fields, or
@@ -51,7 +48,6 @@ jobs:
           # Install kubeconform
           curl -sL https://github.com/yannh/kubeconform/releases/latest/download/kubeconform-linux-amd64.tar.gz | tar xz
           chmod +x kubeconform
-
           # Build and validate — skip CRDs that kubeconform doesn't know about
           kustomize build ${{ matrix.overlay }} | ./kubeconform \
             -strict \

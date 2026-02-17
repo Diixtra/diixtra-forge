@@ -1,16 +1,55 @@
 ---
-# Flux Kustomization (capital K) — NOT the same as kustomize.config.k8s.io.
-# This is a Flux CRD that tells the kustomize-controller:
-#   "Build the Kustomize overlay at this path and apply the result to the cluster."
+# Stage 1: CRD Providers
+# Deploys HelmReleases that install Custom Resource Definitions.
+# Must complete before stage 2, which creates resources of those types.
 #
-# The dependency chain: infrastructure → platform → apps
-# Infrastructure has no dependsOn — it deploys first.
+# This is the same pattern used for platform-crds → platform.
+# Flux Kustomizations are atomic — if any resource fails server-side
+# dry-run, the entire batch is rejected. Separating CRD providers
+# from CRD consumers ensures a clean bootstrap from scratch.
+apiVersion: kustomize.toolkit.fluxcd.io/v1
+kind: Kustomization
+metadata:
+  name: infrastructure-crds
+  namespace: flux-system
+spec:
+  interval: 10m
+  retryInterval: 1m
+  timeout: 5m
+  sourceRef:
+    kind: GitRepository
+    name: flux-system
+  path: ./infrastructure/homelab/crds
+  prune: true
+  wait: true
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: onepassword-operator
+      namespace: onepassword-system
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: metallb
+      namespace: metallb-system
+---
+# Stage 2: CRD Consumers
+# Deploys resources that depend on CRDs installed by infrastructure-crds:
+#   - OnePasswordItem (1Password Operator CRD)
+#   - IPAddressPool, L2Advertisement (MetalLB CRDs)
+#
+# Dependency chain: infrastructure-crds → infrastructure → platform-crds → platform → apps
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
 metadata:
   name: infrastructure
   namespace: flux-system
 spec:
+  dependsOn:
+    - name: infrastructure-crds
   interval: 10m
   retryInterval: 1m
   timeout: 5m
@@ -20,34 +59,15 @@ spec:
   path: ./infrastructure/homelab
   prune: true
   wait: true
-  # LEARNING NOTE — postBuild.substituteFrom:
-  #   After Kustomize renders the manifests, Flux replaces ${VARIABLE}
-  #   placeholders with values from this ConfigMap. This keeps all
-  #   environment-specific values (domains, IPs, vault names) in one
-  #   place instead of scattered across dozens of YAML files.
-  #
-  #   The ConfigMap is in flux-system namespace — same as this Kustomization.
-  #   Flux reads it directly; it doesn't need to be in the target namespace.
   postBuild:
     substituteFrom:
       - kind: ConfigMap
         name: cluster-vars
-  # Health checks — Flux waits until these resources are healthy
-  # before marking infrastructure as "ready". The platform layer
-  # depends on infrastructure being ready, so these gates matter.
   healthChecks:
     - apiVersion: apps/v1
       kind: Deployment
       name: caddy
       namespace: caddy-system
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: onepassword-operator
-      namespace: onepassword-system
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: metallb
-      namespace: metallb-system
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
       name: truenas-nfs
