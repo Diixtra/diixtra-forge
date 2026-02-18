@@ -42,3 +42,5 @@ autoinstall:
 
   late-commands:
     - "systemctl enable qemu-guest-agent --root=/target"
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer

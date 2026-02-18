@@ -23,9 +23,9 @@
 # ── Proxmox Connection ─────────────────────────────────────────────
 proxmox_api_url          = "https://10.2.0.159:8006/api2/json"
 proxmox_api_token_id     = "packer@pve!packer-token"
-proxmox_api_token_secret = "REPLACE_WITH_TOKEN_SECRET"
+proxmox_api_token_secret = "7db6eb10-1aaf-422a-9d06-503be466ad51"
 proxmox_node             = "pve"
-
+c
 # ── Storage ─────────────────────────────────────────────────────────
 proxmox_iso_storage  = "nas-1"
 proxmox_disk_storage = "nas-1"

@@ -89,3 +89,7 @@ autoinstall:
   #   hard power-offs and doesn't know the VM's IP address.
   late-commands:
     - "systemctl enable qemu-guest-agent --root=/target"
+ late-commands:
+    - "systemctl enable qemu-guest-agent --root=/target"
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer
