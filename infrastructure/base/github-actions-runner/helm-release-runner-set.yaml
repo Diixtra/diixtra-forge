@@ -87,6 +87,12 @@ spec:
     # Runner pod spec customisation
     template:
       spec:
+        # Security hardening — runners execute workflow code, so isolate them.
+        # The official runner image runs as UID 1001 (runner user) by default.
+        # readOnlyRootFilesystem is NOT set because the runner writes to
+        # /home/runner/_work/ during job execution.
+        securityContext:
+          runAsNonRoot: true
         # LEARNING NOTE — MULTI-ARCH NODE SCHEDULING:
         #   The ARC runner image (ghcr.io/actions/actions-runner) is amd64-only.
         #   Your cluster has mixed architectures (amd64 control plane + ARM
