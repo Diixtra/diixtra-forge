@@ -69,15 +69,22 @@ ok "System packages updated"
 
 # ── 2. Install Core Packages ───────────────────────────────────────
 log "Installing core packages..."
-apt-get install -y -qq \
-    open-iscsi \
-    nfs-common \
-    jq \
-    curl \
-    gnupg \
-    apt-transport-https \
-    ca-certificates \
-    software-properties-common
+CORE_PACKAGES=(
+    open-iscsi
+    nfs-common
+    jq
+    curl
+    gnupg
+    apt-transport-https
+    ca-certificates
+)
+
+# software-properties-common is Ubuntu-only (provides add-apt-repository)
+if [ -f /etc/os-release ] && grep -qi ubuntu /etc/os-release; then
+    CORE_PACKAGES+=(software-properties-common)
+fi
+
+apt-get install -y -qq "${CORE_PACKAGES[@]}"
 ok "Core packages installed"
 
 # ── 3. Install 1Password CLI ───────────────────────────────────────
