@@ -24,10 +24,14 @@ data:
     # ── Reusable Snippets ──────────────────────────────────────
 
     # TLS via Cloudflare DNS-01 challenge
+    # propagation_timeout: how long to wait for TXT record to propagate (default 2m, too short)
+    # propagation_delay: initial wait before first propagation check (lets DNS settle)
     (tls-cloudflare) {
       tls {
         dns cloudflare {env.CF_API_TOKEN}
         resolvers 1.1.1.1
+        propagation_timeout 300
+        propagation_delay 30
       }
     }
 
@@ -125,10 +129,6 @@ data:
       import tls-cloudflare
       reverse_proxy http://${HOME_ASSISTANT_HOST}:8123
     }
-
-
-
-
 
 
 
