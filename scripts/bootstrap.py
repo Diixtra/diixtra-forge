@@ -66,6 +66,10 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
 
+# Ensure sibling modules in scripts/ are importable regardless of CWD.
+# When invoked as `python3 scripts/bootstrap.py` from the repo root,
+# Python adds the repo root (not scripts/) to sys.path. This fixes that.
+sys.path.insert(0, str(Path(__file__).parent))
 from network_checks import run_network_checks
 
 
