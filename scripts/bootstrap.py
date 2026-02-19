@@ -9,7 +9,8 @@ PURPOSE:
 
 WHAT THIS SCRIPT DOES (in order):
     1. Pre-flight checks    — Verifies CLI tools, env vars, cluster connectivity,
-                              node-level dependencies (open-iscsi), scaffold structure
+                              node-level dependencies (open-iscsi), scaffold structure,
+                              and UniFi network validation (advisory, see KAZ-61)
     2. GitHub repo setup    — Creates the private repo via `gh` CLI (idempotent)
     3. Git push             — Initializes local scaffold and pushes to GitHub
     4. Bootstrap secret     — Creates the 1Password SA token secret on the cluster
@@ -49,6 +50,9 @@ USAGE:
 
     # Dry run (validates everything without making changes):
     python3 scripts/bootstrap.py --dry-run
+
+    # Skip UniFi network checks (for offline/CI environments):
+    python3 scripts/bootstrap.py --skip-network-checks
 """
 
 import argparse
@@ -61,6 +65,12 @@ import time
 from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Optional
+
+# Ensure sibling modules in scripts/ are importable regardless of CWD.
+# When invoked as `python3 scripts/bootstrap.py` from the repo root,
+# Python adds the repo root (not scripts/) to sys.path. This fixes that.
+sys.path.insert(0, str(Path(__file__).parent))
+from network_checks import run_network_checks
 
 
 # =============================================================================
@@ -143,6 +153,11 @@ class Config:
 
     # ── Dry Run ─────────────────────────────────────────────────────────
     dry_run: bool = False
+
+    # ── Network Checks ──────────────────────────────────────────────────
+    # When True, skip UniFi API pre-flight network validation.
+    # Useful in offline/CI environments without UniFi controller access.
+    skip_network_checks: bool = False
 
     # ── Expected Kustomizations ─────────────────────────────────────────
     # All 6 layers that must reconcile for a healthy cluster.
@@ -405,6 +420,23 @@ def preflight_checks(config: Config) -> None:
         errors.append("Scaffold incomplete")
     else:
         log("  ✅", f"Scaffold validated — {len(required_dirs)} dirs, {len(required_files)} files")
+
+    # ── UniFi network validation (advisory) ─────────────────────────
+    # LEARNING NOTE — ADVISORY CHECKS:
+    #   Network checks query the UniFi controller to validate DHCP,
+    #   MetalLB range, DNS, and inter-VLAN routing. These are warnings
+    #   only — they don't block bootstrap. Use --skip-network-checks
+    #   for offline/CI environments.
+    if config.skip_network_checks:
+        log("⏭️ ", "Network checks skipped (--skip-network-checks)")
+    else:
+        network_warnings = run_network_checks(
+            kube_context=config.kube_context,
+            repo_root=config.repo_root,
+        )
+        if network_warnings:
+            log("⚠️ ", f"Network validation: {len(network_warnings)} advisory warning(s)")
+            log("  ", "These are informational — bootstrap will continue.")
 
     # ── Config summary ──────────────────────────────────────────────
     log("📋", "Bootstrap configuration:")
@@ -885,6 +917,10 @@ Examples:
         "--skip-rbac-recovery", action="store_true",
         help="Skip the gotk-components.yaml apply step",
     )
+    parser.add_argument(
+        "--skip-network-checks", action="store_true",
+        help="Skip UniFi API network validation (for offline/CI environments)",
+    )
     return parser.parse_args()
 
 
@@ -898,6 +934,7 @@ def main():
     config = Config()
     config.dry_run = args.dry_run
     config.rbac_recovery_enabled = not args.skip_rbac_recovery
+    config.skip_network_checks = args.skip_network_checks
 
     try:
         preflight_checks(config)
