@@ -372,6 +372,15 @@ def check_node_ip_assignments(
     configured_clients = client.get_configured_clients()
     active_clients = client.get_clients()
 
+    # Fetch DHCP leases to detect dynamic assignments
+    dhcp_leases = {
+        lease.get("ip"): lease
+        for lease in client.get_dhcp_leases()
+        if lease.get("ip")
+    }
+    if not dhcp_leases:
+        log("  ℹ️ ", "DHCP lease data unavailable — dynamic leases may not be detected")
+
     # Build lookup: IP -> client info
     fixed_ips = {}
     for c in configured_clients:
@@ -397,10 +406,16 @@ def check_node_ip_assignments(
         if ip in fixed_ips:
             info = fixed_ips[ip]
             log("  ⚠️ ", f"{name} ({ip}): DHCP reservation (MAC: {info['mac']})")
-            log("  ", f"  Recommendation: Convert to static IP on the node itself")
+            log("  ", "  Recommendation: Convert to static IP on the node itself")
             warnings.append(
                 f"Node {name} ({ip}) uses a DHCP reservation — "
                 f"consider converting to a static assignment"
+            )
+        elif ip in dhcp_leases:
+            log("  ⚠️ ", f"{name} ({ip}): DHCP lease detected")
+            warnings.append(
+                f"Node {name} ({ip}) appears to be on a DHCP lease — "
+                f"convert to a static assignment"
             )
         elif ip in active_by_ip:
             info = active_by_ip[ip]
@@ -411,9 +426,7 @@ def check_node_ip_assignments(
                     f"consider converting to a static assignment"
                 )
             else:
-                # IP is active but not a fixed assignment — could be static
-                # (UniFi may not know about statically configured IPs)
-                log("  ✅", f"{name} ({ip}): Active (likely static — not in DHCP reservations)")
+                log("  ✅", f"{name} ({ip}): Active (not in DHCP reservations)")
         else:
             # IP not in UniFi at all — almost certainly static
             log("  ✅", f"{name} ({ip}): Static (not managed by UniFi DHCP)")
@@ -540,9 +553,6 @@ def check_dns_reachability(
             if dns:
                 dns_servers.append(dns)
 
-        # Also check the gateway as a potential DNS server
-        gateway = network.get("gateway_ip", network.get("ip_subnet", "").split("/")[0])
-
         if not dns_servers:
             log("  ⚠️ ", f"  No DNS servers configured for '{name}'")
             warnings.append(f"No DNS servers configured on network '{name}'")
@@ -606,10 +616,22 @@ def check_inter_vlan_routing(
             except ValueError:
                 continue
 
+    # Warn about unmapped nodes
+    unmapped = [ip for ip in node_ips if ip not in node_vlans]
+    if unmapped:
+        log("  ⚠️ ", f"Could not map {len(unmapped)} node IP(s) to a network: {', '.join(unmapped)}")
+        warnings.append(
+            f"{len(unmapped)} node IP(s) could not be mapped to a UniFi network — "
+            f"inter-VLAN validation incomplete"
+        )
+
     # Report VLAN distribution
     unique_vlans = set(node_vlans.values())
+    if not node_vlans:
+        log("  ⚠️ ", "No nodes could be mapped to networks — skipping VLAN check")
+        return
     if len(unique_vlans) <= 1:
-        vlan_name = next(iter(unique_vlans), "unknown")
+        vlan_name = next(iter(unique_vlans))
         log("  ✅", f"All nodes on same network: {vlan_name}")
         return
 
