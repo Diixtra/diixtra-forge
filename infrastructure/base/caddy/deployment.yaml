@@ -18,6 +18,17 @@ spec:
         app.kubernetes.io/name: caddy
         app.kubernetes.io/part-of: caddy
     spec:
+      # ndots:2 prevents the *.kazie.co.uk wildcard DNS from hijacking
+      # external lookups. With the default ndots:5, domains like
+      # acme-v02.api.letsencrypt.org (4 dots) get the search domain
+      # appended first → acme-v02.api.letsencrypt.org.kazie.co.uk →
+      # matches the wildcard → resolves to the Caddy LB IP (10.2.0.200)
+      # instead of the real Let's Encrypt server. ndots:2 ensures any
+      # domain with 2+ dots is tried as an absolute name first.
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
       containers:
         - name: caddy
           # Multi-arch image with Cloudflare DNS plugin built in.
