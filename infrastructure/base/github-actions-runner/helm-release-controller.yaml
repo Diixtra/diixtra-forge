@@ -63,3 +63,24 @@ spec:
   #   CRDs if missing AND replace them on upgrade. This is safe for
   #   ARC because the CRDs are backwards-compatible across versions.
   #   Without this, CRD schema updates would be silently skipped.
+  values:
+    # RBAC NOTE — SCOPED BY DEFAULT:
+    #   The controller chart creates a ClusterRole with only the
+    #   permissions needed to manage ARC CRDs (AutoScalingRunnerSet,
+    #   EphemeralRunnerSet, etc.) — NOT cluster-admin.
+    #   Each runner scale set adds a namespace-scoped Role granting
+    #   the controller access to pods/secrets in that namespace only.
+    resources:
+      requests:
+        cpu: 100m
+        memory: 128Mi
+      limits:
+        cpu: 250m
+        memory: 256Mi
+    # Harden the controller pod
+    securityContext:
+      runAsNonRoot: true
+    flags:
+      # Reduce log noise in production; change to "debug" for troubleshooting
+      logLevel: info
+      logFormat: text
