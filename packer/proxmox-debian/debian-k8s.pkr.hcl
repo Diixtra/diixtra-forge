@@ -209,7 +209,7 @@ build {
     inline = [
       "chmod +x /tmp/provision-k8s-node.sh",
       "sudo bash /tmp/provision-k8s-node.sh worker amd64",
-      "rm /tmp/provision-k8s-node.sh",
+      "rm -f /tmp/provision-k8s-node.sh",
     ]
   }
 }

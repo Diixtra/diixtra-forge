@@ -68,7 +68,7 @@ autoinstall:
     username: packer
     # Password: "packer" — only used during build, not in production
     # Generated with: echo "packer" | mkpasswd -m sha-512 --stdin
-    password: "$6$rounds=4096$randomsalt$LhFn8FzI3KlYLkR8ZkO.Nh0bQkx/TWXJVTgV5VpIJ5pE2QqOLO9VYdNp6.k3bGxjUhWLNVx5yLkPxCqYsQF1."
+    password: "$6$randomsalt$Y9I6baU6/XBXbwHqL9WqhUxEtpn068Ssu.yflHxMZNsO9tIi1ARi9m1vhY8szl1bF.So//IYQx378cx9SFCDF/"
 
   # ── SSH ───────────────────────────────────────────────────────────
   ssh:
@@ -88,4 +88,6 @@ autoinstall:
   #   (for consistent snapshots). Without it, Proxmox can only do
   #   hard power-offs and doesn't know the VM's IP address.
   late-commands:
-    - "systemctl enable qemu-guest-agent --root=/target"
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer
+    - systemctl enable qemu-guest-agent --root=/target

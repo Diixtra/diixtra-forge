@@ -27,7 +27,7 @@ autoinstall:
   identity:
     hostname: k8s-gpu-template
     username: packer
-    password: "$6$rounds=4096$randomsalt$LhFn8FzI3KlYLkR8ZkO.Nh0bQkx/TWXJVTgV5VpIJ5pE2QqOLO9VYdNp6.k3bGxjUhWLNVx5yLkPxCqYsQF1."
+    password: "$6$randomsalt$Y9I6baU6/XBXbwHqL9WqhUxEtpn068Ssu.yflHxMZNsO9tIi1ARi9m1vhY8szl1bF.So//IYQx378cx9SFCDF/"
 
   ssh:
     install-server: true
@@ -41,4 +41,6 @@ autoinstall:
     - linux-headers-generic
 
   late-commands:
-    - "systemctl enable qemu-guest-agent --root=/target"
+    - echo 'packer ALL=(ALL) NOPASSWD:ALL' > /target/etc/sudoers.d/packer
+    - chmod 440 /target/etc/sudoers.d/packer
+    - systemctl enable qemu-guest-agent --root=/target
