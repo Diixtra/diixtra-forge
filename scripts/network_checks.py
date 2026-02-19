@@ -672,11 +672,10 @@ def check_dhcp_reservations(
     for r in reservations:
         log("  ", f"  {r['name']}: {r['ip']} (MAC: {r['mac']})")
 
-    if reservations:
-        warnings.append(
-            f"{len(reservations)} device(s) use DHCP reservations — "
-            f"consider converting infrastructure devices to static IPs"
-        )
+    warnings.append(
+        f"{len(reservations)} device(s) use DHCP reservations — "
+        f"consider converting infrastructure devices to static IPs"
+    )
 
 
 # =============================================================================
@@ -770,8 +769,8 @@ def run_network_checks(
 # STANDALONE EXECUTION
 # =============================================================================
 
+# Allow running network checks independently for debugging.
 if __name__ == "__main__":
-    """Allow running network checks independently for debugging."""
     import argparse
 
     parser = argparse.ArgumentParser(
