@@ -19,6 +19,7 @@ data:
 
     {
       email ${ACME_EMAIL}
+      acme_ca https://acme-v02.api.letsencrypt.org/directory
     }
 
     # ── Reusable Snippets ──────────────────────────────────────
@@ -129,10 +130,6 @@ data:
       import tls-cloudflare
       reverse_proxy http://${HOME_ASSISTANT_HOST}:8123
     }
-
-
-
-
 
 
 
