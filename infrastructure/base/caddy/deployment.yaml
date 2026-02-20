@@ -9,6 +9,12 @@ metadata:
     app.kubernetes.io/managed-by: flux
 spec:
   replicas: 1
+  # Recreate strategy is required because the caddy-data PVC uses
+  # ReadWriteOnce. RollingUpdate creates the new pod before killing the
+  # old one, causing a Multi-Attach deadlock (new pod can't mount the
+  # PVC while the old pod still holds it).
+  strategy:
+    type: Recreate
   selector:
     matchLabels:
       app.kubernetes.io/name: caddy
