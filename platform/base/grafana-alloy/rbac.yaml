@@ -1,0 +1,29 @@
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: grafana-alloy-secret-reader
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: grafana-alloy
+    app.kubernetes.io/managed-by: flux
+rules:
+  - apiGroups: [""]
+    resources: ["secrets"]
+    verbs: ["get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: grafana-alloy-secret-reader
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: grafana-alloy
+    app.kubernetes.io/managed-by: flux
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: grafana-alloy-secret-reader
+subjects:
+  - kind: ServiceAccount
+    name: grafana-alloy
+    namespace: monitoring

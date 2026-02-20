@@ -33,6 +33,10 @@ spec:
   wait: true
   dependsOn:
     - name: infrastructure
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
 ---
 apiVersion: kustomize.toolkit.fluxcd.io/v1
 kind: Kustomization
