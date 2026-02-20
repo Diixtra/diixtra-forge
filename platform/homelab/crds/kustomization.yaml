@@ -17,3 +17,10 @@ kind: Kustomization
 resources:
   - ../../base/kyverno
   - ../../base/grafana-alloy
+  - ../../base/kube-state-metrics
+patches:
+  - target:
+      kind: HelmRelease
+      name: grafana-alloy
+      namespace: monitoring
+    path: alloy/patches/alloy-config-patch.yaml

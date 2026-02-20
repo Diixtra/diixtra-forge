@@ -48,6 +48,7 @@ data:
   OP_VAULT: "Homelab"
   OP_ITEM_CLOUDFLARE: "cloudflare dns API Credentials"
   OP_ITEM_TRUENAS: "Truenas API Credential"
+  OP_ITEM_GRAFANA_CLOUD: "Grafana Cloud API Credentials"
   # ── Network Configuration ──────────────────────────────────────
   METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"

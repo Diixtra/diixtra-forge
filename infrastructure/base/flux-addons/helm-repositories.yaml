@@ -49,6 +49,16 @@ spec:
   interval: 24h
   url: https://grafana.github.io/helm-charts
 ---
+# Prometheus Community Helm chart registry (kube-state-metrics, etc.)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: prometheus-community
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://prometheus-community.github.io/helm-charts
+---
 # Actions Runner Controller (ARC) — OCI registry
 #
 # LEARNING NOTE — OCI vs HTTPS HELM REPOSITORIES:
