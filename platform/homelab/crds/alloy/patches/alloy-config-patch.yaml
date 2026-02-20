@@ -97,11 +97,13 @@ spec:
           }
 
           // ════════════════════════════════════════════════════════════
-          // Metrics — TrueNAS (external)
+          // Metrics — TrueNAS (via graphite-exporter)
           // ════════════════════════════════════════════════════════════
+          // TrueNAS pushes Graphite plaintext to graphite-exporter:9109.
+          // The exporter converts to Prometheus format on :9108/metrics.
           prometheus.scrape "truenas" {
             targets = [{
-              __address__ = "${TRUENAS_HOST}:9273",
+              __address__ = "graphite-exporter-prometheus-graphite-exporter.monitoring.svc.cluster.local:9108",
             }]
             scrape_interval = "60s"
             clustering {
