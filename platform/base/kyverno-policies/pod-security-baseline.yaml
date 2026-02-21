@@ -1,0 +1,37 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-security-baseline
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Pod Security Standards (Baseline)
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Enforce the baseline Pod Security Standards profile cluster-wide.
+      Covers: privileged containers, host namespaces, host ports,
+      hostPath volumes, privilege escalation, and more.
+spec:
+  background: true
+  rules:
+    - name: baseline
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - democratic-csi
+                - monitoring
+      validate:
+        failureAction: Enforce
+        podSecurity:
+          level: baseline
+          version: latest
