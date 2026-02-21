@@ -50,7 +50,7 @@ spec:
       validate:
         failureAction: Audit
         message: >-
-          Unknown image registry for '{{ element.image }}'.
+          Unknown image registry detected.
           Allowed registries: docker.io, ghcr.io, quay.io,
           registry.k8s.io, lscr.io (or implicit Docker Hub).
         foreach:
