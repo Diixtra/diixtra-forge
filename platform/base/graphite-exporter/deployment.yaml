@@ -1,0 +1,59 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: graphite-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: graphite-exporter
+    app.kubernetes.io/managed-by: flux
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: graphite-exporter
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: graphite-exporter
+    spec:
+      containers:
+        - name: graphite-exporter
+          image: prom/graphite-exporter:latest
+          ports:
+            - name: graphite
+              containerPort: 9109
+              protocol: TCP
+            - name: metrics
+              containerPort: 9108
+              protocol: TCP
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+---
+# Expose Graphite ingestion port externally (MetalLB assigns a stable IP)
+# so TrueNAS can push metrics. Alloy scrapes the metrics port internally.
+apiVersion: v1
+kind: Service
+metadata:
+  name: graphite-exporter
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: graphite-exporter
+    app.kubernetes.io/managed-by: flux
+spec:
+  type: LoadBalancer
+  selector:
+    app.kubernetes.io/name: graphite-exporter
+  ports:
+    - name: graphite
+      port: 9109
+      targetPort: 9109
+      protocol: TCP
+    - name: metrics
+      port: 9108
+      targetPort: 9108
+      protocol: TCP
