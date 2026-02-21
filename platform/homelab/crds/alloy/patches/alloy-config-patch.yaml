@@ -13,7 +13,7 @@ spec:
       configMap:
         content: |
           // ════════════════════════════════════════════════════════════
-          // Grafana Cloud Credentials
+          // Grafana Cloud API Key (from 1Password)
           // ════════════════════════════════════════════════════════════
           remote.kubernetes.secret "grafana_cloud" {
             name      = "grafana-cloud-credentials"
@@ -23,12 +23,14 @@ spec:
           // ════════════════════════════════════════════════════════════
           // Sinks — Prometheus Remote Write & Loki
           // ════════════════════════════════════════════════════════════
+          // URLs and usernames are Flux-substituted from cluster vars.
+          // Only the API key comes from the 1Password secret.
           prometheus.remote_write "grafana_cloud" {
             endpoint {
-              url = nonsensitive(remote.kubernetes.secret.grafana_cloud.data["prometheus-url"])
+              url = "${GRAFANA_PROMETHEUS_URL}"
               basic_auth {
-                username = nonsensitive(remote.kubernetes.secret.grafana_cloud.data["prometheus-username"])
-                password = remote.kubernetes.secret.grafana_cloud.data["api-key"]
+                username = "${GRAFANA_PROMETHEUS_USERNAME}"
+                password = remote.kubernetes.secret.grafana_cloud.data["credential"]
               }
             }
             external_labels = {
@@ -38,10 +40,10 @@ spec:
 
           loki.write "grafana_cloud" {
             endpoint {
-              url = nonsensitive(remote.kubernetes.secret.grafana_cloud.data["loki-url"])
+              url = "${GRAFANA_LOKI_URL}"
               basic_auth {
-                username = nonsensitive(remote.kubernetes.secret.grafana_cloud.data["loki-username"])
-                password = remote.kubernetes.secret.grafana_cloud.data["api-key"]
+                username = "${GRAFANA_LOKI_USERNAME}"
+                password = remote.kubernetes.secret.grafana_cloud.data["credential"]
               }
             }
             external_labels = {
@@ -103,7 +105,7 @@ spec:
           // The exporter converts to Prometheus format on :9108/metrics.
           prometheus.scrape "truenas" {
             targets = [{
-              __address__ = "graphite-exporter-prometheus-graphite-exporter.monitoring.svc.cluster.local:9108",
+              __address__ = "graphite-exporter.monitoring.svc.cluster.local:9108",
             }]
             scrape_interval = "60s"
             clustering {

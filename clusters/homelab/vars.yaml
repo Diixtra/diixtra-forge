@@ -48,7 +48,12 @@ data:
   OP_VAULT: "Homelab"
   OP_ITEM_CLOUDFLARE: "cloudflare dns API Credentials"
   OP_ITEM_TRUENAS: "Truenas API Credential"
-  OP_ITEM_GRAFANA_CLOUD: "Grafana Cloud API Credentials"
+  OP_ITEM_GRAFANA_CLOUD: "grafana-cloud-credentials"
+  # ── Grafana Cloud Configuration ────────────────────────────────
+  GRAFANA_PROMETHEUS_URL: "https://prometheus-prod-55-prod-gb-south-1.grafana.net/api/prom/push"
+  GRAFANA_PROMETHEUS_USERNAME: "2972580"
+  GRAFANA_LOKI_URL: "https://logs-prod-035.grafana.net/loki/api/v1/push"
+  GRAFANA_LOKI_USERNAME: "1481965"
   # ── Network Configuration ──────────────────────────────────────
   METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"
