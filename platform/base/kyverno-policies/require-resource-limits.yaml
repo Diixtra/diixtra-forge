@@ -28,6 +28,8 @@ spec:
                 - kube-system
                 - kyverno-system
                 - flux-system
+                - democratic-csi
+                - monitoring
       validate:
         failureAction: Enforce
         message: "All containers must have CPU and memory limits defined."
