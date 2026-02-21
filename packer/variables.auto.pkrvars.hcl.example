@@ -17,15 +17,15 @@
 #     4. -var-file flag on command line
 #     5. -var flag on command line
 #
-#   For secrets, prefer environment variables or 1Password CLI injection:
-#     export PKR_VAR_proxmox_api_token_secret=$(op read "op://Homelab/proxmox-packer-token/credential")
+#   For secrets, use 1Password CLI injection via op run:
+#     op run --env-file=.env.packer -- packer build -var-file=variables.auto.pkrvars.hcl proxmox-gpu/
 
 # ── Proxmox Connection ─────────────────────────────────────────────
 proxmox_api_url          = "https://10.2.0.159:8006/api2/json"
 proxmox_api_token_id     = "packer@pve!packer-token"
-proxmox_api_token_secret = "7db6eb10-1aaf-422a-9d06-503be466ad51"
+# proxmox_api_token_secret — injected via `op run --env-file=.env.packer`
 proxmox_node             = "pve"
-c
+
 # ── Storage ─────────────────────────────────────────────────────────
 proxmox_iso_storage  = "nas-1"
 proxmox_disk_storage = "nas-1"

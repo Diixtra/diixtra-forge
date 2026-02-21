@@ -179,7 +179,10 @@ source "proxmox-iso" "ubuntu-k8s" {
   template_description = var.template_description
 
   # ISO
-  iso_file = "${var.proxmox_iso_storage}:iso/${var.ubuntu_iso_file}"
+  boot_iso {
+    iso_file = "${var.proxmox_iso_storage}:iso/${var.ubuntu_iso_file}"
+    unmount  = true
+  }
 
   # Hardware
   cores    = var.vm_cores
