@@ -1,0 +1,181 @@
+---
+# ══════════════════════════════════════════════════════════════════
+# Supply Chain Security Policies (KAZ-57)
+# ══════════════════════════════════════════════════════════════════
+# Policy: Restrict container image registries to an approved list.
+# Prevents pulling from untrusted or unknown registries.
+#
+# NOTE: Images without an explicit registry (e.g. "nginx:1.25") are
+# resolved by the container runtime to docker.io/library/*. Kyverno
+# sees the raw image string from the admission request, so bare names
+# like "nginx:1.25" won't match "docker.io/*". These implicit Docker
+# Hub references are detected via regex: a registry prefix has a dot
+# or colon before the first slash (e.g. docker.io/*, host:5000/*).
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: restrict-image-registries
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Restrict Image Registries
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: high
+    policies.kyverno.io/description: >-
+      Container images may only be pulled from approved registries.
+      This prevents supply chain attacks via untrusted image sources.
+      Allowed: docker.io, ghcr.io, quay.io, registry.k8s.io, lscr.io.
+      Implicit Docker Hub images (no registry prefix) are also permitted.
+spec:
+  background: true
+  rules:
+    - name: validate-registries
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - flux-system
+      preconditions:
+        all:
+          - key: "{{request.operation}}"
+            operator: NotEquals
+            value: DELETE
+      validate:
+        failureAction: Audit
+        message: >-
+          Unknown image registry for '{{ element.image }}'.
+          Allowed registries: docker.io, ghcr.io, quay.io,
+          registry.k8s.io, lscr.io (or implicit Docker Hub).
+        foreach:
+          - list: "request.object.spec.containers"
+            deny:
+              conditions:
+                all:
+                  # Image is NOT from an approved registry
+                  - key: "{{ element.image }}"
+                    operator: AnyNotIn
+                    value:
+                      - "docker.io/*"
+                      - "ghcr.io/*"
+                      - "quay.io/*"
+                      - "registry.k8s.io/*"
+                      - "lscr.io/*"
+                  # AND image HAS a registry prefix (dot or colon
+                  # before the first slash). Bare Docker Hub refs like
+                  # "nginx:1.25" or "library/nginx" lack this pattern
+                  # and are implicitly allowed.
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
+                    operator: Equals
+                    value: "true"
+          - list: "request.object.spec.initContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.image }}"
+                    operator: AnyNotIn
+                    value:
+                      - "docker.io/*"
+                      - "ghcr.io/*"
+                      - "quay.io/*"
+                      - "registry.k8s.io/*"
+                      - "lscr.io/*"
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
+                    operator: Equals
+                    value: "true"
+          - list: "request.object.spec.ephemeralContainers[]"
+            deny:
+              conditions:
+                all:
+                  - key: "{{ element.image }}"
+                    operator: AnyNotIn
+                    value:
+                      - "docker.io/*"
+                      - "ghcr.io/*"
+                      - "quay.io/*"
+                      - "registry.k8s.io/*"
+                      - "lscr.io/*"
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
+                    operator: Equals
+                    value: "true"
+---
+# Policy: Disallow the :latest image tag.
+# Mutable tags make deployments non-reproducible and hide what
+# version is actually running.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      The ':latest' tag is mutable and non-deterministic. All container
+      images must use an explicit, immutable version tag or digest.
+spec:
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - flux-system
+      validate:
+        failureAction: Audit
+        message: "An image tag or digest is required; bare image names are not allowed."
+        anyPattern:
+          - spec:
+              containers:
+                - image: "*:*"
+              =(initContainers):
+                - image: "*:*"
+              =(ephemeralContainers):
+                - image: "*:*"
+          - spec:
+              containers:
+                - image: "*@*"
+              =(initContainers):
+                - image: "*@*"
+              =(ephemeralContainers):
+                - image: "*@*"
+    - name: validate-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - flux-system
+      validate:
+        failureAction: Audit
+        message: "Using the mutable ':latest' image tag is not allowed."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+            =(initContainers):
+              - image: "!*:latest"
+            =(ephemeralContainers):
+              - image: "!*:latest"

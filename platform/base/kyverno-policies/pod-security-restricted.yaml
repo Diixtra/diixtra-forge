@@ -1,0 +1,36 @@
+---
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: pod-security-restricted
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Pod Security Standards (Restricted)
+    policies.kyverno.io/category: Pod Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      Audit the restricted Pod Security Standards profile for visibility
+      into what changes are needed for full hardening.
+spec:
+  background: true
+  rules:
+    - name: restricted
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - democratic-csi
+                - monitoring
+      validate:
+        failureAction: Audit
+        podSecurity:
+          level: restricted
+          version: latest

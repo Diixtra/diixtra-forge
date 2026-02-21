@@ -1,4 +1,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
-  - policies.yaml
+  - pod-security-baseline.yaml
+  - pod-security-restricted.yaml
+  - require-resource-limits.yaml
+  - require-standard-labels.yaml
+  - supply-chain-policies.yaml
