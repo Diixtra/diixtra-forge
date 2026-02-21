@@ -9,8 +9,9 @@
 #   - There's a brief TLS downtime while new certs are issued
 #
 #   With a PVC, certs survive restarts, rescheduling, and upgrades.
-#   NFS is fine here — Caddy only needs ReadWriteOnce for /data
-#   and the I/O is minimal (just cert storage, not serving).
+#   NFS supports ReadWriteMany, which prevents Multi-Attach errors
+#   when the pod reschedules to a different node. RWO caused a
+#   cascade: stale VolumeAttachment → CSI lock → TrueNAS overload.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: v1
 kind: PersistentVolumeClaim
@@ -23,7 +24,7 @@ metadata:
     app.kubernetes.io/managed-by: flux
 spec:
   accessModes:
-    - ReadWriteOnce
+    - ReadWriteMany
   # Uses the default StorageClass (truenas-nfs)
   # democratic-csi will auto-create a ZFS dataset on TrueNAS
   # and configure NFS sharing — zero manual steps.
