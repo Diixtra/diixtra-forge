@@ -45,8 +45,3 @@ spec:
                   limits:
                     cpu: "?*"
                     memory: "?*"
-            =(ephemeralContainers):
-              - resources:
-                  limits:
-                    cpu: "?*"
-                    memory: "?*"
