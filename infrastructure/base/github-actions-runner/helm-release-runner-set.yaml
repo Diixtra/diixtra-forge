@@ -87,6 +87,7 @@ spec:
     # Runner pod spec customisation
     template:
       spec:
+        serviceAccountName: arc-runner-flux-reader
         # Security hardening — runners execute workflow code, so isolate them.
         # The official runner image runs as UID 1001 (runner user) by default.
         # readOnlyRootFilesystem is NOT set because the runner writes to
