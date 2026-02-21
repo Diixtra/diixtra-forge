@@ -103,21 +103,19 @@ packer init arm-debian/
 
 ```bash
 cp variables.auto.pkrvars.hcl.example variables.auto.pkrvars.hcl
-# Edit with your Proxmox API token
+# Edit with your Proxmox connection details (non-secret values)
 ```
 
-Or inject from 1Password (recommended):
-
-```bash
-export PKR_VAR_proxmox_api_token_secret=$(op read "op://Homelab/proxmox-packer-token/credential")
-```
+The API token secret is injected at runtime via 1Password CLI — not stored in
+any file. The `.env.packer` file contains an `op://` reference (a pointer, not
+a secret) that `op run` resolves at execution time.
 
 ### 3. Validate
 
 ```bash
-packer validate -var-file="variables.auto.pkrvars.hcl" proxmox-ubuntu/
-packer validate -var-file="variables.auto.pkrvars.hcl" proxmox-debian/
-packer validate -var-file="variables.auto.pkrvars.hcl" proxmox-gpu/
+op run --env-file=packer/.env.packer -- packer validate -var-file=variables.auto.pkrvars.hcl proxmox-ubuntu/
+op run --env-file=packer/.env.packer -- packer validate -var-file=variables.auto.pkrvars.hcl proxmox-debian/
+op run --env-file=packer/.env.packer -- packer validate -var-file=variables.auto.pkrvars.hcl proxmox-gpu/
 packer validate arm-debian/  # Pi build uses defaults, no Proxmox vars needed
 ```
 
@@ -125,9 +123,9 @@ packer validate arm-debian/  # Pi build uses defaults, no Proxmox vars needed
 
 ```bash
 # Build one template at a time (they use different VM IDs so won't conflict)
-packer build -var-file="variables.auto.pkrvars.hcl" proxmox-ubuntu/
-packer build -var-file="variables.auto.pkrvars.hcl" proxmox-debian/
-packer build -var-file="variables.auto.pkrvars.hcl" proxmox-gpu/
+op run --env-file=packer/.env.packer -- packer build -var-file=variables.auto.pkrvars.hcl proxmox-ubuntu/
+op run --env-file=packer/.env.packer -- packer build -var-file=variables.auto.pkrvars.hcl proxmox-debian/
+op run --env-file=packer/.env.packer -- packer build -var-file=variables.auto.pkrvars.hcl proxmox-gpu/
 
 # Pi image (runs on build host, not Proxmox)
 sudo packer build arm-debian/
