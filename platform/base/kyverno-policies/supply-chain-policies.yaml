@@ -9,8 +9,8 @@
 # resolved by the container runtime to docker.io/library/*. Kyverno
 # sees the raw image string from the admission request, so bare names
 # like "nginx:1.25" won't match "docker.io/*". These implicit Docker
-# Hub references are allowed via a separate foreach entry that matches
-# images without a dot-separated registry prefix.
+# Hub references are detected via regex: a registry prefix has a dot
+# or colon before the first slash (e.g. docker.io/*, host:5000/*).
 apiVersion: kyverno.io/v1
 kind: ClusterPolicy
 metadata:
@@ -67,14 +67,14 @@ spec:
                       - "quay.io/*"
                       - "registry.k8s.io/*"
                       - "lscr.io/*"
-                  # AND image HAS a registry prefix (dot before slash).
-                  # Bare Docker Hub refs like "nginx:1.25" or
-                  # "library/nginx:1.25" lack a dot-slash pattern and
-                  # are implicitly allowed.
-                  - key: "{{ element.image }}"
+                  # AND image HAS a registry prefix (dot or colon
+                  # before the first slash). Bare Docker Hub refs like
+                  # "nginx:1.25" or "library/nginx" lack this pattern
+                  # and are implicitly allowed.
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
                     operator: Equals
-                    value: "*.*/*"
-          - list: "request.object.spec.[?initContainers][]"
+                    value: "true"
+          - list: "request.object.spec.initContainers[]"
             deny:
               conditions:
                 all:
@@ -86,10 +86,10 @@ spec:
                       - "quay.io/*"
                       - "registry.k8s.io/*"
                       - "lscr.io/*"
-                  - key: "{{ element.image }}"
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
                     operator: Equals
-                    value: "*.*/*"
-          - list: "request.object.spec.[?ephemeralContainers][]"
+                    value: "true"
+          - list: "request.object.spec.ephemeralContainers[]"
             deny:
               conditions:
                 all:
@@ -101,9 +101,9 @@ spec:
                       - "quay.io/*"
                       - "registry.k8s.io/*"
                       - "lscr.io/*"
-                  - key: "{{ element.image }}"
+                  - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
                     operator: Equals
-                    value: "*.*/*"
+                    value: "true"
 ---
 # Policy: Disallow the :latest image tag.
 # Mutable tags make deployments non-reproducible and hide what
