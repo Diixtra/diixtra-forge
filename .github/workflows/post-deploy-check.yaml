@@ -1,0 +1,111 @@
+name: Post-Deploy Health Check
+on:
+  push:
+    branches: [main]
+    paths:
+      - "infrastructure/**"
+      - "platform/**"
+      - "apps/**"
+      - "clusters/**"
+
+concurrency:
+  group: post-deploy-check
+  cancel-in-progress: true
+
+jobs:
+  health-check:
+    name: Cluster Health Check
+    runs-on: homelab
+    if: "!startsWith(github.event.head_commit.message, 'Revert \"')"
+    steps:
+      - name: Install Flux CLI
+        run: curl -s https://fluxcd.io/install.sh | FLUX_VERSION=2.4.0 bash
+
+      - name: Trigger source reconciliation
+        run: flux reconcile source git flux-system --timeout=2m
+
+      - name: Wait for Kustomizations
+        run: |
+          echo "Waiting for all Kustomizations to reconcile..."
+          for i in $(seq 1 60); do
+            NOT_READY=$(flux get kustomizations --no-header | grep -v "True" || true)
+            if [ -z "$NOT_READY" ]; then
+              echo "All Kustomizations are Ready"
+              flux get kustomizations
+              exit 0
+            fi
+            echo "Attempt $i/60 — waiting 10s..."
+            echo "$NOT_READY"
+            sleep 10
+          done
+          echo "TIMEOUT: Kustomizations not ready after 10 minutes"
+          flux get kustomizations
+          exit 1
+
+      - name: Wait for HelmReleases
+        run: |
+          echo "Waiting for all HelmReleases to reconcile..."
+          for i in $(seq 1 60); do
+            NOT_READY=$(flux get helmreleases -A --no-header | grep -v "True" || true)
+            if [ -z "$NOT_READY" ]; then
+              echo "All HelmReleases are Ready"
+              flux get helmreleases -A
+              exit 0
+            fi
+            echo "Attempt $i/60 — waiting 10s..."
+            echo "$NOT_READY"
+            sleep 10
+          done
+          echo "TIMEOUT: HelmReleases not ready after 10 minutes"
+          flux get helmreleases -A
+          exit 1
+
+      - name: Verify critical pods
+        run: |
+          echo "Checking for unhealthy pods..."
+          FAILED=$(kubectl get pods -A --no-headers \
+            --field-selector=status.phase!=Running,status.phase!=Succeeded \
+            | grep -v "Completed" || true)
+          if [ -n "$FAILED" ]; then
+            echo "WARNING: Unhealthy pods detected:"
+            echo "$FAILED"
+            # Don't fail on pod issues — Flux readiness is the primary gate
+            # Pods in CrashLoopBackOff may be pre-existing
+          fi
+          echo "Pod status summary:"
+          kubectl get pods -A --no-headers | awk '{print $4}' | sort | uniq -c | sort -rn
+
+  rollback:
+    name: Auto Rollback
+    needs: health-check
+    if: failure()
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Revert commit
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git revert HEAD --no-edit
+          git push origin main
+
+      - name: Create issue
+        uses: actions/github-script@v8
+        with:
+          script: |
+            const sha = '${{ github.sha }}'.substring(0, 7);
+            const run = '${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}';
+            await github.rest.issues.create({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              title: `Auto-rollback: commit ${sha} failed health check`,
+              body: `## What happened\n\nCommit ${sha} was automatically reverted because the post-deploy health check failed.\n\n**Reverted commit:** ${{ github.sha }}\n**Author:** @${{ github.event.head_commit.author.username }}\n**Message:** ${{ github.event.head_commit.message }}\n**Health check run:** ${run}\n\n## Next steps\n\n1. Check the [workflow run](${run}) logs to understand what failed\n2. Fix the issue on a branch\n3. Open a new PR`,
+              labels: ['auto-rollback']
+            });

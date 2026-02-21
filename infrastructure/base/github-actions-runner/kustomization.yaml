@@ -5,3 +5,4 @@ resources:
   - onepassword-item.yaml
   - helm-release-controller.yaml
   - helm-release-runner-set.yaml
+  - rbac-flux-reader.yaml
