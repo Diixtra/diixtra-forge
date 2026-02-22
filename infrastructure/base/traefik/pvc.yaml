@@ -10,6 +10,9 @@ metadata:
 spec:
   accessModes:
     - ReadWriteMany
+  # Uses the default StorageClass (truenas-nfs)
+  # democratic-csi will auto-create a ZFS dataset on TrueNAS
+  # and configure NFS sharing for ACME certificate persistence.
   resources:
     requests:
       storage: 1Gi
