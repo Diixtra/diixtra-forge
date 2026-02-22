@@ -1,0 +1,288 @@
+# ══════════════════════════════════════════════════════════════════
+# Traefik IngressRoutes — All Application Routes (KAZ-84)
+# ══════════════════════════════════════════════════════════════════
+# Migrated from Caddy Caddyfile. Each route maps a hostname to a
+# backend service. HTTPS backends use the insecure-skip-verify
+# ServersTransport (self-signed certs on TrueNAS).
+#
+# DNS must point to Traefik's LoadBalancer IP for these to serve.
+# ══════════════════════════════════════════════════════════════════
+
+---
+# ── TrueNAS WebUI ───────────────────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: truenas
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`truenas.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 443
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── n8n (TrueNAS App) ──────────────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: n8n
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`n8n.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30109
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Nextcloud (root domain, not lab subdomain) ─────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: nextcloud
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`nc.${DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30027
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${DOMAIN}"
+        sans:
+          - "*.${DOMAIN}"
+
+---
+# ── Uptime Kuma (TrueNAS App, HTTP backend) ────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: uptime-kuma
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`uptime-kuma.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 31050
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Grafana (TrueNAS App, HTTP backend) ────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: grafana
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`grafana.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30037
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Prometheus (TrueNAS App, HTTP backend) ─────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: prometheus
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`prometheus.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30104
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Portainer (TrueNAS App) ────────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: portainer
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`portainer.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 31015
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Playwright (TrueNAS App) ───────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: playwright
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`playwright.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30150
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Auth Service (TrueNAS App) ─────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: auth
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`auth.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: truenas-external
+          port: 30141
+          scheme: https
+          serversTransport: insecure-skip-verify
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Home Assistant ──────────────────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: home-assistant
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`ha.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: home-assistant-external
+          port: 8123
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
+
+---
+# ── Backstage IDP ──────────────────────────────────────────────
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: backstage
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`backstage.${LAB_DOMAIN}`)
+      kind: Rule
+      services:
+        - name: backstage-external
+          port: 7007
+      middlewares:
+        - name: security-headers
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${LAB_DOMAIN}"
+        sans:
+          - "*.${LAB_DOMAIN}"
