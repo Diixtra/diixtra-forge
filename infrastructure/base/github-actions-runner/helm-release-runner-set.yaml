@@ -107,7 +107,6 @@ spec:
         # /home/runner/_work/ during job execution.
         securityContext:
           runAsNonRoot: true
-          runAsUser: 1001
         # LEARNING NOTE — MULTI-ARCH NODE SCHEDULING:
         #   The ARC runner image (ghcr.io/actions/actions-runner) is amd64-only.
         #   Your cluster has mixed architectures (amd64 control plane + ARM
