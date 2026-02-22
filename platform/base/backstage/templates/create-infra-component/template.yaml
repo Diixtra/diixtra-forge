@@ -55,7 +55,8 @@ spec:
         opItemName:
           title: 1Password Item Name
           type: string
-          description: "Title of the item in 1Password (e.g. redis-credentials)."
+          description: "Name for the Kubernetes Secret and 1Password item (e.g. redis-credentials). Must be DNS-safe."
+          pattern: "^[a-z][a-z0-9-]*$"
           ui:options:
             hidden: "{{ not parameters.enableSecret }}"
       dependencies:
