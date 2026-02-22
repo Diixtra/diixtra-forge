@@ -64,6 +64,20 @@ spec:
           helmReleaseNamespace: ${{ parameters.helmReleaseNamespace }}
           version: ${{ parameters.version }}
 
+    - id: fetch-kustomization
+      name: Fetch existing kustomization.yaml
+      action: fetch:plain:file
+      input:
+        url: https://github.com/Diixtra/diixtra-forge/blob/main/${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        targetPath: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+
+    - id: append-resource
+      name: Add version-pin to kustomization resources
+      action: fs:append
+      input:
+        file: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        content: "  - version-pin.yaml\n"
+
     - id: open-pr
       name: Open Pull Request
       action: publish:github:pull-request
@@ -84,7 +98,6 @@ spec:
           | **Reason** | ${{ parameters.reason }} |
 
           ### Reviewer checklist
-          - [ ] Add `- version-pin.yaml` to `${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml` resources
           - [ ] Verify the chart version exists in the HelmRepository
           - [ ] Confirm the reason for pinning is documented
 
