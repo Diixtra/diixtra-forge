@@ -1,0 +1,27 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    app.kubernetes.io/managed-by: flux
+{%- if values.expiry %}
+  annotations:
+    kazie.co.uk/expiry: "${{ values.expiry }}"
+{%- endif %}
+spec:
+  replicas: ${{ values.replicas }}
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: ${{ values.name }}
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: ${{ values.name }}
+    spec:
+      containers:
+        - name: ${{ values.name }}
+          image: ${{ values.image }}
+          ports:
+            - containerPort: ${{ values.port }}

@@ -16,6 +16,11 @@ spec:
       interval: 1h
   values:
     backstage:
+      # 1Password item "backstage-github-app" fields must be named exactly:
+      # GITHUB_APP_ID, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET,
+      # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
+      extraEnvVarsSecrets:
+        - backstage-github-app
       appConfig:
         app:
           title: Kazie Backstage
@@ -31,6 +36,30 @@ spec:
               port: 5432
               user: backstage
               password: ${POSTGRES_PASSWORD}
+        integrations:
+          github:
+            - host: github.com
+              apps:
+                - appId: $${GITHUB_APP_ID}
+                  clientId: $${GITHUB_APP_CLIENT_ID}
+                  clientSecret: $${GITHUB_APP_CLIENT_SECRET}
+                  privateKey: $${GITHUB_APP_PRIVATE_KEY}
+                  webhookSecret: $${GITHUB_APP_WEBHOOK_SECRET}
+        scaffolder:
+          defaultAuthor:
+            name: Backstage Scaffolder
+            email: backstage@kazie.co.uk
+          defaultCommitMessage: "feat: scaffolded from Backstage template"
+        catalog:
+          rules:
+            - allow: [Component, System, API, Resource, Location, Template]
+          locations:
+            - type: url
+              target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/deploy-service/template.yaml
+            - type: url
+              target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/pin-helm-version/template.yaml
+            - type: url
+              target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/create-infra-component/template.yaml
     postgresql:
       enabled: true
       auth:

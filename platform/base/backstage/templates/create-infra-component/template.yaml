@@ -1,0 +1,124 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: create-infra-component
+  title: Create Infrastructure Component
+  description: Scaffold the standard infrastructure/base/<name>/ directory with namespace, HelmRelease, optional 1Password secret, and Kustomization, then open a PR against diixtra-forge.
+  tags:
+    - kubernetes
+    - infrastructure
+    - helm
+spec:
+  owner: platform-team
+  type: infrastructure
+
+  parameters:
+    - title: Component Details
+      required:
+        - name
+        - namespace
+        - chart
+        - version
+        - helmRepoName
+      properties:
+        name:
+          title: Component Name
+          type: string
+          description: "Directory name under infrastructure/base/ (e.g. redis, minio)."
+          pattern: "^[a-z][a-z0-9-]*$"
+        namespace:
+          title: Namespace
+          type: string
+          description: "Kubernetes namespace for all resources (e.g. redis-system)."
+          pattern: "^[a-z][a-z0-9-]*$"
+        chart:
+          title: Helm Chart Name
+          type: string
+          description: "Chart name as listed in the HelmRepository (e.g. redis)."
+        version:
+          title: Chart Version
+          type: string
+          description: "Initial chart version to deploy (e.g. 18.6.1). Use * to track latest."
+          default: "*"
+        helmRepoName:
+          title: HelmRepository Name
+          type: string
+          description: "Name of the existing HelmRepository in flux-system (e.g. bitnami)."
+
+    - title: Secret (Optional)
+      properties:
+        enableSecret:
+          title: Enable 1Password Secret
+          type: boolean
+          description: Create a OnePasswordItem to sync a secret from 1Password.
+          default: false
+        opItemName:
+          title: 1Password Item Name
+          type: string
+          description: "Name for the Kubernetes Secret and 1Password item (e.g. redis-credentials). Must be DNS-safe."
+          pattern: "^[a-z][a-z0-9-]*$"
+          ui:options:
+            hidden: "{{ not parameters.enableSecret }}"
+      dependencies:
+        enableSecret:
+          oneOf:
+            - properties:
+                enableSecret:
+                  const: false
+            - properties:
+                enableSecret:
+                  const: true
+                opItemName:
+                  type: string
+              required:
+                - opItemName
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: infrastructure/base/${{ parameters.name }}
+        values:
+          name: ${{ parameters.name }}
+          namespace: ${{ parameters.namespace }}
+          chart: ${{ parameters.chart }}
+          version: ${{ parameters.version }}
+          helmRepoName: ${{ parameters.helmRepoName }}
+          enableSecret: ${{ parameters.enableSecret }}
+          opItemName: ${{ parameters.opItemName }}
+
+    - id: open-pr
+      name: Open Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=Diixtra&repo=diixtra-forge
+        branchName: backstage/infra-${{ parameters.name }}
+        title: "feat(infrastructure): add ${{ parameters.name }}"
+        description: |
+          ## Scaffolded by Backstage — Create Infrastructure Component
+
+          | Field | Value |
+          |-------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **Namespace** | `${{ parameters.namespace }}` |
+          | **Chart** | `${{ parameters.chart }}` |
+          | **Version** | `${{ parameters.version }}` |
+          | **HelmRepository** | `${{ parameters.helmRepoName }}` |
+          | **1Password Secret** | `${{ parameters.enableSecret }}` |
+          | **1Password Item** | `${{ parameters.opItemName }}` |
+
+          ### Reviewer checklist
+          - [ ] Add `- ../base/${{ parameters.name }}` to `infrastructure/homelab/kustomization.yaml`
+          - [ ] Add the HelmRepository to `infrastructure/base/flux-addons/` if not already present
+          - [ ] Verify chart version exists
+
+          ### If 1Password secret was enabled
+          - [ ] Create `${{ parameters.opItemName }}` item in 1Password `Homelab` vault
+          - [ ] Add `OP_ITEM_${{ parameters.name | upper | replace("-", "_") }}` to `clusters/homelab/vars.yaml`
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['open-pr'].output.remoteUrl }}

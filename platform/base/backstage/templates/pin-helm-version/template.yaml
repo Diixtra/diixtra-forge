@@ -1,0 +1,107 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: pin-helm-version
+  title: Pin Helm Chart Version
+  description: Create a Kustomize strategic-merge patch that pins a HelmRelease to a specific chart version, and open a PR against diixtra-forge.
+  tags:
+    - kubernetes
+    - helm
+    - kustomize
+spec:
+  owner: platform-team
+  type: ops
+
+  parameters:
+    - title: HelmRelease Details
+      required:
+        - layer
+        - component
+        - helmReleaseName
+        - helmReleaseNamespace
+        - version
+        - reason
+      properties:
+        layer:
+          title: Layer
+          type: string
+          description: Top-level directory containing the component.
+          enum:
+            - infrastructure
+            - platform
+            - apps
+        component:
+          title: Component
+          type: string
+          description: "Directory name under <layer>/base/ (e.g. traefik, backstage)."
+          pattern: "^[a-z][a-z0-9-]*$"
+        helmReleaseName:
+          title: HelmRelease Name
+          type: string
+          description: metadata.name of the HelmRelease to pin.
+        helmReleaseNamespace:
+          title: HelmRelease Namespace
+          type: string
+          description: metadata.namespace of the HelmRelease.
+        version:
+          title: Chart Version
+          type: string
+          description: "Exact chart version to pin (e.g. 2.11.3)."
+        reason:
+          title: Reason
+          type: string
+          description: Why this version is being pinned (shown in the PR description).
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ${{ parameters.layer }}/base/${{ parameters.component }}
+        values:
+          helmReleaseName: ${{ parameters.helmReleaseName }}
+          helmReleaseNamespace: ${{ parameters.helmReleaseNamespace }}
+          version: ${{ parameters.version }}
+
+    - id: fetch-kustomization
+      name: Fetch existing kustomization.yaml
+      action: fetch:plain:file
+      input:
+        url: https://github.com/Diixtra/diixtra-forge/blob/main/${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        targetPath: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+
+    - id: append-resource
+      name: Add version-pin to kustomization resources
+      action: fs:append
+      input:
+        file: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        content: "  - version-pin.yaml\n"
+
+    - id: open-pr
+      name: Open Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=Diixtra&repo=diixtra-forge
+        branchName: backstage/pin-${{ parameters.component }}-${{ parameters.version }}
+        title: "fix(${{ parameters.component }}): pin chart to ${{ parameters.version }}"
+        description: |
+          ## Scaffolded by Backstage — Pin Helm Chart Version
+
+          | Field | Value |
+          |-------|-------|
+          | **Layer** | `${{ parameters.layer }}` |
+          | **Component** | `${{ parameters.component }}` |
+          | **HelmRelease** | `${{ parameters.helmReleaseName }}` |
+          | **Namespace** | `${{ parameters.helmReleaseNamespace }}` |
+          | **Version** | `${{ parameters.version }}` |
+          | **Reason** | ${{ parameters.reason }} |
+
+          ### Reviewer checklist
+          - [ ] Verify the chart version exists in the HelmRepository
+          - [ ] Confirm the reason for pinning is documented
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['open-pr'].output.remoteUrl }}

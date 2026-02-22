@@ -3,5 +3,6 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - helm-release.yaml
+{%- if values.enableSecret %}
   - onepassword-item.yaml
-  - onepassword-item-github-app.yaml
+{%- endif %}

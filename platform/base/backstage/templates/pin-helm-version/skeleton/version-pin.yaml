@@ -1,0 +1,9 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: ${{ values.helmReleaseName }}
+  namespace: ${{ values.helmReleaseNamespace }}
+spec:
+  chart:
+    spec:
+      version: "${{ values.version }}"
