@@ -21,6 +21,19 @@ spec:
       # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
       extraEnvVarsSecrets:
         - backstage-github-app
+      podSecurityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+        seccompProfile:
+          type: RuntimeDefault
+      containerSecurityContext:
+        allowPrivilegeEscalation: false
+        capabilities:
+          drop:
+            - ALL
+        readOnlyRootFilesystem: false
       resources:
         requests:
           cpu: 250m
@@ -75,6 +88,21 @@ spec:
         secretKeys:
           userPasswordKey: password
       primary:
+        podSecurityContext:
+          enabled: true
+          runAsNonRoot: true
+          runAsUser: 1001
+          fsGroup: 1001
+          seccompProfile:
+            type: RuntimeDefault
+        containerSecurityContext:
+          enabled: true
+          allowPrivilegeEscalation: false
+          capabilities:
+            drop:
+              - ALL
+          runAsNonRoot: true
+          runAsUser: 1001
         resources:
           requests:
             cpu: 250m
