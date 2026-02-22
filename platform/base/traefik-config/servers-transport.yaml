@@ -1,0 +1,9 @@
+# ServersTransport for upstream services using self-signed TLS certificates.
+# Referenced by IngressRoutes that proxy to HTTPS backends (TrueNAS, etc.)
+apiVersion: traefik.io/v1alpha1
+kind: ServersTransport
+metadata:
+  name: insecure-skip-verify
+  namespace: traefik-system
+spec:
+  insecureSkipVerify: true

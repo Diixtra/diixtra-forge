@@ -1,0 +1,103 @@
+# ══════════════════════════════════════════════════════════════════
+# External Service Definitions for Traefik IngressRoutes
+# ══════════════════════════════════════════════════════════════════
+# Traefik IngressRoutes can only reference Kubernetes Services.
+# For external hosts (TrueNAS, Home Assistant), we create selectorless
+# Services with explicit Endpoints pointing to the external IPs.
+# When adding a new app, add a named port to both the Service AND Endpoints.
+# For in-cluster services in other namespaces (Backstage), we use
+# ExternalName to avoid needing allowCrossNamespace in Traefik.
+# ══════════════════════════════════════════════════════════════════
+
+---
+# ── TrueNAS Host ────────────────────────────────────────────────
+# All TrueNAS apps share the same host IP but use different ports.
+# One Service+Endpoints pair serves all TrueNAS IngressRoutes.
+apiVersion: v1
+kind: Service
+metadata:
+  name: truenas-external
+  namespace: traefik-system
+spec:
+  ports:
+    - name: webui
+      port: 443
+    - name: n8n
+      port: 30109
+    - name: nextcloud
+      port: 30027
+    - name: uptime-kuma
+      port: 31050
+    - name: grafana
+      port: 30037
+    - name: prometheus
+      port: 30104
+    - name: portainer
+      port: 31015
+    - name: playwright
+      port: 30150
+    - name: auth
+      port: 30141
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: truenas-external
+  namespace: traefik-system
+subsets:
+  - addresses:
+      - ip: "${TRUENAS_HOST}"
+    ports:
+      - name: webui
+        port: 443
+      - name: n8n
+        port: 30109
+      - name: nextcloud
+        port: 30027
+      - name: uptime-kuma
+        port: 31050
+      - name: grafana
+        port: 30037
+      - name: prometheus
+        port: 30104
+      - name: portainer
+        port: 31015
+      - name: playwright
+        port: 30150
+      - name: auth
+        port: 30141
+
+---
+# ── Home Assistant ──────────────────────────────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: home-assistant-external
+  namespace: traefik-system
+spec:
+  ports:
+    - name: http
+      port: 8123
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: home-assistant-external
+  namespace: traefik-system
+subsets:
+  - addresses:
+      - ip: "${HOME_ASSISTANT_HOST}"
+    ports:
+      - name: http
+        port: 8123
+
+---
+# ── Backstage (in-cluster, different namespace) ────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: backstage-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: backstage.backstage.svc.cluster.local
