@@ -4,19 +4,12 @@ resources:
   # CRD-dependent resources — these all need CRDs installed by
   # infrastructure-crds (OnePasswordItem from 1Password Operator,
   # IPAddressPool/L2Advertisement from MetalLB).
-  - ../base/caddy
   - ../base/traefik
   - ../base/democratic-csi
   - ../base/github-actions-runner
   # MetalLB custom resources — need MetalLB CRDs from infrastructure-crds
   - metallb/patches/ip-pool.yaml
 patches:
-  # Replace base Caddyfile with homelab-specific config
-  - target:
-      kind: ConfigMap
-      name: caddy-config
-      namespace: caddy-system
-    path: caddy/patches/caddyfile-patch.yaml
   # TrueNAS dataset paths — homelab uses kaz.cloud pool
   - target:
       kind: HelmRelease

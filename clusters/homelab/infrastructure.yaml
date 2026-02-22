@@ -64,10 +64,6 @@ spec:
       - kind: ConfigMap
         name: cluster-vars
   healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: caddy
-      namespace: caddy-system
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
       name: truenas-nfs
