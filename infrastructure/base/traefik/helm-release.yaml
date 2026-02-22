@@ -66,4 +66,4 @@ spec:
             name: cloudflare-api-token
             key: credential
     api:
-      dashboard: true
+      dashboard: false
