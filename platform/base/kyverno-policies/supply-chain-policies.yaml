@@ -104,3 +104,78 @@ spec:
                   - key: "{{ regex_match('^[^/]*[.:][^/]*/', element.image) }}"
                     operator: Equals
                     value: "true"
+---
+# Policy: Disallow the :latest image tag.
+# Mutable tags make deployments non-reproducible and hide what
+# version is actually running.
+apiVersion: kyverno.io/v1
+kind: ClusterPolicy
+metadata:
+  name: disallow-latest-tag
+  labels:
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    policies.kyverno.io/title: Disallow Latest Tag
+    policies.kyverno.io/category: Supply Chain Security
+    policies.kyverno.io/severity: medium
+    policies.kyverno.io/description: >-
+      The ':latest' tag is mutable and non-deterministic. All container
+      images must use an explicit, immutable version tag or digest.
+spec:
+  background: true
+  rules:
+    - name: require-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - flux-system
+      validate:
+        failureAction: Audit
+        message: "An image tag or digest is required; bare image names are not allowed."
+        anyPattern:
+          - spec:
+              containers:
+                - image: "*:*"
+              =(initContainers):
+                - image: "*:*"
+              =(ephemeralContainers):
+                - image: "*:*"
+          - spec:
+              containers:
+                - image: "*@*"
+              =(initContainers):
+                - image: "*@*"
+              =(ephemeralContainers):
+                - image: "*@*"
+    - name: validate-image-tag
+      match:
+        any:
+          - resources:
+              kinds:
+                - Pod
+      exclude:
+        any:
+          - resources:
+              namespaces:
+                - kube-system
+                - kyverno-system
+                - flux-system
+      validate:
+        failureAction: Audit
+        message: "Using the mutable ':latest' image tag is not allowed."
+        pattern:
+          spec:
+            containers:
+              - image: "!*:latest"
+            =(initContainers):
+              - image: "!*:latest"
+            =(ephemeralContainers):
+              - image: "!*:latest"
