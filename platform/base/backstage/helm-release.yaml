@@ -1,0 +1,43 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: backstage
+  namespace: backstage
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: backstage
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: backstage
+        namespace: flux-system
+      interval: 1h
+  values:
+    backstage:
+      appConfig:
+        app:
+          title: Kazie Backstage
+          baseUrl: https://backstage.${LAB_DOMAIN}
+        backend:
+          baseUrl: https://backstage.${LAB_DOMAIN}
+          listen:
+            port: 7007
+          database:
+            client: pg
+            connection:
+              host: backstage-postgresql
+              port: 5432
+              user: backstage
+              password: ${POSTGRES_PASSWORD}
+    postgresql:
+      enabled: true
+      auth:
+        username: backstage
+        existingSecret: backstage-postgresql
+        secretKeys:
+          userPasswordKey: password
+      primary:
+        persistence:
+          storageClass: truenas-iscsi
