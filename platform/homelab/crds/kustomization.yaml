@@ -20,6 +20,7 @@ resources:
   - ../../base/kube-state-metrics
   - ../../base/graphite-exporter
   - ../../base/backstage
+  - ../../base/traefik-config
 patches:
   - target:
       kind: HelmRelease

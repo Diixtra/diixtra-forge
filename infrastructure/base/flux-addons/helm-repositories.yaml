@@ -98,3 +98,13 @@ metadata:
 spec:
   interval: 24h
   url: https://backstage.github.io/charts
+---
+# Traefik — cloud-native ingress proxy
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: traefik
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://traefik.github.io/charts

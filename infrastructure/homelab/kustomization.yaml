@@ -5,6 +5,7 @@ resources:
   # infrastructure-crds (OnePasswordItem from 1Password Operator,
   # IPAddressPool/L2Advertisement from MetalLB).
   - ../base/caddy
+  - ../base/traefik
   - ../base/democratic-csi
   - ../base/github-actions-runner
   # MetalLB custom resources — need MetalLB CRDs from infrastructure-crds
