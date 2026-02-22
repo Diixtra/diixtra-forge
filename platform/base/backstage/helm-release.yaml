@@ -14,6 +14,10 @@ spec:
         name: backstage
         namespace: flux-system
       interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
   values:
     backstage:
       # 1Password item "backstage-github-app" fields must be named exactly:
@@ -21,6 +25,12 @@ spec:
       # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
       extraEnvVarsSecrets:
         - backstage-github-app
+      extraEnvVars:
+        - name: POSTGRES_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backstage-postgresql
+              key: password
       podSecurityContext:
         runAsNonRoot: true
         runAsUser: 1000
@@ -55,7 +65,7 @@ spec:
               host: backstage-postgresql
               port: 5432
               user: backstage
-              password: ${POSTGRES_PASSWORD}
+              password: $${POSTGRES_PASSWORD}
         integrations:
           github:
             - host: github.com
