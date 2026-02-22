@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ${{ values.namespace }}
+  labels:
+    app.kubernetes.io/part-of: ${{ values.name }}
+    app.kubernetes.io/managed-by: flux

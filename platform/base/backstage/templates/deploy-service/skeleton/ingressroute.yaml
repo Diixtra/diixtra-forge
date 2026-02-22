@@ -1,0 +1,19 @@
+{%- if values.enableIngress %}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ${{ values.name }}
+  namespace: ${{ values.name }}
+  labels:
+    app.kubernetes.io/name: ${{ values.name }}
+    app.kubernetes.io/managed-by: flux
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`${{ values.hostname }}`)
+      kind: Rule
+      services:
+        - name: ${{ values.name }}
+          port: ${{ values.port }}
+{%- endif %}

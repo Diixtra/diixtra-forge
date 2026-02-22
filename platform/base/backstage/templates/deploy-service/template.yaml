@@ -1,0 +1,108 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: deploy-service
+  title: Deploy New Service
+  description: Scaffold a Kubernetes Deployment, Service, and optional IngressRoute into apps/base/<name>/ and open a PR against diixtra-forge.
+  tags:
+    - kubernetes
+    - deployment
+    - apps
+spec:
+  owner: platform-team
+  type: service
+
+  parameters:
+    - title: Service Details
+      required:
+        - name
+        - image
+        - port
+      properties:
+        name:
+          title: Service Name
+          type: string
+          description: Lowercase name used for the directory, deployment, and service (e.g. whoami).
+          pattern: "^[a-z][a-z0-9-]*$"
+        image:
+          title: Container Image
+          type: string
+          description: "Full image reference (e.g. traefik/whoami:latest)."
+        port:
+          title: Container Port
+          type: integer
+          description: Port the container listens on.
+          default: 8080
+        replicas:
+          title: Replicas
+          type: integer
+          description: Number of pod replicas.
+          default: 1
+
+    - title: Ingress
+      properties:
+        enableIngress:
+          title: Enable IngressRoute
+          type: boolean
+          description: Create a Traefik IngressRoute for external access.
+          default: false
+        hostname:
+          title: Hostname
+          type: string
+          description: "FQDN for the IngressRoute (e.g. whoami.lab.kazie.co.uk). Required if ingress is enabled."
+          ui:options:
+            hidden: "{{ not parameters.enableIngress }}"
+
+    - title: Lifecycle
+      properties:
+        expiry:
+          title: Expiry Date
+          type: string
+          description: "Optional ISO date (YYYY-MM-DD) after which this service should be reviewed for removal."
+          format: date
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: apps/base/${{ parameters.name }}
+        values:
+          name: ${{ parameters.name }}
+          image: ${{ parameters.image }}
+          port: ${{ parameters.port }}
+          replicas: ${{ parameters.replicas }}
+          enableIngress: ${{ parameters.enableIngress }}
+          hostname: ${{ parameters.hostname }}
+          expiry: ${{ parameters.expiry }}
+
+    - id: open-pr
+      name: Open Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=Diixtra&repo=diixtra-forge
+        branchName: backstage/deploy-${{ parameters.name }}
+        title: "feat(apps): deploy ${{ parameters.name }}"
+        description: |
+          ## Scaffolded by Backstage — Deploy New Service
+
+          | Field | Value |
+          |-------|-------|
+          | **Name** | `${{ parameters.name }}` |
+          | **Image** | `${{ parameters.image }}` |
+          | **Port** | `${{ parameters.port }}` |
+          | **Replicas** | `${{ parameters.replicas }}` |
+          | **Ingress** | `${{ parameters.enableIngress }}` |
+          | **Hostname** | `${{ parameters.hostname }}` |
+          | **Expiry** | `${{ parameters.expiry }}` |
+
+          ### Reviewer checklist
+          - [ ] Add `- ../base/${{ parameters.name }}` to `apps/homelab/kustomization.yaml`
+          - [ ] Verify image exists and tag is correct
+          - [ ] Check resource limits / requests if needed
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['open-pr'].output.remoteUrl }}
