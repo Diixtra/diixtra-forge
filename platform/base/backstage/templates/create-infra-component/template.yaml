@@ -55,9 +55,22 @@ spec:
         opItemName:
           title: 1Password Item Name
           type: string
-          description: "Title of the item in 1Password (e.g. redis-credentials). Required if secret is enabled."
+          description: "Title of the item in 1Password (e.g. redis-credentials)."
           ui:options:
             hidden: "{{ not parameters.enableSecret }}"
+      dependencies:
+        enableSecret:
+          oneOf:
+            - properties:
+                enableSecret:
+                  const: false
+            - properties:
+                enableSecret:
+                  const: true
+                opItemName:
+                  type: string
+              required:
+                - opItemName
 
   steps:
     - id: fetch-skeleton
@@ -97,12 +110,12 @@ spec:
 
           ### Reviewer checklist
           - [ ] Add `- ../base/${{ parameters.name }}` to `infrastructure/homelab/kustomization.yaml`
-          {%- if values.enableSecret %}
-          - [ ] Create `${{ parameters.opItemName }}` item in 1Password `Homelab` vault
-          - [ ] Add `OP_ITEM_${{ parameters.name | upper | replace("-", "_") }}` to `clusters/homelab/vars.yaml`
-          {%- endif %}
           - [ ] Add the HelmRepository to `infrastructure/base/flux-addons/` if not already present
           - [ ] Verify chart version exists
+
+          ### If 1Password secret was enabled
+          - [ ] Create `${{ parameters.opItemName }}` item in 1Password `Homelab` vault
+          - [ ] Add `OP_ITEM_${{ parameters.name | upper | replace("-", "_") }}` to `clusters/homelab/vars.yaml`
 
   output:
     links:

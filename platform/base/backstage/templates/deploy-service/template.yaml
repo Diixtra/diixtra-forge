@@ -49,9 +49,22 @@ spec:
         hostname:
           title: Hostname
           type: string
-          description: "FQDN for the IngressRoute (e.g. whoami.lab.kazie.co.uk). Required if ingress is enabled."
+          description: "FQDN for the IngressRoute (e.g. whoami.lab.kazie.co.uk)."
           ui:options:
             hidden: "{{ not parameters.enableIngress }}"
+      dependencies:
+        enableIngress:
+          oneOf:
+            - properties:
+                enableIngress:
+                  const: false
+            - properties:
+                enableIngress:
+                  const: true
+                hostname:
+                  type: string
+              required:
+                - hostname
 
     - title: Lifecycle
       properties:
