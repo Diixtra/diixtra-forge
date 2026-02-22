@@ -21,6 +21,13 @@ spec:
       # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
       extraEnvVarsSecrets:
         - backstage-github-app
+      resources:
+        requests:
+          cpu: 250m
+          memory: 512Mi
+        limits:
+          cpu: 1000m
+          memory: 1Gi
       appConfig:
         app:
           title: Kazie Backstage
@@ -68,5 +75,12 @@ spec:
         secretKeys:
           userPasswordKey: password
       primary:
+        resources:
+          requests:
+            cpu: 250m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
         persistence:
           storageClass: truenas-iscsi

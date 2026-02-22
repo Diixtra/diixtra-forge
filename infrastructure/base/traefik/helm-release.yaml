@@ -55,10 +55,11 @@ spec:
       path: /data
     service:
       type: LoadBalancer
-    dnsConfig:
-      options:
-        - name: ndots
-          value: "2"
+    deployment:
+      dnsConfig:
+        options:
+          - name: ndots
+            value: "2"
     env:
       - name: CF_DNS_API_TOKEN
         valueFrom:
