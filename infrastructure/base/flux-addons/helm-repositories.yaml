@@ -88,3 +88,13 @@ spec:
   type: oci
   interval: 24h
   url: oci://ghcr.io/actions/actions-runner-controller-charts
+---
+# Backstage — CNCF developer portal
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: backstage
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://backstage.github.io/charts

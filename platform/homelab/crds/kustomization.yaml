@@ -19,6 +19,7 @@ resources:
   - ../../base/grafana-alloy
   - ../../base/kube-state-metrics
   - ../../base/graphite-exporter
+  - ../../base/backstage
 patches:
   - target:
       kind: HelmRelease

@@ -49,6 +49,7 @@ data:
   OP_ITEM_CLOUDFLARE: "cloudflare dns API Credentials"
   OP_ITEM_TRUENAS: "Truenas API Credential"
   OP_ITEM_GRAFANA_CLOUD: "grafana-cloud-credentials"
+  OP_ITEM_BACKSTAGE_DB: "backstage-postgresql"
   # ── Grafana Cloud Configuration ────────────────────────────────
   GRAFANA_PROMETHEUS_URL: "https://prometheus-prod-55-prod-gb-south-1.grafana.net/api/prom/push"
   GRAFANA_PROMETHEUS_USERNAME: "2972580"

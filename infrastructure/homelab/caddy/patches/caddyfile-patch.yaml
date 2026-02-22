@@ -131,9 +131,12 @@ data:
       reverse_proxy http://${HOME_ASSISTANT_HOST}:8123
     }
 
-
-
-
+    # ── Backstage IDP ────────────────────────────────────────
+    backstage.${LAB_DOMAIN} {
+      import tls-cloudflare
+      import security-headers
+      reverse_proxy http://backstage.backstage.svc.cluster.local:7007
+    }
 
 
 
