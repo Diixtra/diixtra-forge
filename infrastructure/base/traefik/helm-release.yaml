@@ -35,10 +35,6 @@ spec:
           tls:
             enabled: true
             certResolver: letsencrypt
-            domains:
-              - main: "${LAB_DOMAIN}"
-                sans:
-                  - "*.${LAB_DOMAIN}"
     certificatesResolvers:
       letsencrypt:
         acme:
