@@ -30,10 +30,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── n8n (TrueNAS App) ──────────────────────────────────────────
@@ -57,10 +53,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Nextcloud (root domain, not lab subdomain) ─────────────────
@@ -84,10 +76,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${DOMAIN}"
-        sans:
-          - "*.${DOMAIN}"
 
 ---
 # ── Uptime Kuma (TrueNAS App, HTTP backend) ────────────────────
@@ -107,10 +95,6 @@ spec:
           port: 31050
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Grafana (TrueNAS App, HTTP backend) ────────────────────────
@@ -130,10 +114,6 @@ spec:
           port: 30037
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Prometheus (TrueNAS App, HTTP backend) ─────────────────────
@@ -153,10 +133,6 @@ spec:
           port: 30104
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Portainer (TrueNAS App) ────────────────────────────────────
@@ -180,10 +156,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Playwright (TrueNAS App) ───────────────────────────────────
@@ -207,10 +179,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Auth Service (TrueNAS App) ─────────────────────────────────
@@ -234,10 +202,6 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Home Assistant ──────────────────────────────────────────────
@@ -257,10 +221,6 @@ spec:
           port: 8123
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
 
 ---
 # ── Backstage IDP ──────────────────────────────────────────────
@@ -282,7 +242,3 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
