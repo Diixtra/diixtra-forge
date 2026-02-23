@@ -28,4 +28,7 @@ backend.add(
   import('@backstage/plugin-permission-backend-module-allow-all-policy'),
 );
 
-backend.start();
+backend.start().catch(error => {
+  console.error('Backend failed to start:', error);
+  process.exit(1);
+});

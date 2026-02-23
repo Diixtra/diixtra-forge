@@ -33,7 +33,7 @@ spec:
 ---
 # ── ImagePolicy: Tell Flux HOW to pick the latest image ──────────
 #
-# LEARNING NOTE — WHY DIGEST PINNING FOR :latest:
+# LEARNING NOTE — HOW :latest TAG TRACKING WORKS:
 #   The `:latest` tag is mutable — it can point to different images
 #   at different times. By using alphabetical ordering on the
 #   `:latest` tag, Flux detects when the tag's digest changes and
@@ -56,6 +56,8 @@ spec:
 
 ---
 # ── ImageUpdateAutomation: Scan infrastructure path ──────────────
+# Currently no $imagepolicy markers in ./infrastructure — kept for
+# future use when infrastructure-layer images need automation.
 #
 # LEARNING NOTE — THE GIT COMMIT FLOW:
 #   When a new image is detected, this resource tells the
