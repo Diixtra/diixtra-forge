@@ -16,7 +16,3 @@ spec:
         - name: security-headers
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${LAB_DOMAIN}"
-        sans:
-          - "*.${LAB_DOMAIN}"
