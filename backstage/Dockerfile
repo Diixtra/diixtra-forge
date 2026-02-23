@@ -1,6 +1,6 @@
 # ── Stage 1: Build ────────────────────────────────────────────────
 # Supports linux/amd64 and linux/arm64 via QEMU cross-compilation.
-FROM node:22-bookworm-slim AS build
+FROM node:24-bookworm-slim AS build
 
 ENV PYTHON=/usr/bin/python3
 
@@ -27,7 +27,7 @@ COPY --chown=node:node . .
 RUN yarn tsc && yarn build:backend
 
 # ── Stage 2: Install production deps (needs build tools for native modules) ──
-FROM node:22-bookworm-slim AS deps
+FROM node:24-bookworm-slim AS deps
 
 ENV PYTHON=/usr/bin/python3
 
@@ -52,7 +52,7 @@ RUN --mount=type=cache,target=/home/node/.cache/yarn,sharing=locked,uid=1000,gid
     yarn workspaces focus --all --production
 
 # ── Stage 3: Runtime (no build toolchain) ─────────────────────────
-FROM node:22-bookworm-slim
+FROM node:24-bookworm-slim
 
 USER node
 WORKDIR /app
