@@ -1,4 +1,5 @@
 # ── Stage 1: Build ────────────────────────────────────────────────
+# Supports linux/amd64 and linux/arm64 via QEMU cross-compilation.
 FROM node:22-bookworm-slim AS build
 
 ENV PYTHON=/usr/bin/python3
