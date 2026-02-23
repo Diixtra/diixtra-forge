@@ -4,7 +4,7 @@ This document explains the migration from Caddy to Traefik as the reverse proxy 
 
 ## Architecture Overview
 
-The homelab runs k3s with Flux GitOps. A reverse proxy sits in front of all services, handling:
+The homelab runs Kubernetes (kubeadm) with Flux GitOps. A reverse proxy sits in front of all services, handling:
 
 - **TLS termination** — obtains Let's Encrypt certificates via ACME DNS-01 challenge
 - **Routing** — maps hostnames (e.g. `truenas.lab.kazie.co.uk`) to backend services

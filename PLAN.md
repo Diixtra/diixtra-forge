@@ -36,3 +36,18 @@ Bootstrap the `diixtra-forge` monorepo with Flux CD on the homelab cluster. Crea
   - [ ] 🟥 Verify GitRepository source is synced
   - [ ] 🟥 Verify Kustomization reconciliation for each layer
   - [x] 🟩 Document the bootstrap runbook
+
+## Future: Crossplane Phase 4 — Declarative DNS & Route Composition
+
+When Crossplane lands (Phase 4 on roadmap), replace the current GitHub Actions
+DNS workflow with a Crossplane Composition:
+
+- **Cloudflare Provider** — manage DNS A records as Kubernetes CRDs (`Record`)
+- **`ExternalRoute` XRD** — single Claim that creates: Cloudflare A record,
+  Service + Endpoints, IngressRoute, and middleware reference
+- **Backstage template simplification** — template generates one `ExternalRoute`
+  Claim instead of a multi-resource skeleton; no kustomization.yaml update needed
+- **Full lifecycle** — deleting the Claim removes the DNS record, Service, and
+  IngressRoute automatically
+- **Replaces**: `.github/workflows/dns-cloudflare-sync.yaml` and the current
+  `add-reverse-proxy` template skeleton
