@@ -42,7 +42,9 @@ spec:
           caServer: https://acme-v02.api.letsencrypt.org/directory
           dnsChallenge:
             provider: cloudflare
-            delayBeforeCheck: "30"
+            propagation:
+              delayBeforeChecks: "60"
+              disableChecks: true
             resolvers:
               - "1.1.1.1:53"
     persistence:
