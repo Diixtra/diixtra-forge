@@ -6,3 +6,4 @@ resources:
   - external-services.yaml
   - test-ingressroute.yaml
   - ingressroutes.yaml
+  - onepassword-item.yaml

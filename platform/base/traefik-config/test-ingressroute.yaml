@@ -14,5 +14,6 @@ spec:
           kind: TraefikService
       middlewares:
         - name: security-headers
+        - name: dashboard-auth
   tls:
     certResolver: letsencrypt

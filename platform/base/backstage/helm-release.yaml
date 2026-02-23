@@ -84,6 +84,13 @@ spec:
             name: Backstage Scaffolder
             email: backstage@kazie.co.uk
           defaultCommitMessage: "feat: scaffolded from Backstage template"
+        auth:
+          environment: production
+          providers:
+            github:
+              production:
+                clientId: $${GITHUB_APP_CLIENT_ID}
+                clientSecret: $${GITHUB_APP_CLIENT_SECRET}
         catalog:
           rules:
             - allow: [Component, System, API, Resource, Location, Template]
