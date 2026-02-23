@@ -34,7 +34,6 @@ spec:
         http:
           tls:
             enabled: true
-            certResolver: letsencrypt
     certificatesResolvers:
       letsencrypt:
         acme:
