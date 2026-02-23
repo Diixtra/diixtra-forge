@@ -51,6 +51,7 @@ data:
   OP_ITEM_GRAFANA_CLOUD: "grafana-cloud-credentials"
   OP_ITEM_BACKSTAGE_DB: "backstage-postgresql"
   OP_ITEM_BACKSTAGE_GITHUB_APP: "backstage-github-app"
+  OP_ITEM_TRAEFIK_BASIC_AUTH: "traefik-basic-auth"
   # ── Grafana Cloud Configuration ────────────────────────────────
   GRAFANA_PROMETHEUS_URL: "https://prometheus-prod-55-prod-gb-south-1.grafana.net/api/prom/push"
   GRAFANA_PROMETHEUS_USERNAME: "2972580"

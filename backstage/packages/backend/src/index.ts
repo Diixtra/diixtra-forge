@@ -1,4 +1,40 @@
 import { createBackend } from '@backstage/backend-defaults';
+import { createBackendModule } from '@backstage/backend-plugin-api';
+import { githubAuthenticator } from '@backstage/plugin-auth-backend-module-github-provider';
+import {
+  authProvidersExtensionPoint,
+  createOAuthProviderFactory,
+} from '@backstage/plugin-auth-node';
+
+const githubSignInModule = createBackendModule({
+  pluginId: 'auth',
+  moduleId: 'github-sign-in',
+  register(reg) {
+    reg.registerInit({
+      deps: { providers: authProvidersExtensionPoint },
+      async init({ providers }) {
+        providers.registerProvider({
+          providerId: 'github',
+          factory: createOAuthProviderFactory({
+            authenticator: githubAuthenticator,
+            async signInResolver({ result }, ctx) {
+              const userId = result.fullProfile.username;
+              if (!userId) {
+                throw new Error('GitHub username missing from profile');
+              }
+              return ctx.issueToken({
+                claims: {
+                  sub: `user:default/${userId}`,
+                  ent: [`user:default/${userId}`],
+                },
+              });
+            },
+          }),
+        });
+      },
+    });
+  },
+});
 
 const backend = createBackend();
 
@@ -15,9 +51,9 @@ backend.add(
 backend.add(import('@backstage/plugin-scaffolder-backend'));
 backend.add(import('@backstage/plugin-scaffolder-backend-module-github'));
 
-// auth (GitHub provider)
+// auth (GitHub provider with custom sign-in resolver)
 backend.add(import('@backstage/plugin-auth-backend'));
-backend.add(import('@backstage/plugin-auth-backend-module-github-provider'));
+backend.add(githubSignInModule);
 
 // kubernetes
 backend.add(import('@backstage/plugin-kubernetes-backend'));
