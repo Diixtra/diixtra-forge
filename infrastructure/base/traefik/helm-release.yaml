@@ -53,8 +53,13 @@ spec:
       enabled: true
       existingClaim: traefik-data
       path: /data
+    providers:
+      kubernetescrd:
+        allowExternalNameServices: true
     service:
       type: LoadBalancer
+      annotations:
+        metallb.io/loadBalancerIPs: 10.2.0.200
     resources:
       requests:
         cpu: 100m
