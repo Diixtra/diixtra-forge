@@ -40,7 +40,9 @@ spec:
         - name: caddy
           # Multi-arch image with Cloudflare DNS plugin built in.
           # Supports both amd64 and arm64 — works across all homelab nodes.
-          image: ghcr.io/caddybuilds/caddy-cloudflare:latest
+          # The comment marker below tells Flux Image Automation to update
+          # this line when a new image digest is detected.
+          image: ghcr.io/caddybuilds/caddy-cloudflare:latest # {"$imagepolicy": "flux-system:caddy"}
           ports:
             - containerPort: 80
               name: http

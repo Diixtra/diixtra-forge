@@ -19,45 +19,50 @@
 
 ---
 # ── ImageRepository: Tell Flux WHERE to look for images ──────────
-# Scans GHCR every 5 minutes for new tags under diixtra/backstage.
+# This creates a scanner that polls GHCR every 5 minutes for new
+# tags/digests under the caddybuilds/caddy-cloudflare image.
 apiVersion: image.toolkit.fluxcd.io/v1beta2
 kind: ImageRepository
 metadata:
-  name: backstage
+  name: caddy-cloudflare
   namespace: flux-system
 spec:
-  image: ghcr.io/diixtra/backstage
+  image: ghcr.io/caddybuilds/caddy-cloudflare
   interval: 5m0s
-  # No secretRef needed — public GHCR image.
+  # No secretRef needed — this is a public image on GHCR.
+  # For private registries, you'd add a secretRef pointing to
+  # a dockerconfigjson secret with registry credentials.
 
 ---
 # ── ImagePolicy: Tell Flux HOW to pick the latest image ──────────
 #
-# LEARNING NOTE — WHY NUMERICAL ORDERING ON build-N TAGS:
-#   Each CI run produces a tag like build-42, build-43, etc.
-#   The run_number is monotonically increasing, so numerical
-#   ordering always picks the most recent build. Unlike :latest
-#   (where the tag never changes and setters are a no-op),
-#   immutable build-N tags produce real git commits on each push.
+# LEARNING NOTE — WHY DIGEST PINNING FOR :latest:
+#   The `:latest` tag is mutable — it can point to different images
+#   at different times. By using `digest: true`, Flux pins the exact
+#   digest (sha256:abc...) in Git. This means:
+#     - Every node pulls the exact same image (no drift)
+#     - Git history shows exactly when each image changed
+#     - Rollback is a `git revert` away
+#
+#   The policy watches the `:latest` tag specifically, and when its
+#   digest changes, triggers an update in Git.
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
-  name: backstage
+  name: caddy
   namespace: flux-system
 spec:
   imageRepositoryRef:
-    name: backstage
+    name: caddy-cloudflare
   policy:
-    numerical:
+    alphabetical:
       order: asc
   filterTags:
-    pattern: '^build-(?P<nr>\d+)$'
-    extract: '$nr'
+    # Match the "latest" tag specifically
+    pattern: '^latest$'
 
 ---
-# ── ImageUpdateAutomation: Scan infrastructure path ──────────────
-# Currently no $imagepolicy markers in ./infrastructure — kept for
-# future use when infrastructure-layer images need automation.
+# ── ImageUpdateAutomation: Tell Flux WHERE to commit updates ─────
 #
 # LEARNING NOTE — THE GIT COMMIT FLOW:
 #   When a new image is detected, this resource tells the
@@ -100,40 +105,4 @@ spec:
       branch: main
   update:
     path: ./infrastructure
-    strategy: Setters
-
----
-# ── ImageUpdateAutomation: Scan platform path ────────────────────
-# Separate automation for the platform layer where the Backstage
-# HelmRelease lives. Uses the same Git commit flow as above.
-apiVersion: image.toolkit.fluxcd.io/v1beta2
-kind: ImageUpdateAutomation
-metadata:
-  name: platform
-  namespace: flux-system
-spec:
-  interval: 5m0s
-  sourceRef:
-    kind: GitRepository
-    name: flux-system
-    namespace: flux-system
-  git:
-    checkout:
-      ref:
-        branch: main
-    commit:
-      author:
-        email: ${FLUX_GIT_EMAIL}
-        name: Flux Image Automation
-      messageTemplate: |
-        chore(images): automated update
-
-        Automation: Flux Image Update Automation
-        {{- range $image, $_ := .Changed.Objects }}
-        - {{ $image.Name }}
-        {{- end }}
-    push:
-      branch: main
-  update:
-    path: ./platform
     strategy: Setters
