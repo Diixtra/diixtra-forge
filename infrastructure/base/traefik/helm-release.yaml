@@ -67,6 +67,8 @@ spec:
       limits:
         cpu: 500m
         memory: 256Mi
+    podSecurityContext:
+      fsGroup: 65532
     deployment:
       dnsConfig:
         options:
