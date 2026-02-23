@@ -90,6 +90,8 @@ spec:
               target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/pin-helm-version/template.yaml
             - type: url
               target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/create-infra-component/template.yaml
+            - type: url
+              target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/add-reverse-proxy/template.yaml
     postgresql:
       enabled: true
       auth:
