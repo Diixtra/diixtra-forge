@@ -31,10 +31,6 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      - name: Docker metadata
-        id: meta
-        run: echo "short_sha=${GITHUB_SHA::7}" >> "$GITHUB_OUTPUT"
-
       - name: Build and push
         uses: docker/build-push-action@v6
         with:
@@ -42,6 +38,6 @@ jobs:
           push: ${{ github.event_name == 'push' }}
           tags: |
             ghcr.io/diixtra/backstage:latest
-            ghcr.io/diixtra/backstage:sha-${{ steps.meta.outputs.short_sha }}
+            ghcr.io/diixtra/backstage:build-${{ github.run_number }}
           cache-from: type=gha
           cache-to: type=gha,mode=max

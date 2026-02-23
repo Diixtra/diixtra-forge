@@ -33,13 +33,12 @@ spec:
 ---
 # ── ImagePolicy: Tell Flux HOW to pick the latest image ──────────
 #
-# LEARNING NOTE — HOW :latest TAG TRACKING WORKS:
-#   The `:latest` tag is mutable — it can point to different images
-#   at different times. By using alphabetical ordering on the
-#   `:latest` tag, Flux detects when the tag's digest changes and
-#   triggers an update in Git. This means:
-#     - Git history shows exactly when each image changed
-#     - Rollback is a `git revert` away
+# LEARNING NOTE — WHY NUMERICAL ORDERING ON build-N TAGS:
+#   Each CI run produces a tag like build-42, build-43, etc.
+#   The run_number is monotonically increasing, so numerical
+#   ordering always picks the most recent build. Unlike :latest
+#   (where the tag never changes and setters are a no-op),
+#   immutable build-N tags produce real git commits on each push.
 apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImagePolicy
 metadata:
@@ -49,10 +48,11 @@ spec:
   imageRepositoryRef:
     name: backstage
   policy:
-    alphabetical:
+    numerical:
       order: asc
   filterTags:
-    pattern: '^latest$'
+    pattern: '^build-(?P<nr>\d+)$'
+    extract: '$nr'
 
 ---
 # ── ImageUpdateAutomation: Scan infrastructure path ──────────────
