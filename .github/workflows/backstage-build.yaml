@@ -36,8 +36,6 @@ jobs:
         with:
           context: ./backstage
           push: ${{ github.event_name == 'push' }}
-          platforms: linux/amd64
-          provenance: false
           tags: |
             ghcr.io/diixtra/backstage:latest
             ghcr.io/diixtra/backstage:build-${{ github.run_number }}
