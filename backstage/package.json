@@ -19,6 +19,7 @@
   },
   "devDependencies": {
     "@backstage/cli": "^0.35.4",
+    "@types/jest": "^30.0.0",
     "typescript": "~5.8.0"
   },
   "resolutions": {
