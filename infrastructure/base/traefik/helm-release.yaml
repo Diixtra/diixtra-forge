@@ -54,7 +54,7 @@ spec:
       existingClaim: traefik-data
       path: /data
     providers:
-      kubernetescrd:
+      kubernetesCRD:
         allowExternalNameServices: true
     service:
       type: LoadBalancer
