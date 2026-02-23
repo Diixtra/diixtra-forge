@@ -20,7 +20,7 @@
 ---
 # ── ImageRepository: Tell Flux WHERE to look for images ──────────
 # Scans GHCR every 5 minutes for new tags under diixtra/backstage.
-apiVersion: image.toolkit.fluxcd.io/v1beta2
+apiVersion: image.toolkit.fluxcd.io/v1
 kind: ImageRepository
 metadata:
   name: backstage
