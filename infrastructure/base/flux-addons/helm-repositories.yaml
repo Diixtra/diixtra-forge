@@ -99,6 +99,16 @@ spec:
   interval: 24h
   url: https://backstage.github.io/charts
 ---
+# ExternalDNS — automatic DNS record management
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: external-dns
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://kubernetes-sigs.github.io/external-dns/
+---
 # Traefik — cloud-native ingress proxy
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
