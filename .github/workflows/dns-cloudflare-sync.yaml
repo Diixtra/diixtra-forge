@@ -1,0 +1,121 @@
+name: DNS — Sync Cloudflare A Records
+
+# Ensures every IngressRoute hostname has a Cloudflare A record
+# pointing to the Traefik LoadBalancer IP. Runs automatically on
+# merge — no manual DNS management needed.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'platform/base/traefik-config/**'
+      - 'clusters/homelab/vars.yaml'
+      - 'infrastructure/base/traefik/helm-release.yaml'
+  workflow_dispatch: {}
+
+concurrency:
+  group: dns-cloudflare-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    name: Sync A Records
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Load secrets from 1Password
+        uses: 1password/load-secrets-action@v3
+        with:
+          export-env: true
+        env:
+          OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+          CF_API_TOKEN: op://Homela/cloudflare dns API Credentials/credential
+
+      - name: Extract hostnames from IngressRoutes
+        id: extract
+        run: |
+          python3 <<'PYEOF'
+          import re, glob, pathlib, json
+
+          # Read cluster variables (Flux substitution values)
+          vars_text = pathlib.Path("clusters/homelab/vars.yaml").read_text()
+          vars_map = {}
+          for m in re.finditer(r'^\s+(\w+):\s*"([^"]*)"', vars_text, re.MULTILINE):
+              vars_map[m.group(1)] = m.group(2)
+
+          # Extract Traefik LoadBalancer IP from HelmRelease annotation
+          hr_text = pathlib.Path("infrastructure/base/traefik/helm-release.yaml").read_text()
+          lb_match = re.search(r"loadBalancerIPs:\s*(\S+)", hr_text)
+          lb_ip = lb_match.group(1) if lb_match else ""
+
+          # Extract all Host() matches from IngressRoute files
+          hostnames = set()
+          for f in glob.glob("platform/base/traefik-config/**/*.yaml", recursive=True):
+              content = pathlib.Path(f).read_text()
+              for m in re.finditer(r"Host\(`([^`]+)`\)", content):
+                  host = m.group(1)
+                  # Resolve Flux ${VAR} substitutions
+                  for k, v in vars_map.items():
+                      host = host.replace(f"${{{k}}}", v)
+                  hostnames.add(host)
+
+          data = {
+              "domain": vars_map.get("DOMAIN", ""),
+              "lb_ip": lb_ip,
+              "hostnames": sorted(hostnames),
+          }
+
+          with open("dns-sync-data.json", "w") as f:
+              json.dump(data, f)
+
+          print(f"Domain: {data['domain']}")
+          print(f"LB IP: {lb_ip}")
+          for h in sorted(hostnames):
+              print(f"  {h}")
+          PYEOF
+
+      - name: Sync A records to Cloudflare
+        run: |
+          set -euo pipefail
+
+          DATA=$(cat dns-sync-data.json)
+          DOMAIN=$(echo "$DATA" | jq -r '.domain')
+          LB_IP=$(echo "$DATA" | jq -r '.lb_ip')
+
+          # Look up Cloudflare zone ID from domain name
+          ZONE_ID=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
+            "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
+            | jq -r '.result[0].id')
+
+          echo "Zone: $DOMAIN ($ZONE_ID)"
+          echo "Target IP: $LB_IP"
+          echo ""
+
+          CREATED=0
+          EXISTS=0
+
+          for HOST in $(echo "$DATA" | jq -r '.hostnames[]'); do
+            # Check if A record already exists
+            COUNT=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
+              "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records?type=A&name=$HOST" \
+              | jq '.result | length')
+
+            if [ "$COUNT" -eq 0 ]; then
+              echo "++ Creating: $HOST -> $LB_IP"
+              curl -sf -X POST \
+                -H "Authorization: Bearer $CF_API_TOKEN" \
+                -H "Content-Type: application/json" \
+                "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
+                -d "{\"type\":\"A\",\"name\":\"$HOST\",\"content\":\"$LB_IP\",\"ttl\":1,\"proxied\":false}" \
+                | jq '{success: .success, id: .result.id}'
+              CREATED=$((CREATED + 1))
+            else
+              echo "== Exists:   $HOST"
+              EXISTS=$((EXISTS + 1))
+            fi
+          done
+
+          echo ""
+          echo "Done: $CREATED created, $EXISTS already existed"
