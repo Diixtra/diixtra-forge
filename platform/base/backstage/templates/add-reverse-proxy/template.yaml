@@ -92,6 +92,17 @@ spec:
               required:
                 - backendService
 
+    - title: TLS Certificate
+      properties:
+        tlsDomain:
+          title: TLS Domain
+          type: string
+          description: "Primary domain for the TLS cert. Use lab.kazie.co.uk for *.lab subdomains, or kazie.co.uk for root domain services."
+          enum:
+            - lab.kazie.co.uk
+            - kazie.co.uk
+          default: lab.kazie.co.uk
+
   steps:
     - id: fetch-skeleton
       name: Fetch skeleton
@@ -108,6 +119,7 @@ spec:
           backendService: ${{ parameters.backendService }}
           backendPort: ${{ parameters.backendPort }}
           backendScheme: ${{ parameters.backendScheme }}
+          tlsDomain: ${{ parameters.tlsDomain }}
 
     - id: open-pr
       name: Open Pull Request
@@ -128,11 +140,12 @@ spec:
           | **Port** | `${{ parameters.backendPort }}` |
           | **Protocol** | `${{ parameters.backendScheme }}` |
           | **Security Headers** | `${{ parameters.securityHeaders }}` |
+          | **TLS Domain** | `${{ parameters.tlsDomain }}` |
 
           ### Reviewer checklist
           - [ ] Add `- route-${{ parameters.name }}.yaml` to `platform/base/traefik-config/kustomization.yaml`
+          - [ ] Verify DNS record exists for `${{ parameters.hostname }}`
           - [ ] Verify backend is reachable on port `${{ parameters.backendPort }}`
-          - [ ] DNS A record will be auto-created by ExternalDNS after merge
 
   output:
     links:
