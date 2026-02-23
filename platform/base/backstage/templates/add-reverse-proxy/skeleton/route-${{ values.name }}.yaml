@@ -1,0 +1,65 @@
+{%- if values.backendType === 'external-ip' %}
+# Service + Endpoints for external backend at ${{ values.backendIp }}:${{ values.backendPort }}
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ values.name }}-external
+  namespace: traefik-system
+spec:
+  ports:
+    - name: backend
+      port: ${{ values.backendPort }}
+---
+apiVersion: v1
+kind: Endpoints
+metadata:
+  name: ${{ values.name }}-external
+  namespace: traefik-system
+subsets:
+  - addresses:
+      - ip: "${{ values.backendIp }}"
+    ports:
+      - name: backend
+        port: ${{ values.backendPort }}
+---
+{%- endif %}
+{%- if values.backendType === 'cluster-service' %}
+# ExternalName proxy to in-cluster service
+apiVersion: v1
+kind: Service
+metadata:
+  name: ${{ values.name }}-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: ${{ values.backendService }}
+---
+{%- endif %}
+apiVersion: traefik.io/v1alpha1
+kind: IngressRoute
+metadata:
+  name: ${{ values.name }}
+  namespace: traefik-system
+spec:
+  entryPoints:
+    - websecure
+  routes:
+    - match: Host(`${{ values.hostname }}`)
+      kind: Rule
+      services:
+        - name: ${{ values.name }}-external
+          port: ${{ values.backendPort }}
+{%- if values.backendScheme === 'https' %}
+          scheme: https
+          serversTransport: insecure-skip-verify
+{%- endif %}
+{%- if values.securityHeaders %}
+      middlewares:
+        - name: security-headers
+{%- endif %}
+  tls:
+    certResolver: letsencrypt
+    domains:
+      - main: "${{ values.tlsDomain }}"
+        sans:
+          - "*.${{ values.tlsDomain }}"
