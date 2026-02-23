@@ -59,7 +59,3 @@ spec:
 {%- endif %}
   tls:
     certResolver: letsencrypt
-    domains:
-      - main: "${{ values.tlsDomain }}"
-        sans:
-          - "*.${{ values.tlsDomain }}"
