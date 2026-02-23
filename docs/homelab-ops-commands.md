@@ -98,7 +98,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 
 | Name | Command | Tags |
 |------|---------|------|
-| debug-caddy | `kubectl logs -n caddy-system deploy/caddy` | debug, caddy |
+| debug-traefik | `kubectl logs -n traefik-system deploy/traefik` | debug, traefik |
 | debug-metallb | `kubectl logs -n metallb-system deploy/metallb-controller` | debug, metallb |
 | debug-democratic-csi-nfs | `kubectl logs -n democratic-csi deploy/truenas-nfs-democratic-csi-controller -c csi-driver` | debug, storage |
 | debug-flux-source | `kubectl logs -n flux-system deploy/source-controller` | debug, flux |

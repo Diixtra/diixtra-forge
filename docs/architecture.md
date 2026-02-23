@@ -16,7 +16,7 @@ source of truth, reconciled by Kubernetes-native controllers.
 │                                                                     │
 │  clusters/     infrastructure/    platform/    apps/    terraform/   │
 │  (Flux         (Layer 1:          (Layer 2:    (Layer 3: (Cloud     │
-│   entrypoints)  Caddy, MetalLB,   Kyverno,    Diixtra   resources  │
+│   entrypoints)  Traefik, MetalLB, Kyverno,    Diixtra   resources  │
 │                 1Password)        Alloy)      services)  via GHA)  │
 └────────┬───────────────────────────┬───────────────────────┬────────┘
          │                           │                       │
@@ -32,7 +32,7 @@ source of truth, reconciled by Kubernetes-native controllers.
     │  ┌──────────┐  ┌──────────────────┐  │          │  AWS, etc) │
     │  │ Layer 1   │  │ Layer 2          │  │          └────────────┘
     │  │ MetalLB   │  │ Kyverno          │  │
-    │  │ Caddy     │  │ Grafana Alloy    │  │
+    │  │ Traefik   │  │ Grafana Alloy    │  │
     │  │ 1Password │  │ (→ Backstage)    │  │
     │  │ Operator  │  │ (→ Crossplane)   │  │
     │  │ GHA Runner│  │                  │  │
@@ -52,7 +52,7 @@ healthy before the next begins:
 
 | Layer | Directory         | Contents                          | Depends On     |
 |-------|-------------------|-----------------------------------|----------------|
-| 1     | `infrastructure/` | Caddy, MetalLB, 1Password, democratic-csi, Flux addons | —  |
+| 1     | `infrastructure/` | Traefik, MetalLB, 1Password, democratic-csi, Flux addons | —  |
 | 2a    | `platform/crds`   | Kyverno HelmRelease, Grafana Alloy | Infrastructure |
 | 2b    | `platform/policies`| Kyverno ClusterPolicies           | Platform CRDs  |
 | 3     | `apps/`           | Diixtra services (future)         | Platform       |
@@ -80,7 +80,7 @@ domains, replica counts) are expressed as overlay patches.
 |---------------|------------------------------------------------|
 | Unifi         | Physical network, VLANs, DHCP, DNS             |
 | MetalLB       | Kubernetes LoadBalancer IPs (L2 mode, 10.2.0.200-210) |
-| Caddy         | Reverse proxy, TLS termination (Cloudflare DNS-01) |
+| Traefik       | Reverse proxy, TLS termination (Cloudflare DNS-01, IngressRoute CRDs) |
 | Flannel       | Pod-to-pod networking (VXLAN overlay)           |
 | CoreDNS       | Cluster DNS with explicit upstream servers      |
 
@@ -168,6 +168,12 @@ See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 | `secrets-management.md` | 1Password secrets lifecycle       |
 | `truenas-setup.md`   | TrueNAS CSI driver configuration     |
 
+## Troubleshooting Docs
+
+| Document                        | Purpose                                        |
+|---------------------------------|------------------------------------------------|
+| `traefik-tls-migration.md`     | Caddy→Traefik migration, ACME DNS-01 root cause & fix |
+
 ## Repository Structure
 
 ```
@@ -186,13 +192,12 @@ diixtra-forge/
 │   └── dev/
 ├── infrastructure/          Layer 1: core cluster services
 │   ├── base/                Shared manifests
-│   │   ├── caddy/
+│   │   ├── traefik/
 │   │   ├── metallb/
 │   │   ├── democratic-csi/  NFS + iSCSI (dataset paths: OVERRIDE_IN_ENV_PATCH)
 │   │   ├── onepassword-operator/
 │   │   └── flux-addons/     HelmRepositories, Image Automation
-│   ├── homelab/             Homelab overlays (IP pool, Caddyfile, dataset paths)
-│   │   ├── caddy/patches/
+│   ├── homelab/             Homelab overlays (IP pool, dataset paths)
 │   │   ├── democratic-csi/patches/  TrueNAS pool paths (kaz.cloud/...)
 │   │   └── metallb/patches/
 │   └── dev/                 Dev overlays

@@ -20,7 +20,7 @@ There are three categories of things that update in your cluster:
 │  Helm Charts     │  Container       │  Flux Controllers          │
 │                  │  Images          │  (Flux itself)             │
 │                  │                  │                            │
-│  MetalLB 0.14→15 │  Caddy :latest   │  source-controller v1.5   │
+│  MetalLB 0.14→15 │  Backstage img   │  source-controller v1.5   │
 │  Kyverno 3.3→3.4 │  Custom apps     │  helm-controller v1.2     │
 │                  │                  │                            │
 │  ┌────────────┐  │  ┌────────────┐  │  ┌────────────┐           │
@@ -54,8 +54,8 @@ step is unnecessary overhead.
 
 ### Container Image Auto-Updates (Flux Image Automation)
 
-Helm charts are only half the story. Your Caddy deployment uses a container
-image (`ghcr.io/caddybuilds/caddy-cloudflare:latest`). When someone pushes
+Helm charts are only half the story. Your Backstage deployment uses a custom
+container image (`ghcr.io/diixtra/backstage:latest`). When someone pushes
 a new `:latest` image, your cluster has no idea unless something tells it.
 
 Flux Image Automation is a two-controller system:
@@ -66,7 +66,7 @@ as `ImagePolicy` resources in the cluster.
 
 **image-automation-controller** — Takes the latest tag from an ImagePolicy
 and commits it back to your Git repo. It literally modifies the YAML files
-in Git and pushes a commit like "Update caddy image to sha256:abc123".
+in Git and pushes a commit like "Update backstage image to sha256:abc123".
 
 The flow:
 ```
@@ -98,7 +98,7 @@ Kubernetes pulls new image, restarts pod
 YAML files to write the updated tag. You add a comment marker:
 
 ```yaml
-image: ghcr.io/caddybuilds/caddy-cloudflare:latest # {"$imagepolicy": "flux-system:caddy"}
+image: ghcr.io/diixtra/backstage:latest # {"$imagepolicy": "flux-system:backstage"}
 ```
 
 The controller finds this marker and replaces the tag/digest. Without the
@@ -125,7 +125,7 @@ The `:latest` tag is mutable — it can point to a different image digest
 every time someone pushes. Kubernetes caches images locally and uses
 `imagePullPolicy: IfNotPresent` by default. This means:
 
-1. Pod starts, pulls `caddy:latest` → gets digest `sha256:aaa`
+1. Pod starts, pulls `backstage:latest` → gets digest `sha256:aaa`
 2. New image pushed to registry → `:latest` now points to `sha256:bbb`
 3. Pod restarts (maybe on a different node) → pulls `sha256:bbb`
 4. Node 1 still has `sha256:aaa` cached → runs the old version
@@ -137,7 +137,7 @@ of when the change happened. This is drift with no audit trail.
 Automation update it:
 
 ```yaml
-image: ghcr.io/caddybuilds/caddy-cloudflare:latest@sha256:abc123
+image: ghcr.io/diixtra/backstage:latest@sha256:abc123
 ```
 
 When Image Automation detects a new digest for `:latest`, it updates
