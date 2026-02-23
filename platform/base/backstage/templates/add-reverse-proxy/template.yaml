@@ -132,7 +132,7 @@ spec:
           ### Reviewer checklist
           - [ ] Add `- route-${{ parameters.name }}.yaml` to `platform/base/traefik-config/kustomization.yaml`
           - [ ] Verify backend is reachable on port `${{ parameters.backendPort }}`
-          - [ ] DNS A record will be auto-created by ExternalDNS after merge
+          - [ ] DNS A record will be auto-created by the `dns-cloudflare-sync` workflow after merge
 
   output:
     links:

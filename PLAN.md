@@ -15,7 +15,7 @@ Bootstrap the `diixtra-forge` monorepo with Flux CD on the homelab cluster. Crea
 ## Tasks:
 
 - [x] 🟩 **Step 1: Reconstruct Repo Scaffold**
-  - [x] 🟩 Rebuild all base manifests (Caddy, 1Password, MetalLB, flux-addons)
+  - [x] 🟩 Rebuild all base manifests (Traefik, 1Password, MetalLB, flux-addons)
   - [x] 🟩 Rebuild all overlays (homelab, dev)
   - [x] 🟩 Rebuild cluster entrypoints (Flux Kustomizations with dependency ordering)
   - [x] 🟩 Rebuild platform layer (Kyverno, Grafana Alloy)
