@@ -75,7 +75,12 @@ spec:
           prometheus.relabel "cadvisor_filter" {
             forward_to = [prometheus.remote_write.grafana_cloud.receiver]
 
-            // Drop noisy filesystem metrics (per-device, per-mountpoint)
+            // IMPORTANT: These metrics MUST pass through for DiskPressure alerting:
+            //   container_fs_usage_bytes, container_fs_limit_bytes,
+            //   container_memory_working_set_bytes, container_cpu_usage_seconds_total
+            // Only drop the high-cardinality I/O counters and network packet metrics below.
+
+            // Drop noisy filesystem I/O counters (per-device, per-mountpoint)
             rule {
               source_labels = ["__name__"]
               regex         = "container_fs_(reads|writes|read_bytes|write_bytes|io_current|io_time)_total"

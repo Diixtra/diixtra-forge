@@ -19,34 +19,47 @@ spec:
             app.kubernetes.io/managed-by: flux
         spec:
           restartPolicy: OnFailure
-          hostPID: true
           tolerations:
             - operator: Exists
           containers:
             - name: cleanup
-              image: docker.io/library/alpine:3
+              image: docker.io/bitnami/kubectl:1.31
               command:
-                - /bin/sh
+                - /bin/bash
                 - -c
                 - |
-                  set -e
+                  set -euo pipefail
                   echo "=== Node Cleanup — $(date) ==="
 
-                  # Clean up completed/failed pods cluster-wide via kubectl
+                  # Verify API server connectivity
+                  kubectl cluster-info || { echo "ERROR: Cannot reach API server"; exit 1; }
+
+                  # Clean up completed/failed pods cluster-wide
                   # (Evicted pods from DiskPressure linger and waste resources)
+                  # NOTE: This job runs in kube-system which is excluded from Loki
+                  # log collection. Use 'kubectl logs' to debug failures.
                   echo "Pruning Evicted/Failed pods..."
                   kubectl get pods -A --field-selector=status.phase=Failed \
-                    -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' | \
-                  while read ns pod; do
-                    if [ -n "$ns" ] && [ -n "$pod" ]; then
-                      echo "  Deleting $ns/$pod"
-                      kubectl delete pod "$pod" -n "$ns" --grace-period=0 || true
-                    fi
-                  done
+                    -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' \
+                    > /tmp/failed-pods.txt
 
-                  # Clean up dead containers and unused images via crictl
-                  echo "Cleaning dead containers (via nsenter into host)..."
-                  nsenter -t 1 -m -- /usr/local/bin/crictl rmi --prune 2>/dev/null || true
+                  TOTAL=0
+                  ERRORS=0
+                  while read -r ns pod; do
+                    if [ -n "$ns" ] && [ -n "$pod" ]; then
+                      TOTAL=$((TOTAL + 1))
+                      echo "  Deleting $ns/$pod"
+                      if ! kubectl delete pod "$pod" -n "$ns" --grace-period=0 2>&1; then
+                        echo "  WARNING: Failed to delete $ns/$pod"
+                        ERRORS=$((ERRORS + 1))
+                      fi
+                    fi
+                  done < /tmp/failed-pods.txt
+
+                  echo "Deleted $((TOTAL - ERRORS))/$TOTAL failed pods ($ERRORS errors)"
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo "WARNING: $ERRORS pod deletions failed"
+                  fi
 
                   echo "=== Cleanup complete ==="
               resources:
@@ -57,7 +70,11 @@ spec:
                   cpu: 200m
                   memory: 128Mi
               securityContext:
-                privileged: true
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                readOnlyRootFilesystem: false
           serviceAccountName: node-cleanup
 ---
 apiVersion: v1
