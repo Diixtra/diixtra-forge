@@ -179,7 +179,11 @@ See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 ```
 diixtra-forge/
 ├── .github/workflows/       CI/CD pipelines
+│   ├── backstage-build.yaml Backstage Docker image build
+│   ├── dns-cloudflare-sync.yaml  Cloudflare DNS record sync
 │   ├── flux-validate.yaml   Kustomize build + kubeconform on PRs
+│   ├── packer-pi-build.yaml Packer Pi image build (privileged ARC runner)
+│   ├── post-deploy-check.yaml    Cluster health check + auto-rollback
 │   ├── renovate.yaml        Self-hosted Renovate Bot (every 6h)
 │   └── terraform-*.yaml     Plan on PR, apply on merge
 ├── clusters/                Flux entrypoints (one dir per cluster)
@@ -196,6 +200,10 @@ diixtra-forge/
 │   │   ├── metallb/
 │   │   ├── democratic-csi/  NFS + iSCSI (dataset paths: OVERRIDE_IN_ENV_PATCH)
 │   │   ├── onepassword-operator/
+│   │   ├── github-actions-runner/  Self-hosted ARC runner (homelab)
+│   │   ├── packer-runner/   Privileged ARC runner for Packer Pi builds
+│   │   ├── crossplane/      Crossplane provider + compositions
+│   │   ├── volume-snapshot-crds/
 │   │   └── flux-addons/     HelmRepositories, Image Automation
 │   ├── homelab/             Homelab overlays (IP pool, dataset paths)
 │   │   ├── democratic-csi/patches/  TrueNAS pool paths (kaz.cloud/...)

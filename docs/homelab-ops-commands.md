@@ -74,6 +74,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 | packer-build-debian | `packer build -var-file="variables.auto.pkrvars.hcl" proxmox-debian/` | packer, images |
 | packer-build-gpu | `packer build -var-file="variables.auto.pkrvars.hcl" proxmox-gpu/` | packer, images |
 | packer-build-pi | `sudo packer build arm-debian/` | packer, images |
+| packer-build-pi-ci | `gh workflow run packer-pi-build.yaml` | packer, images, ci |
 | packer-validate | `packer validate -var-file="variables.auto.pkrvars.hcl" {{template_dir}}/` | packer, images |
 | packer-token-from-1p | `export PKR_VAR_proxmox_api_token_secret=$(op read "op://Homelab/proxmox-packer-token/credential")` | packer, 1password |
 
@@ -129,7 +130,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 
 ---
 
-**Total: 66 commands across 11 categories**
+**Total: 67 commands across 11 categories**
 
 ### Template Variables
 
