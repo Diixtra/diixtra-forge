@@ -26,6 +26,8 @@ spec:
     # Run as DaemonSet so every node gets a collection agent
     controller:
       type: daemonset
+      extraAnnotations:
+        reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
     # Alloy config will be patched per-environment with
     # Grafana Cloud endpoints and credentials
     alloy:

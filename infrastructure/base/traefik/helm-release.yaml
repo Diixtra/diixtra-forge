@@ -68,6 +68,8 @@ spec:
     podSecurityContext:
       fsGroup: 65532
     deployment:
+      annotations:
+        reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       dnsConfig:
         options:
           - name: ndots
