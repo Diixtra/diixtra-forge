@@ -70,7 +70,8 @@ spec:
           // ════════════════════════════════════════════════════════════
           // Metrics — cAdvisor (per-node)
           // Drop high-cardinality filesystem & network metrics to reduce
-          // Grafana Cloud ingestion. Keep CPU, memory, and restart counts.
+          // Grafana Cloud ingestion. Keep CPU, memory, and fs usage/limit metrics.
+          // Note: restart counts come from kube-state-metrics, not cAdvisor.
           // ════════════════════════════════════════════════════════════
           prometheus.relabel "cadvisor_filter" {
             forward_to = [prometheus.remote_write.grafana_cloud.receiver]
