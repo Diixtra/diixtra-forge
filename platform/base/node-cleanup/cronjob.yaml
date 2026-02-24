@@ -1,0 +1,131 @@
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: node-cleanup
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/managed-by: flux
+spec:
+  schedule: "0 3 * * *"   # Daily at 03:00
+  concurrencyPolicy: Forbid
+  successfulJobsHistoryLimit: 3
+  failedJobsHistoryLimit: 3
+  jobTemplate:
+    spec:
+      backoffLimit: 1
+      template:
+        metadata:
+          labels:
+            app.kubernetes.io/managed-by: flux
+        spec:
+          restartPolicy: OnFailure
+          tolerations:
+            - operator: Exists
+          containers:
+            - name: cleanup
+              image: docker.io/bitnami/kubectl:1.31
+              command:
+                - /bin/bash
+                - -c
+                - |
+                  set -euo pipefail
+                  echo "=== Node Cleanup — $(date) ==="
+
+                  # Verify API server connectivity
+                  kubectl cluster-info || { echo "ERROR: Cannot reach API server"; exit 1; }
+
+                  # Clean up failed pods cluster-wide
+                  # (Evicted pods from DiskPressure linger and waste resources)
+                  # NOTE: This job runs in kube-system which is excluded from Loki
+                  # log collection. Use 'kubectl logs' to debug failures.
+                  echo "Pruning Evicted/Failed pods..."
+                  kubectl get pods -A --field-selector=status.phase=Failed \
+                    -o jsonpath='{range .items[*]}{.metadata.namespace}{" "}{.metadata.name}{"\n"}{end}' \
+                    > /tmp/failed-pods.txt
+
+                  if [ ! -s /tmp/failed-pods.txt ]; then
+                    echo "No failed pods found — nothing to clean up"
+                    echo "=== Cleanup complete ==="
+                    exit 0
+                  fi
+
+                  TOTAL=0
+                  ERRORS=0
+                  while read -r ns pod; do
+                    if [ -n "$ns" ] && [ -n "$pod" ]; then
+                      TOTAL=$((TOTAL + 1))
+                      echo "  Deleting $ns/$pod"
+                      if ! kubectl delete pod "$pod" -n "$ns" --grace-period=0 --force 2>&1; then
+                        echo "  WARNING: Failed to delete $ns/$pod"
+                        ERRORS=$((ERRORS + 1))
+                      fi
+                    fi
+                  done < /tmp/failed-pods.txt
+
+                  echo "Deleted $((TOTAL - ERRORS))/$TOTAL failed pods ($ERRORS errors)"
+
+                  # Exit non-zero if all deletions failed (indicates systemic issue like RBAC)
+                  if [ "$TOTAL" -gt 0 ] && [ "$ERRORS" -eq "$TOTAL" ]; then
+                    echo "ERROR: All pod deletions failed — check RBAC and API server connectivity"
+                    exit 1
+                  fi
+                  if [ "$ERRORS" -gt 0 ]; then
+                    echo "WARNING: $ERRORS pod deletions failed"
+                  fi
+
+                  echo "=== Cleanup complete ==="
+              resources:
+                requests:
+                  cpu: 50m
+                  memory: 64Mi
+                limits:
+                  cpu: 200m
+                  memory: 128Mi
+              securityContext:
+                allowPrivilegeEscalation: false
+                capabilities:
+                  drop:
+                    - ALL
+                readOnlyRootFilesystem: true
+              volumeMounts:
+                - name: tmp
+                  mountPath: /tmp
+          volumes:
+            - name: tmp
+              emptyDir:
+                sizeLimit: 1Mi
+          serviceAccountName: node-cleanup
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: node-cleanup
+  namespace: kube-system
+  labels:
+    app.kubernetes.io/managed-by: flux
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRole
+metadata:
+  name: node-cleanup
+  labels:
+    app.kubernetes.io/managed-by: flux
+rules:
+  - apiGroups: [""]
+    resources: ["pods"]
+    verbs: ["get", "list", "delete"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: ClusterRoleBinding
+metadata:
+  name: node-cleanup
+  labels:
+    app.kubernetes.io/managed-by: flux
+subjects:
+  - kind: ServiceAccount
+    name: node-cleanup
+    namespace: kube-system
+roleRef:
+  kind: ClusterRole
+  name: node-cleanup
+  apiGroup: rbac.authorization.k8s.io
