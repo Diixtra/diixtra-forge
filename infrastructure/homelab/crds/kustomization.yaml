@@ -6,7 +6,7 @@ resources:
   # CRD providers — these HelmReleases install the CRDs that
   # other infrastructure resources depend on.
   - ../../base/onepassword-operator
-  - ../../base/metallb
+  - ../../base/cilium
   # VolumeSnapshot CRDs — kubeadm doesn't ship these.
   # Required before democratic-csi HelmReleases can create VolumeSnapshotClass resources.
   - ../../base/volume-snapshot-crds

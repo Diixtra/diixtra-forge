@@ -1,0 +1,84 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: cilium
+  namespace: kube-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: cilium
+      version: "1.17.3"
+      sourceRef:
+        kind: HelmRepository
+        name: cilium
+        namespace: flux-system
+      interval: 1h
+  install:
+    crds: CreateReplace
+    timeout: 10m
+  upgrade:
+    crds: CreateReplace
+    timeout: 10m
+  values:
+    # --- kube-proxy replacement (eBPF datapath) ---
+    kubeProxyReplacement: true
+    k8sServiceHost: "${K8S_API_HOST}"
+    k8sServicePort: "6443"
+
+    # --- IPAM — kubeadm default pod CIDR ---
+    ipam:
+      operator:
+        clusterPoolIPv4PodCIDRList:
+          - "10.244.0.0/16"
+
+    # --- Hubble observability ---
+    hubble:
+      enabled: true
+      relay:
+        enabled: true
+        resources:
+          requests:
+            cpu: 25m
+            memory: 64Mi
+          limits:
+            cpu: 100m
+            memory: 128Mi
+      ui:
+        enabled: false
+      metrics:
+        enableOpenMetrics: true
+        enabled:
+          - dns
+          - drop
+          - tcp
+          - flow
+          - port-distribution
+          - icmp
+          - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
+
+    # --- L2 announcements (replaces MetalLB) ---
+    l2announcements:
+      enabled: true
+    externalIPs:
+      enabled: true
+
+    # --- Agent resources ---
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # --- Operator ---
+    operator:
+      replicas: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 128Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi

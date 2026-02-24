@@ -1,0 +1,79 @@
+# ══════════════════════════════════════════════════════════════════
+# traefik-system — Ingress Controller
+#
+# Traefik is the cluster's ingress controller (LB IP: 10.2.0.200).
+# It accepts external HTTP/HTTPS traffic and routes it to backend
+# services across multiple namespaces. It also needs egress to the
+# internet for Let's Encrypt ACME certificate issuance, and to
+# TrueNAS for reverse-proxied services.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-default-deny
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-ingress-world
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-cluster
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - cluster
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-truenas
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - ${TRUENAS_HOST}/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "80"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-acme
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

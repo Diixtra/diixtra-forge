@@ -60,6 +60,54 @@ jobs:
           flux get helmreleases -A
           exit 1
 
+      - name: Validate cluster variables
+        run: |
+          echo "Checking critical cluster variables..."
+          API_HOST=$(kubectl get configmap cluster-vars -n flux-system -o jsonpath='{.data.K8S_API_HOST}')
+          if [ "$API_HOST" = "REPLACE_ME" ] || [ -z "$API_HOST" ]; then
+            echo "FAIL: K8S_API_HOST is not set (currently: '$API_HOST')"
+            echo "Cilium kube-proxy replacement requires the real control plane IP."
+            exit 1
+          fi
+          echo "K8S_API_HOST: $API_HOST"
+
+      - name: Verify Cilium health
+        run: |
+          echo "Checking Cilium agent health..."
+          # Cilium is the sole CNI — zero pods is a hard failure
+          CILIUM_PODS=$(kubectl get pods -n kube-system -l app.kubernetes.io/name=cilium-agent \
+            --no-headers)
+          if [ -z "$CILIUM_PODS" ]; then
+            echo "FAIL: No Cilium agent pods found — cluster has no CNI"
+            exit 1
+          fi
+          NOT_READY=$(echo "$CILIUM_PODS" | grep -v "Running" || true)
+          if [ -n "$NOT_READY" ]; then
+            echo "FAIL: Cilium agent pods not healthy:"
+            echo "$NOT_READY"
+            exit 1
+          fi
+          echo "All Cilium agent pods are Running"
+          echo "$CILIUM_PODS"
+
+      - name: Verify CiliumNetworkPolicies applied
+        run: |
+          echo "Checking CiliumNetworkPolicy resources..."
+          if ! kubectl api-resources --api-group=cilium.io | grep -q CiliumNetworkPolicy; then
+            echo "FAIL: CiliumNetworkPolicy CRD not found — Cilium CRDs may not be installed"
+            exit 1
+          fi
+          CNP_COUNT=$(kubectl get ciliumnetworkpolicies -A --no-headers | wc -l)
+          CCNP_COUNT=$(kubectl get ciliumclusterwidenetworkpolicies --no-headers | wc -l)
+          echo "CiliumNetworkPolicies: $CNP_COUNT"
+          echo "CiliumClusterwideNetworkPolicies: $CCNP_COUNT"
+          if [ "$CNP_COUNT" -eq 0 ] && [ "$CCNP_COUNT" -eq 0 ]; then
+            echo "FAIL: No CiliumNetworkPolicy resources found after reconciliation"
+            exit 1
+          fi
+          kubectl get ciliumnetworkpolicies -A
+          kubectl get ciliumclusterwidenetworkpolicies
+
       - name: Verify critical pods
         run: |
           echo "Checking for unhealthy pods..."
