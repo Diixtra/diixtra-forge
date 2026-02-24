@@ -9,6 +9,16 @@ spec:
   interval: 24h
   url: https://1password.github.io/connect-helm-charts
 ---
+# MetalLB Helm chart registry
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: metallb
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://metallb.github.io/metallb
+---
 # Kyverno Helm chart registry (used by platform layer)
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
@@ -128,13 +138,3 @@ metadata:
 spec:
   interval: 24h
   url: https://charts.crossplane.io/stable
----
-# Cilium — eBPF-based CNI, NetworkPolicy, kube-proxy replacement, and L2 LB
-apiVersion: source.toolkit.fluxcd.io/v1
-kind: HelmRepository
-metadata:
-  name: cilium
-  namespace: flux-system
-spec:
-  interval: 24h
-  url: https://helm.cilium.io/

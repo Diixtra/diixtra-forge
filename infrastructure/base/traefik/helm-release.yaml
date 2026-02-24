@@ -57,7 +57,7 @@ spec:
     service:
       type: LoadBalancer
       annotations:
-        io.cilium/lb-ipam-ips: "10.2.0.200"
+        metallb.io/loadBalancerIPs: 10.2.0.200
     resources:
       requests:
         cpu: 100m

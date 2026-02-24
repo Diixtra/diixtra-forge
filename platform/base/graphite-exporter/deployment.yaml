@@ -34,7 +34,7 @@ spec:
               cpu: 100m
               memory: 64Mi
 ---
-# Expose Graphite ingestion port externally (Cilium LB-IPAM assigns a stable IP)
+# Expose Graphite ingestion port externally (MetalLB assigns a stable IP)
 # so TrueNAS can push metrics. Alloy scrapes the metrics port internally.
 apiVersion: v1
 kind: Service
