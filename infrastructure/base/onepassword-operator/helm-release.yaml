@@ -22,11 +22,11 @@ spec:
       authMethod: service-account
       resources:
         requests:
-          cpu: 50m
-          memory: 64Mi
+          cpu: 100m
+          memory: 128Mi
         limits:
-          cpu: 250m
-          memory: 256Mi
+          cpu: 500m
+          memory: 512Mi
       serviceAccountToken:
         # The chart mounts this Secret directly into the operator pod.
         # This is the ONE bootstrap secret that must be created manually
