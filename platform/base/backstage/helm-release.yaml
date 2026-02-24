@@ -91,6 +91,27 @@ spec:
               production:
                 clientId: $${GITHUB_APP_CLIENT_ID}
                 clientSecret: $${GITHUB_APP_CLIENT_SECRET}
+        kubernetes:
+          serviceLocatorMethod:
+            type: multiTenant
+          clusterLocatorMethods:
+            - type: config
+              clusters:
+                - url: https://kubernetes.default.svc
+                  name: homelab
+                  authProvider: serviceAccount
+                  skipTLSVerify: true
+        kubernetesIngestor:
+          components:
+            enabled: true
+            taskRunner:
+              frequency: 600
+              timeout: 600
+            excludedNamespaces:
+              - kube-system
+              - kube-public
+              - kube-node-lease
+              - flux-system
         catalog:
           rules:
             - allow: [Component, System, API, Resource, Location, Template]

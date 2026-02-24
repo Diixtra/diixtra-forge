@@ -61,6 +61,12 @@ backend.add(import('@backstage/plugin-kubernetes-backend'));
 // security — Kyverno Policy Reporter
 backend.add(import('@kyverno/backstage-plugin-policy-reporter-backend'));
 
+// TeraSky plugins — Kubernetes & Crossplane
+backend.add(import('@terasky/backstage-plugin-kubernetes-ingestor'));
+backend.add(import('@terasky/backstage-plugin-crossplane-resources-backend'));
+backend.add(import('@terasky/backstage-plugin-kubernetes-resources-permissions-backend'));
+backend.add(import('@terasky/backstage-plugin-scaffolder-backend-module-terasky-utils'));
+
 // permissions (allow-all for lab)
 backend.add(import('@backstage/plugin-permission-backend'));
 backend.add(

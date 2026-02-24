@@ -3,6 +3,7 @@ import HomeIcon from '@material-ui/icons/Home';
 import CreateComponentIcon from '@material-ui/icons/AddCircleOutline';
 import TrackChangesIcon from '@material-ui/icons/TrackChanges';
 import SecurityIcon from '@material-ui/icons/Security';
+import BuildIcon from '@material-ui/icons/Build';
 import {
   Sidebar,
   SidebarDivider,
@@ -30,6 +31,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
         />
         <SidebarItem icon={TrackChangesIcon} to="tech-radar" text="Tech Radar" />
         <SidebarItem icon={SecurityIcon} to="policy-reporter" text="Security" />
+        <SidebarItem icon={BuildIcon} to="template-builder" text="Templates" />
         <SidebarDivider />
       </SidebarGroup>
       <SidebarSpace />
