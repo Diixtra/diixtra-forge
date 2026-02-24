@@ -10,7 +10,7 @@ metadata:
 spec:
   replicas: 1
   strategy:
-    type: Recreate # PVC is ReadWriteOnce — only one pod at a time
+    type: Recreate # PVC is ReadWriteOnce — old pod must terminate before new one starts
   selector:
     matchLabels:
       app.kubernetes.io/name: mcp-memory
@@ -31,7 +31,7 @@ spec:
           command:
             - sh
             - -ec
-            - exec npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --port 8080
+            - exec npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --port 8080 --healthEndpoint /healthz
           ports:
             - name: http
               containerPort: 8080
@@ -39,6 +39,9 @@ spec:
           env:
             - name: HOME
               value: "/tmp"
+            # MEMORY_FILE_PATH may be ignored by some versions of
+            # @modelcontextprotocol/server-memory (upstream issue #1018).
+            # Verify writes land in /data/ after deployment.
             - name: MEMORY_FILE_PATH
               value: "/data/memory.jsonl"
           volumeMounts:
@@ -46,14 +49,14 @@ spec:
               mountPath: /data
           startupProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             periodSeconds: 10
             failureThreshold: 3

@@ -1,5 +1,5 @@
 # Persistent storage for the knowledge graph JSONL file.
-# Uses the cluster's default StorageClass (local-path on Rancher Desktop).
+# Uses the cluster's default StorageClass (no explicit storageClassName).
 apiVersion: v1
 kind: PersistentVolumeClaim
 metadata:
@@ -14,4 +14,4 @@ spec:
     - ReadWriteOnce
   resources:
     requests:
-      storage: 256Mi
+      storage: 1Gi

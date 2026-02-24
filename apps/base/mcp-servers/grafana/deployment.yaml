@@ -41,11 +41,18 @@ spec:
                 secretKeyRef:
                   name: grafana-mcp-token
                   key: credential
-          readinessProbe:
-            httpGet:
-              path: /sse
+          # tcpSocket probe — the /sse endpoint is a streaming SSE connection
+          # that never closes. httpGet probes against it would accumulate
+          # leaked connections and eventually exhaust file descriptors.
+          startupProbe:
+            tcpSocket:
               port: 8000
             initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            tcpSocket:
+              port: 8000
             periodSeconds: 10
             failureThreshold: 3
           resources:

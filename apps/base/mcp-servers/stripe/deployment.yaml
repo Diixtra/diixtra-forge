@@ -31,9 +31,9 @@ spec:
           command:
             - sh
             - -ec
-            # @stripe/mcp reads STRIPE_API_KEY from env — no --api-key flag
+            # @stripe/mcp reads STRIPE_SECRET_KEY from env — no --api-key flag
             # needed. This avoids leaking the key in the process command line.
-            - exec npx -y supergateway --stdio "npx -y @stripe/mcp --tools=all" --port 8080
+            - exec npx -y supergateway --stdio "npx -y @stripe/mcp --tools=all" --port 8080 --healthEndpoint /healthz
           ports:
             - name: http
               containerPort: 8080
@@ -41,21 +41,21 @@ spec:
           env:
             - name: HOME
               value: "/tmp"
-            - name: STRIPE_API_KEY
+            - name: STRIPE_SECRET_KEY
               valueFrom:
                 secretKeyRef:
                   name: stripe-api-key
                   key: credential
           startupProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             periodSeconds: 10
             failureThreshold: 3

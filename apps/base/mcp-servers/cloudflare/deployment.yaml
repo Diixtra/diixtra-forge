@@ -31,7 +31,7 @@ spec:
           command:
             - sh
             - -ec
-            - exec npx -y supergateway --stdio "npx -y @cloudflare/mcp-server-cloudflare" --port 8080
+            - exec npx -y supergateway --stdio "npx -y @cloudflare/mcp-server-cloudflare" --port 8080 --healthEndpoint /healthz
           ports:
             - name: http
               containerPort: 8080
@@ -46,14 +46,14 @@ spec:
                   key: credential
           startupProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             initialDelaySeconds: 10
             periodSeconds: 5
             failureThreshold: 30
           readinessProbe:
             httpGet:
-              path: /
+              path: /healthz
               port: 8080
             periodSeconds: 10
             failureThreshold: 3
