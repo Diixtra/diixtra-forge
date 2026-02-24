@@ -56,7 +56,7 @@ spec:
     - name: infrastructure-crds
   interval: 10m
   retryInterval: 1m
-  timeout: 5m
+  timeout: 10m
   sourceRef:
     kind: GitRepository
     name: flux-system
