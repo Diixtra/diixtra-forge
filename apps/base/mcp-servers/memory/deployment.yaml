@@ -1,0 +1,57 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-memory
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-memory
+    app.kubernetes.io/part-of: mcp-servers
+    app.kubernetes.io/managed-by: flux
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate # PVC is ReadWriteOnce — only one pod at a time
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-memory
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-memory
+        app.kubernetes.io/part-of: mcp-servers
+        app.kubernetes.io/managed-by: flux
+    spec:
+      containers:
+        - name: mcp-memory
+          image: node:22-alpine
+          command:
+            - sh
+            - -c
+            - npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --port 8080
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: MEMORY_FILE_PATH
+              value: "/data/memory.jsonl"
+          volumeMounts:
+            - name: memory-data
+              mountPath: /data
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+      volumes:
+        - name: memory-data
+          persistentVolumeClaim:
+            claimName: mcp-memory-data

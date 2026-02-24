@@ -35,6 +35,10 @@ spec:
       kind: Deployment
       name: mcp-stripe
       namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-memory
+      namespace: mcp-servers
   postBuild:
     substituteFrom:
       - kind: ConfigMap

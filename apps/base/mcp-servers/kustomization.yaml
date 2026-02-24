@@ -16,3 +16,6 @@ resources:
   - stripe/deployment.yaml
   - stripe/service.yaml
   - stripe/onepassword-item.yaml
+  - memory/pvc.yaml
+  - memory/deployment.yaml
+  - memory/service.yaml
