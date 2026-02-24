@@ -10,6 +10,8 @@
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
 resources:
+  # Flux GitOps controllers — MUST be included or Flux prunes itself
+  - flux-system
   # Cluster variables ConfigMap — consumed by postBuild.substituteFrom
   - vars.yaml
   # Layer definitions (Flux capital-K Kustomizations)
