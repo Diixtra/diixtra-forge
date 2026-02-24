@@ -2100,7 +2100,7 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/frontend-plugin-api@npm:^0.14.0":
+"@backstage/frontend-plugin-api@npm:^0.14.0, @backstage/frontend-plugin-api@npm:^0.14.1":
   version: 0.14.1
   resolution: "@backstage/frontend-plugin-api@npm:0.14.1"
   dependencies:
@@ -3173,15 +3173,15 @@ __metadata:
   linkType: hard
 
 "@backstage/plugin-scaffolder@npm:^1.35.3":
-  version: 1.35.3
-  resolution: "@backstage/plugin-scaffolder@npm:1.35.3"
+  version: 1.35.4
+  resolution: "@backstage/plugin-scaffolder@npm:1.35.4"
   dependencies:
     "@backstage/catalog-client": "npm:^1.13.0"
     "@backstage/catalog-model": "npm:^1.7.6"
     "@backstage/core-components": "npm:^0.18.7"
     "@backstage/core-plugin-api": "npm:^1.12.3"
     "@backstage/errors": "npm:^1.2.7"
-    "@backstage/frontend-plugin-api": "npm:^0.14.0"
+    "@backstage/frontend-plugin-api": "npm:^0.14.1"
     "@backstage/integration": "npm:^1.20.0"
     "@backstage/integration-react": "npm:^1.2.15"
     "@backstage/plugin-catalog-common": "npm:^1.1.8"
@@ -3229,7 +3229,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/f9346c9897c86254ccbfb7793329b534f857ca4185cad2b4f051765526745fe072314c1784ae384f77e3a90400b6af816c49932954fea8ffcb8784c44f08d7cd
+  checksum: 10c0/abd266794392fedd1a4594654ce168caddd6e555c6496567212e899164ab42a2d176e15a88e9c3767d492d12edd8fcc64f27b101b28fe42f4064aafa74b399d5
   languageName: node
   linkType: hard
 
