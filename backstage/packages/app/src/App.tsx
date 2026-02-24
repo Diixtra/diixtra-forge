@@ -17,6 +17,7 @@ import { createApp } from '@backstage/app-defaults';
 import { AppRouter, FlatRoutes } from '@backstage/core-app-api';
 import { githubAuthApiRef } from '@backstage/core-plugin-api';
 import { TechRadarPage } from '@backstage-community/plugin-tech-radar';
+import { PolicyReporterPage } from '@kyverno/backstage-plugin-policy-reporter';
 
 const app = createApp({
   components: {
@@ -53,6 +54,7 @@ const routes = (
     />
     <Route path="/create" element={<ScaffolderPage />} />
     <Route path="/tech-radar" element={<TechRadarPage />} />
+    <Route path="/policy-reporter" element={<PolicyReporterPage />} />
     <Route path="/settings" element={<UserSettingsPage />} />
   </FlatRoutes>
 );

@@ -1,0 +1,11 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: homelab-cluster
+  description: Homelab k3s cluster managed by Flux
+  annotations:
+    backstage.io/managed-by-location: "file:platform/base/backstage/cluster-entity.yaml"
+spec:
+  type: kubernetes-cluster
+  owner: guests
+  lifecycle: production
