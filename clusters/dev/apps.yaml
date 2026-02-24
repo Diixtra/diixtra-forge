@@ -14,6 +14,27 @@ spec:
   path: ./apps/dev
   prune: true
   wait: true
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-kubernetes
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-terraform
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-grafana
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-cloudflare
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-stripe
+      namespace: mcp-servers
   postBuild:
     substituteFrom:
       - kind: ConfigMap

@@ -1,0 +1,7 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: mcp-servers
+  labels:
+    app.kubernetes.io/part-of: mcp-servers
+    app.kubernetes.io/managed-by: flux

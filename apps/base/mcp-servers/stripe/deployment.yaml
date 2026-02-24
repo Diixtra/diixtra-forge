@@ -1,0 +1,53 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-stripe
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-stripe
+    app.kubernetes.io/part-of: mcp-servers
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-stripe
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-stripe
+        app.kubernetes.io/part-of: mcp-servers
+        app.kubernetes.io/managed-by: flux
+    spec:
+      containers:
+        - name: mcp-stripe
+          image: node:22-alpine
+          command:
+            - sh
+            - -c
+            - npx -y supergateway --stdio "npx -y @stripe/mcp --tools=all --api-key=$STRIPE_API_KEY" --port 8080
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: STRIPE_API_KEY
+              valueFrom:
+                secretKeyRef:
+                  name: stripe-api-key
+                  key: credential
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
