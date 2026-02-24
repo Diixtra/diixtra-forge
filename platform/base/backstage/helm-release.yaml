@@ -91,6 +91,16 @@ spec:
               production:
                 clientId: $${GITHUB_APP_CLIENT_ID}
                 clientSecret: $${GITHUB_APP_CLIENT_SECRET}
+        kubernetes:
+          serviceLocatorMethod:
+            type: multiTenant
+          clusterLocatorMethods:
+            - type: config
+              clusters:
+                - url: https://kubernetes.default.svc
+                  name: homelab
+                  authProvider: serviceAccount
+                  skipTLSVerify: true
         kubernetesIngestor:
           components:
             enabled: true
