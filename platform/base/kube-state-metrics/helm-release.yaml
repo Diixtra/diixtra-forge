@@ -14,4 +14,11 @@ spec:
         name: prometheus-community
         namespace: flux-system
       interval: 1h
-  values: {}
+  values:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 256Mi
