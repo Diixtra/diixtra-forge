@@ -1,0 +1,58 @@
+name: Packer — Build Pi K8s Image
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [main]
+    paths:
+      - "packer/arm-debian/**"
+      - "packer/scripts/provision-k8s-node.sh"
+
+concurrency:
+  group: packer-pi-build
+  cancel-in-progress: false
+
+jobs:
+  build:
+    name: Build Pi Image
+    runs-on: packer
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install prerequisites
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support kpartx
+          sudo update-binfmts --enable
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@v3
+
+      - name: Packer init
+        run: packer init arm-debian/
+        working-directory: packer
+        env:
+          PACKER_PLUGIN_PATH: ${{ github.workspace }}/packer/.packer.d/plugins
+
+      - name: Packer build
+        run: sudo packer build arm-debian/
+        working-directory: packer
+        env:
+          PACKER_PLUGIN_PATH: ${{ github.workspace }}/packer/.packer.d/plugins
+
+      - name: Compress image
+        run: xz -T0 -9 packer/output/k8s-pi-debian12.img
+
+      - name: Generate artifact name
+        id: artifact
+        run: |
+          NAME="k8s-pi-debian12-$(date +%Y%m%d)-$(git rev-parse --short HEAD)"
+          echo "name=$NAME" >> "$GITHUB_OUTPUT"
+
+      - name: Upload artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.artifact.outputs.name }}
+          path: packer/output/k8s-pi-debian12.img.xz
+          retention-days: 90

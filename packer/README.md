@@ -190,6 +190,31 @@ packer/
     └── pi-k8s.pkr.hcl                  # Packer template
 ```
 
+## CI/CD — Automated Pi Builds
+
+The `arm-debian` Pi image can be built automatically via GitHub Actions:
+
+```bash
+# Trigger manually
+gh workflow run packer-pi-build.yaml
+
+# Triggers automatically on push to main when these paths change:
+#   packer/arm-debian/**
+#   packer/scripts/provision-k8s-node.sh
+```
+
+The workflow runs on a **privileged ARC runner** (`runs-on: packer`) deployed in
+the `packer-runners` namespace. This runner has root access required for
+loop-device mounting, kpartx, and QEMU binfmt_misc emulation. The built image
+is compressed with `xz` and uploaded as a GitHub Actions artifact (retained 90
+days).
+
+Infrastructure: `infrastructure/base/packer-runner/` (HelmRelease, namespace,
+1Password secret sync).
+
+> Proxmox template builds (`proxmox-ubuntu`, `proxmox-debian`, `proxmox-gpu`)
+> still require manual execution from a host with Proxmox API access.
+
 ## Rebuilding Images
 
 Golden images should be rebuilt when:

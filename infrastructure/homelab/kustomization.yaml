@@ -7,6 +7,7 @@ resources:
   - ../base/traefik
   - ../base/democratic-csi
   - ../base/github-actions-runner
+  - ../base/packer-runner
   # MetalLB custom resources — need MetalLB CRDs from infrastructure-crds
   - metallb/patches/ip-pool.yaml
 patches:

@@ -1,0 +1,21 @@
+# ══════════════════════════════════════════════════════════════════
+# Packer Runner Namespace — Isolated privileged runner pool
+# ══════════════════════════════════════════════════════════════════
+#
+# Separate from arc-runners because this runner needs privileged
+# access for loop-device mounting, kpartx, and binfmt_misc
+# (required by the Packer arm-image plugin to build Pi images).
+#
+# Keeping it in its own namespace means:
+#   - The standard homelab runners stay non-root and unprivileged
+#   - Kyverno PSS baseline can exclude only this namespace
+#   - RBAC and network policies are independently scoped
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: packer-runners
+  labels:
+    app.kubernetes.io/part-of: github-actions-runner
+    app.kubernetes.io/component: packer-runners

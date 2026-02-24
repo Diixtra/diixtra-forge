@@ -1,0 +1,77 @@
+# ══════════════════════════════════════════════════════════════════
+# Packer Runner Scale Set — Privileged runner for Pi image builds
+# ══════════════════════════════════════════════════════════════════
+#
+# This runner exists solely for `packer build` of ARM images.
+# The Packer arm-image plugin needs:
+#   - Loop devices (losetup) to mount .img files
+#   - kpartx to map image partitions
+#   - /proc/sys/fs/binfmt_misc for QEMU user-mode emulation
+#
+# All of these require root + privileged container access. The
+# standard homelab runner (UID 1001, non-root) cannot do this.
+#
+# Security trade-off: privileged: true disables most container
+# isolation. Mitigated by:
+#   - maxRunners: 1 (single build at a time)
+#   - minRunners: 0 (no idle privileged pods)
+#   - Isolated namespace with its own RBAC scope
+#   - Only triggered by packer-specific workflow paths
+# ══════════════════════════════════════════════════════════════════
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: arc-runner-set-packer
+  namespace: packer-runners
+spec:
+  interval: 30m
+  releaseName: packer
+  dependsOn:
+    - name: arc-controller
+      namespace: arc-system
+  chart:
+    spec:
+      chart: gha-runner-scale-set
+      version: "*"
+      sourceRef:
+        kind: HelmRepository
+        name: actions-runner-controller
+        namespace: flux-system
+      interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
+  values:
+    githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"
+    githubConfigSecret: github-config-secret
+    minRunners: 0
+    maxRunners: 1
+    listenerTemplate:
+      spec:
+        containers:
+          - name: listener
+            resources:
+              requests:
+                cpu: 50m
+                memory: 64Mi
+              limits:
+                cpu: 250m
+                memory: 256Mi
+    template:
+      spec:
+        nodeSelector:
+          kubernetes.io/arch: amd64
+        containers:
+          - name: runner
+            image: ghcr.io/actions/actions-runner:latest
+            command: ["/home/runner/run.sh"]
+            securityContext:
+              privileged: true
+            resources:
+              requests:
+                cpu: "1"
+                memory: 2Gi
+              limits:
+                cpu: "2"
+                memory: 4Gi

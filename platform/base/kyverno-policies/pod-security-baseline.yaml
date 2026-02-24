@@ -30,6 +30,7 @@ spec:
                 - kyverno-system
                 - democratic-csi
                 - monitoring
+                - packer-runners
       validate:
         failureAction: Enforce
         podSecurity:
