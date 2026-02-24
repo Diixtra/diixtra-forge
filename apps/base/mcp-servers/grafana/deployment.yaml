@@ -41,6 +41,13 @@ spec:
                 secretKeyRef:
                   name: grafana-mcp-token
                   key: credential
+          readinessProbe:
+            httpGet:
+              path: /sse
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m

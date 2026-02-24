@@ -21,23 +21,42 @@ spec:
         app.kubernetes.io/part-of: mcp-servers
         app.kubernetes.io/managed-by: flux
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: mcp-cloudflare
           image: node:22-alpine
           command:
             - sh
-            - -c
-            - npx -y supergateway --stdio "npx -y @cloudflare/mcp-server-cloudflare" --port 8080
+            - -ec
+            - exec npx -y supergateway --stdio "npx -y @cloudflare/mcp-server-cloudflare" --port 8080
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
           env:
+            - name: HOME
+              value: "/tmp"
             - name: CLOUDFLARE_API_TOKEN
               valueFrom:
                 secretKeyRef:
                   name: cloudflare-mcp-token
                   key: credential
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 100m

@@ -21,23 +21,44 @@ spec:
         app.kubernetes.io/part-of: mcp-servers
         app.kubernetes.io/managed-by: flux
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: mcp-stripe
           image: node:22-alpine
           command:
             - sh
-            - -c
-            - npx -y supergateway --stdio "npx -y @stripe/mcp --tools=all --api-key=$STRIPE_API_KEY" --port 8080
+            - -ec
+            # @stripe/mcp reads STRIPE_API_KEY from env — no --api-key flag
+            # needed. This avoids leaking the key in the process command line.
+            - exec npx -y supergateway --stdio "npx -y @stripe/mcp --tools=all" --port 8080
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
           env:
+            - name: HOME
+              value: "/tmp"
             - name: STRIPE_API_KEY
               valueFrom:
                 secretKeyRef:
                   name: stripe-api-key
                   key: credential
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 100m

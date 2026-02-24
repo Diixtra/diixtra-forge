@@ -30,6 +30,13 @@ spec:
           env:
             - name: K8S_MCP_TRANSPORT
               value: "streamable-http"
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m

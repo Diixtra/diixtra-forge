@@ -21,23 +21,42 @@ spec:
         app.kubernetes.io/part-of: mcp-servers
         app.kubernetes.io/managed-by: flux
     spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
       containers:
         - name: mcp-memory
           image: node:22-alpine
           command:
             - sh
-            - -c
-            - npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --port 8080
+            - -ec
+            - exec npx -y supergateway --stdio "npx -y @modelcontextprotocol/server-memory" --port 8080
           ports:
             - name: http
               containerPort: 8080
               protocol: TCP
           env:
+            - name: HOME
+              value: "/tmp"
             - name: MEMORY_FILE_PATH
               value: "/data/memory.jsonl"
           volumeMounts:
             - name: memory-data
               mountPath: /data
+          startupProbe:
+            httpGet:
+              path: /
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m

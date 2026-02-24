@@ -31,6 +31,13 @@ spec:
               value: "streamable-http"
             - name: TRANSPORT_HOST
               value: "0.0.0.0"
+          readinessProbe:
+            httpGet:
+              path: /mcp
+              port: 8080
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            failureThreshold: 3
           resources:
             requests:
               cpu: 50m
