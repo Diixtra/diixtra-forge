@@ -1,9 +1,9 @@
 import { Navigate, Route } from 'react-router-dom';
 import {
-  CatalogEntityPage,
   CatalogIndexPage,
   catalogPlugin,
 } from '@backstage/plugin-catalog';
+import { entityPage } from './components/catalog/EntityPage';
 import { ScaffolderPage, scaffolderPlugin } from '@backstage/plugin-scaffolder';
 import { UserSettingsPage } from '@backstage/plugin-user-settings';
 import { Root } from './components/Root';
@@ -17,7 +17,7 @@ import { createApp } from '@backstage/app-defaults';
 import { AppRouter, FlatRoutes } from '@backstage/core-app-api';
 import { githubAuthApiRef } from '@backstage/core-plugin-api';
 import { TechRadarPage } from '@backstage-community/plugin-tech-radar';
-import { PolicyReporterPage } from '@kyverno/backstage-plugin-policy-reporter';
+import { PolicyReportsPage } from '@kyverno/backstage-plugin-policy-reporter';
 import { TemplateBuilderPage } from '@terasky/backstage-plugin-template-builder';
 
 const app = createApp({
@@ -49,13 +49,10 @@ const routes = (
   <FlatRoutes>
     <Route path="/" element={<Navigate to="catalog" />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
-    <Route
-      path="/catalog/:namespace/:kind/:name"
-      element={<CatalogEntityPage />}
-    />
+    <Route path="/catalog/:namespace/:kind/:name" element={entityPage} />
     <Route path="/create" element={<ScaffolderPage />} />
     <Route path="/tech-radar" element={<TechRadarPage />} />
-    <Route path="/policy-reporter" element={<PolicyReporterPage />} />
+    <Route path="/policy-reporter" element={<PolicyReportsPage />} />
     <Route path="/template-builder" element={<TemplateBuilderPage />} />
     <Route path="/settings" element={<UserSettingsPage />} />
   </FlatRoutes>
