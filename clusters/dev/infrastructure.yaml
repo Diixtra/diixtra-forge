@@ -44,10 +44,10 @@ spec:
   prune: true
   wait: true
   healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: caddy
-      namespace: caddy-system
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: traefik
+      namespace: traefik-system
   postBuild:
     substituteFrom:
       - kind: ConfigMap
