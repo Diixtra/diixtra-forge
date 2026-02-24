@@ -1,11 +1,11 @@
 # ══════════════════════════════════════════════════════════════════
 # traefik-system — Ingress Controller
 #
-# Traefik is the cluster's ingress controller (LB IP: 10.2.0.200).
-# It accepts external HTTP/HTTPS traffic and routes it to backend
-# services across multiple namespaces. It also needs egress to the
-# internet for Let's Encrypt ACME certificate issuance, and to
-# TrueNAS for reverse-proxied services.
+# Traefik is the cluster's ingress controller (LB IP assigned via
+# Cilium LB-IPAM). It accepts external HTTP/HTTPS traffic and routes
+# it to backend services across multiple namespaces. It also needs
+# egress to the internet for Let's Encrypt ACME, to TrueNAS for
+# reverse-proxied apps, and to Home Assistant on a separate VLAN.
 # ══════════════════════════════════════════════════════════════════
 ---
 apiVersion: cilium.io/v2
@@ -61,6 +61,38 @@ spec:
             - port: "443"
               protocol: TCP
             - port: "80"
+              protocol: TCP
+            - port: "30109"
+              protocol: TCP
+            - port: "30027"
+              protocol: TCP
+            - port: "31050"
+              protocol: TCP
+            - port: "30037"
+              protocol: TCP
+            - port: "30104"
+              protocol: TCP
+            - port: "31015"
+              protocol: TCP
+            - port: "30150"
+              protocol: TCP
+            - port: "30141"
+              protocol: TCP
+---
+# Allow Traefik to reach Home Assistant on a separate VLAN
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-home-assistant
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - ${HOME_ASSISTANT_HOST}/32
+      toPorts:
+        - ports:
+            - port: "8123"
               protocol: TCP
 ---
 apiVersion: cilium.io/v2

@@ -73,3 +73,20 @@ spec:
         - ports:
             - port: "5432"
               protocol: TCP
+---
+# Allow Backstage to reach Policy Reporter REST API
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: backstage-allow-egress-policy-reporter
+  namespace: backstage
+spec:
+  endpointSelector: {}
+  egress:
+    - toEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: policy-reporter
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP

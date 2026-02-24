@@ -1,6 +1,7 @@
 ---
-# CiliumLoadBalancerIPPool — same range as the MetalLB pool it replaces
+# CiliumLoadBalancerIPPool — allocatable IPs for LoadBalancer Services
 # Traefik is pinned to 10.2.0.200 via io.cilium/lb-ipam-ips annotation
+# NOTE: v2alpha1 API — may require migration on Cilium upgrades
 apiVersion: cilium.io/v2alpha1
 kind: CiliumLoadBalancerIPPool
 metadata:
@@ -10,8 +11,8 @@ spec:
     - start: "10.2.0.200"
       stop: "10.2.0.210"
 ---
-# CiliumL2AnnouncementPolicy — replaces MetalLB L2Advertisement
-# Responds to ARP requests on the LAN, making virtual IPs reachable
+# CiliumL2AnnouncementPolicy — responds to ARP on the LAN for virtual IPs
+# NOTE: v2alpha1 API — may require migration on Cilium upgrades
 apiVersion: cilium.io/v2alpha1
 kind: CiliumL2AnnouncementPolicy
 metadata:

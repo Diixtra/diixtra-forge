@@ -1,10 +1,9 @@
 # ══════════════════════════════════════════════════════════════════
 # packer-runners — Packer Build Runners
 #
-# HIGH RISK — These pods run Packer builds which may download ISOs,
-# call Proxmox APIs, and execute arbitrary build scripts. Network
-# access is restricted to GitHub for workflow communication and
-# the Kubernetes API.
+# HIGH RISK — These pods run Packer builds which may download ISOs
+# and execute arbitrary build scripts. Network access is restricted
+# to GitHub for workflow communication and the Kubernetes API.
 # ══════════════════════════════════════════════════════════════════
 ---
 apiVersion: cilium.io/v2

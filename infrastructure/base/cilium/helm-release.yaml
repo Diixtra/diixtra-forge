@@ -17,9 +17,14 @@ spec:
   install:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
+      strategy: rollback
   values:
     # --- kube-proxy replacement (eBPF datapath) ---
     kubeProxyReplacement: true
@@ -57,7 +62,7 @@ spec:
           - icmp
           - "httpV2:exemplars=true;labelsContext=source_ip,source_namespace,source_workload,destination_ip,destination_namespace,destination_workload,traffic_direction"
 
-    # --- L2 announcements (replaces MetalLB) ---
+    # --- L2 load balancer announcements ---
     l2announcements:
       enabled: true
     externalIPs:
