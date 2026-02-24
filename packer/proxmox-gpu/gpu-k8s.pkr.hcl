@@ -1,11 +1,11 @@
 # =============================================================================
-# Packer Template — GPU K8s Node (Ubuntu 25.10 + NVIDIA + K3s)
+# Packer Template — GPU K8s Node (Ubuntu 25.10 + NVIDIA + kubeadm worker)
 # =============================================================================
 #
 # LEARNING NOTE — TWO-STAGE PROVISIONING:
 #   This template runs TWO provisioning scripts in order:
-#     1. provision-k8s-node.sh  — Base packages (open-iscsi, nfs-common, etc.)
-#     2. provision-gpu-node.sh  — GPU layer (NVIDIA driver, Container Toolkit, K3s)
+#     1. provision-k8s-node.sh  — Base packages (open-iscsi, kubeadm, kubelet, etc.)
+#     2. provision-gpu-node.sh  — GPU layer (NVIDIA driver, Container Toolkit, first-boot script)
 #
 #   This is the same layering principle as Kustomize base + overlay:
 #     base = provision-k8s-node.sh (every K8s node needs this)
@@ -20,7 +20,7 @@
 #       for data preprocessing, tokenisation, and batch assembly
 #     - 32GB+ RAM: LLM inference loads model weights into system RAM first,
 #       then transfers to VRAM. With a 16GB VRAM GPU, you need at least
-#       16GB system RAM just for the model transfer, plus OS and K3s overhead
+#       16GB system RAM just for the model transfer, plus OS and kubelet overhead
 #     - 100GB+ disk: Model files are large. Llama 3 8B = ~5GB,
 #       Llama 3 70B = ~40GB. Multiple models plus container images add up.
 #
@@ -89,7 +89,7 @@ variable "template_name" {
 variable "template_description" {
   type        = string
   description = "Description for the Proxmox template"
-  default     = "K8s GPU node golden image — Ubuntu 25.10 + NVIDIA 570 + K3s — built by Packer"
+  default     = "K8s GPU node golden image — Ubuntu 25.10 + NVIDIA 570 + kubeadm worker — built by Packer"
 }
 
 variable "ssh_username" {
@@ -119,7 +119,7 @@ variable "vm_memory" {
 variable "vm_disk_size" {
   type        = string
   default     = "64G"
-  description = "Disk size — must fit NVIDIA driver, K3s, and model storage"
+  description = "Disk size — must fit NVIDIA driver, kubelet, and model storage"
 }
 
 variable "network_bridge" {

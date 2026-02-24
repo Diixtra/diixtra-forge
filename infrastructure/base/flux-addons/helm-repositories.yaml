@@ -129,6 +129,16 @@ spec:
   interval: 24h
   url: https://stakater.github.io/stakater-charts
 ---
+# NVIDIA k8s-device-plugin — GPU Extended Resource registration
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: nvidia
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://nvidia.github.io/k8s-device-plugin
+---
 # Crossplane — universal control plane for cloud APIs
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
