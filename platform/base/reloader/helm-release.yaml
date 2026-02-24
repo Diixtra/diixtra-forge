@@ -3,8 +3,17 @@ kind: Namespace
 metadata:
   name: reloader
   labels:
+    app.kubernetes.io/part-of: reloader
     app.kubernetes.io/managed-by: flux
 ---
+# Stakater Reloader — automatic workload restarts on Secret/ConfigMap changes
+#
+# Secret rotation pipeline:
+#   1Password item updated -> 1Password operator syncs to K8s Secret ->
+#   Reloader detects Secret change -> annotated workload gets rolling restart
+#
+# Workloads must opt in via annotation: reloader.stakater.com/auto: "true"
+# See: backstage, traefik, and grafana-alloy HelmReleases
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
 metadata:
@@ -15,7 +24,7 @@ spec:
   chart:
     spec:
       chart: reloader
-      version: "*"
+      version: "*" # Lab: always use latest. Pin in production.
       sourceRef:
         kind: HelmRepository
         name: stakater
@@ -27,13 +36,16 @@ spec:
     timeout: 10m
   values:
     reloader:
+      # Watch all namespaces so annotated workloads (Backstage, Traefik, Alloy)
+      # get restarted when their Secrets/ConfigMaps change.
       watchGlobally: true
-      resources:
-        requests:
-          cpu: 25m
-          memory: 32Mi
-        limits:
-          cpu: 100m
-          memory: 64Mi
-      podAnnotations:
-        app.kubernetes.io/managed-by: flux
+      deployment:
+        resources:
+          requests:
+            cpu: 25m
+            memory: 32Mi
+          limits:
+            cpu: 100m
+            memory: 64Mi
+        labels:
+          app.kubernetes.io/managed-by: flux
