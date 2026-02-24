@@ -15,7 +15,7 @@ spec:
   chart:
     spec:
       chart: policy-reporter
-      version: "*"
+      version: "*"          # Lab: always use latest. Pin in production.
       sourceRef:
         kind: HelmRepository
         name: policy-reporter
