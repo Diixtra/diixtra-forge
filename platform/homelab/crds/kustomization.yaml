@@ -21,6 +21,7 @@ resources:
   - ../../base/graphite-exporter
   - ../../base/backstage
   - ../../base/traefik-config
+  - ../../base/policy-reporter
 patches:
   - target:
       kind: HelmRelease
