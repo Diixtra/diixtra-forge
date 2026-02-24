@@ -23,6 +23,7 @@ resources:
   - ../../base/traefik-config
   - ../../base/policy-reporter
   - ../../base/node-cleanup
+  - ../../base/reloader
 patches:
   - target:
       kind: HelmRelease

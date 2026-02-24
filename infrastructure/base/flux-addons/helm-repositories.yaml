@@ -119,6 +119,16 @@ spec:
   interval: 24h
   url: https://kyverno.github.io/policy-reporter
 ---
+# Stakater Reloader — auto-restart pods on Secret/ConfigMap changes
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: stakater
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://stakater.github.io/stakater-charts
+---
 # Crossplane — universal control plane for cloud APIs
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
