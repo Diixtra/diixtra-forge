@@ -1,0 +1,38 @@
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: crossplane
+  namespace: crossplane-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: crossplane
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: crossplane
+        namespace: flux-system
+      interval: 1h
+  # CRD-heavy chart; 10m prevents premature Helm timeout on resource-constrained nodes.
+  install:
+    crds: CreateReplace
+    timeout: 10m
+  upgrade:
+    crds: CreateReplace
+    timeout: 10m
+  values:
+    resourcesCrossplane:
+      limits:
+        cpu: 500m
+        memory: 512Mi
+      requests:
+        cpu: 100m
+        memory: 256Mi
+    resourcesRBACManager:
+      limits:
+        cpu: 250m
+        memory: 256Mi
+      requests:
+        cpu: 50m
+        memory: 128Mi

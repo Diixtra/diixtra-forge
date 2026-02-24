@@ -15,7 +15,7 @@ metadata:
 spec:
   interval: 10m
   retryInterval: 1m
-  timeout: 5m
+  timeout: 10m
   sourceRef:
     kind: GitRepository
     name: flux-system
@@ -35,6 +35,10 @@ spec:
       kind: HelmRelease
       name: metallb
       namespace: metallb-system
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: crossplane
+      namespace: crossplane-system
 ---
 # Stage 2: CRD Consumers
 # Deploys resources that depend on CRDs installed by infrastructure-crds:
