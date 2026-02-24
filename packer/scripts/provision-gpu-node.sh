@@ -234,6 +234,13 @@ ok()  { echo "  ✅ $*"; }
 err() { echo "  ❌ $*"; exit 1; }
 warn(){ echo "  ⚠️  $*"; }
 
+# Ensure sensitive files and variables are cleaned up on any exit
+cleanup() {
+    rm -f "/tmp/gpu-init-kubeconfig"
+    unset JOIN_TOKEN CA_CERT_HASH API_SERVER KUBECONFIG_CONTENT 2>/dev/null || true
+}
+trap cleanup EXIT
+
 echo "═══════════════════════════════════════════════════"
 echo "  GPU Node First-Boot Initialisation (kubeadm)"
 echo "═══════════════════════════════════════════════════"
@@ -344,9 +351,6 @@ kubectl label nodes "${NODE_NAME}" \
     "nvidia.com/gpu.product=${GPU_NAME// /-}" \
     --overwrite
 ok "Node labels applied"
-
-# ── 8. Cleanup ─────────────────────────────────────────────────────
-rm -f "${KUBECONFIG}"
 
 echo ""
 echo "═══════════════════════════════════════════════════"

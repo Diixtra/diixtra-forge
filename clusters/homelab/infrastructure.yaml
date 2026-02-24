@@ -88,7 +88,7 @@ spec:
       kind: HelmRelease
       name: arc-runner-set-packer
       namespace: packer-runners
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: nvidia-device-plugin
-      namespace: nvidia-device-plugin
+    # nvidia-device-plugin intentionally excluded from healthChecks.
+    # The DaemonSet has a nodeSelector (node.kubernetes.io/gpu=true) so it
+    # schedules 0 pods until the GPU node joins. Including it here would
+    # block all infrastructure reconciliation when no GPU node exists.

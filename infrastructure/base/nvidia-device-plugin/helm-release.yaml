@@ -34,13 +34,8 @@ spec:
     nodeSelector:
       node.kubernetes.io/gpu: "true"
 
-    # Must tolerate the GPU taint applied by the first-boot script,
-    # otherwise the DaemonSet pod can't schedule on the GPU node.
-    tolerations:
-      - key: nvidia.com/gpu
-        operator: Equal
-        value: present
-        effect: NoSchedule
+    # Chart defaults already tolerate nvidia.com/gpu:NoSchedule and
+    # CriticalAddonsOnly. No override needed — just use the defaults.
 
     resources:
       requests:
