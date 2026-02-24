@@ -36,7 +36,7 @@ jobs:
           PACKER_PLUGIN_PATH: ${{ github.workspace }}/packer/.packer.d/plugins
 
       - name: Packer build
-        run: sudo packer build arm-debian/
+        run: sudo PACKER_PLUGIN_PATH="$PACKER_PLUGIN_PATH" packer build arm-debian/
         working-directory: packer
         env:
           PACKER_PLUGIN_PATH: ${{ github.workspace }}/packer/.packer.d/plugins
