@@ -108,3 +108,13 @@ metadata:
 spec:
   interval: 24h
   url: https://traefik.github.io/charts
+---
+# Policy Reporter — Kyverno policy results dashboard
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: policy-reporter
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://kyverno.github.io/policy-reporter
