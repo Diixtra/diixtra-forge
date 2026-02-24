@@ -22,9 +22,9 @@ jobs:
 
       - name: Install prerequisites
         run: |
-          apt-get update
-          apt-get install -y qemu-user-static binfmt-support kpartx
-          systemctl restart binfmt-support
+          sudo apt-get update
+          sudo apt-get install -y qemu-user-static binfmt-support kpartx
+          sudo update-binfmts --enable
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@v3
