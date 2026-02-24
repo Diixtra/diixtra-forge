@@ -3,13 +3,13 @@ kind: Kustomization
 resources:
   # CRD-dependent resources — these all need CRDs installed by
   # infrastructure-crds (OnePasswordItem from 1Password Operator,
-  # IPAddressPool/L2Advertisement from MetalLB).
+  # Cilium CRDs from Cilium HelmRelease).
   - ../base/traefik
   - ../base/democratic-csi
   - ../base/github-actions-runner
   - ../base/packer-runner
-  # MetalLB custom resources — need MetalLB CRDs from infrastructure-crds
-  - metallb/patches/ip-pool.yaml
+  # Cilium L2 config — needs Cilium CRDs from infrastructure-crds
+  - cilium/l2-config.yaml
 patches:
   # TrueNAS dataset paths — homelab uses kaz.cloud pool
   - target:

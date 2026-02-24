@@ -37,7 +37,7 @@ jobs:
         id: extract
         run: |
           python3 <<'PYEOF'
-          import re, glob, pathlib, json
+          import re, glob, pathlib, json, sys
 
           # Read cluster variables (Flux substitution values)
           vars_text = pathlib.Path("clusters/homelab/vars.yaml").read_text()
@@ -46,9 +46,15 @@ jobs:
               vars_map[m.group(1)] = m.group(2)
 
           # Extract Traefik LoadBalancer IP from HelmRelease annotation
+          # Supports both Cilium (io.cilium/lb-ipam-ips) and legacy MetalLB (metallb.io/loadBalancerIPs)
           hr_text = pathlib.Path("infrastructure/base/traefik/helm-release.yaml").read_text()
-          lb_match = re.search(r"loadBalancerIPs:\s*(\S+)", hr_text)
+          lb_match = re.search(r"lb-ipam-ips:\s*\"?(\S+?)\"?$", hr_text, re.MULTILINE) or \
+                     re.search(r"loadBalancerIPs:\s*(\S+)", hr_text)
           lb_ip = lb_match.group(1) if lb_match else ""
+
+          if not lb_ip or not re.match(r"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$", lb_ip):
+              print(f"ERROR: Could not extract valid LoadBalancer IP from HelmRelease (got: '{lb_ip}')")
+              sys.exit(1)
 
           # Extract all Host() matches from IngressRoute files
           hostnames = set()

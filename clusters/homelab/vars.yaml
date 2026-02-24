@@ -58,9 +58,11 @@ data:
   GRAFANA_LOKI_URL: "https://logs-prod-035.grafana.net/loki/api/v1/push"
   GRAFANA_LOKI_USERNAME: "1481965"
   # ── Network Configuration ──────────────────────────────────────
-  METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"
   TRUENAS_ISCSI_PORTAL: "10.2.0.232:3260"
+  # ── Kubernetes API ────────────────────────────────────────────
+  # Control plane endpoint IP — required by Cilium for kube-proxy replacement.
+  K8S_API_HOST: "10.2.0.35"
   # ── External Devices ───────────────────────────────────────────
   HOME_ASSISTANT_HOST: "10.2.20.171"
   # ── GitHub Actions Runner ──────────────────────────────────────

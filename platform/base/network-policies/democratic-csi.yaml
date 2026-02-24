@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════
+# democratic-csi — Storage Provisioner
+#
+# democratic-csi provisions iSCSI and NFS volumes from TrueNAS.
+# The CSI controller watches PVC/PV objects via the Kubernetes API
+# and calls the TrueNAS API (HTTPS port 443) to create/delete
+# datasets and targets. iSCSI data path uses port 3260.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: democratic-csi-default-deny
+  namespace: democratic-csi
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: democratic-csi-allow-egress-truenas
+  namespace: democratic-csi
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - ${TRUENAS_HOST}/32
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+            - port: "3260"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: democratic-csi-allow-egress-kube-api
+  namespace: democratic-csi
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver
