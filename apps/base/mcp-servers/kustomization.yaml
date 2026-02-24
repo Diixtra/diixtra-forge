@@ -1,0 +1,28 @@
+# NodePort allocation:
+#   30100 - mcp-kubernetes
+#   30101 - mcp-terraform
+#   30102 - mcp-grafana
+#   30103 - mcp-cloudflare
+#   30104 - mcp-stripe
+#   30105 - mcp-memory
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - namespace.yaml
+  - kubernetes/rbac.yaml
+  - kubernetes/deployment.yaml
+  - kubernetes/service.yaml
+  - terraform/deployment.yaml
+  - terraform/service.yaml
+  - grafana/deployment.yaml
+  - grafana/service.yaml
+  - grafana/onepassword-item.yaml
+  - cloudflare/deployment.yaml
+  - cloudflare/service.yaml
+  - cloudflare/onepassword-item.yaml
+  - stripe/deployment.yaml
+  - stripe/service.yaml
+  - stripe/onepassword-item.yaml
+  - memory/pvc.yaml
+  - memory/deployment.yaml
+  - memory/service.yaml

@@ -7,13 +7,38 @@ metadata:
 spec:
   interval: 10m
   retryInterval: 1m
-  timeout: 5m
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./apps/dev
   prune: true
   wait: true
+  healthChecks:
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-kubernetes
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-terraform
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-grafana
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-cloudflare
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-stripe
+      namespace: mcp-servers
+    - apiVersion: apps/v1
+      kind: Deployment
+      name: mcp-memory
+      namespace: mcp-servers
   postBuild:
     substituteFrom:
       - kind: ConfigMap

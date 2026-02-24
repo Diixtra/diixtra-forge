@@ -1,0 +1,70 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-grafana
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-grafana
+    app.kubernetes.io/part-of: mcp-servers
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-grafana
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-grafana
+        app.kubernetes.io/part-of: mcp-servers
+        app.kubernetes.io/managed-by: flux
+    spec:
+      containers:
+        - name: mcp-grafana
+          image: ghcr.io/grafana/mcp-grafana:latest
+          args:
+            - --transport
+            - sse
+            - --address
+            - 0.0.0.0:8000
+          ports:
+            - name: http
+              containerPort: 8000
+              protocol: TCP
+          env:
+            - name: GRAFANA_URL
+              value: "http://grafana.monitoring.svc.cluster.local:3000"
+            - name: GRAFANA_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: grafana-mcp-token
+                  key: credential
+          # tcpSocket probe — the /sse endpoint is a streaming SSE connection
+          # that never closes. httpGet probes against it would accumulate
+          # leaked connections and eventually exhaust file descriptors.
+          startupProbe:
+            tcpSocket:
+              port: 8000
+            initialDelaySeconds: 5
+            periodSeconds: 5
+            failureThreshold: 12
+          readinessProbe:
+            tcpSocket:
+              port: 8000
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL

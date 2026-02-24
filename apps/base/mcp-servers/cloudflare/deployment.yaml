@@ -1,0 +1,72 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcp-cloudflare
+  namespace: mcp-servers
+  labels:
+    app.kubernetes.io/name: mcp-cloudflare
+    app.kubernetes.io/part-of: mcp-servers
+    app.kubernetes.io/managed-by: flux
+  annotations:
+    reloader.stakater.com/auto: "true"
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: mcp-cloudflare
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: mcp-cloudflare
+        app.kubernetes.io/part-of: mcp-servers
+        app.kubernetes.io/managed-by: flux
+    spec:
+      securityContext:
+        runAsUser: 1000
+        runAsGroup: 1000
+        fsGroup: 1000
+      containers:
+        - name: mcp-cloudflare
+          image: node:22-alpine
+          command:
+            - sh
+            - -ec
+            - exec npx -y supergateway --stdio "npx -y @cloudflare/mcp-server-cloudflare" --port 8080 --healthEndpoint /healthz
+          ports:
+            - name: http
+              containerPort: 8080
+              protocol: TCP
+          env:
+            - name: HOME
+              value: "/tmp"
+            - name: CLOUDFLARE_API_TOKEN
+              valueFrom:
+                secretKeyRef:
+                  name: cloudflare-mcp-token
+                  key: credential
+          startupProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            initialDelaySeconds: 10
+            periodSeconds: 5
+            failureThreshold: 30
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: 8080
+            periodSeconds: 10
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: 100m
+              memory: 128Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+          securityContext:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
