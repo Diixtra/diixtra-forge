@@ -2,6 +2,7 @@ import { PropsWithChildren } from 'react';
 import HomeIcon from '@material-ui/icons/Home';
 import CreateComponentIcon from '@material-ui/icons/AddCircleOutline';
 import TrackChangesIcon from '@material-ui/icons/TrackChanges';
+import SecurityIcon from '@material-ui/icons/Security';
 import {
   Sidebar,
   SidebarDivider,
@@ -28,6 +29,7 @@ export const Root = ({ children }: PropsWithChildren<{}>) => (
           text="Create..."
         />
         <SidebarItem icon={TrackChangesIcon} to="tech-radar" text="Tech Radar" />
+        <SidebarItem icon={SecurityIcon} to="policy-reporter" text="Security" />
         <SidebarDivider />
       </SidebarGroup>
       <SidebarSpace />

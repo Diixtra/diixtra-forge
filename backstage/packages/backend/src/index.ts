@@ -58,6 +58,9 @@ backend.add(githubSignInModule);
 // kubernetes
 backend.add(import('@backstage/plugin-kubernetes-backend'));
 
+// security — Kyverno Policy Reporter
+backend.add(import('@kyverno/backstage-plugin-policy-reporter-backend'));
+
 // permissions (allow-all for lab)
 backend.add(import('@backstage/plugin-permission-backend'));
 backend.add(

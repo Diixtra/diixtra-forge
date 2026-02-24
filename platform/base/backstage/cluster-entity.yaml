@@ -1,0 +1,12 @@
+apiVersion: backstage.io/v1alpha1
+kind: Resource
+metadata:
+  name: homelab-cluster
+  description: Homelab k3s cluster managed by Flux
+  annotations:
+    backstage.io/managed-by-location: "file:platform/base/backstage/cluster-entity.yaml"
+    kyverno.io/endpoint: "http://policy-reporter.policy-reporter.svc.cluster.local:8080"
+spec:
+  type: kubernetes-cluster
+  owner: platform-team
+  lifecycle: production
