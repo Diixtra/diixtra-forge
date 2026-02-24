@@ -10,7 +10,7 @@ on:
 
 concurrency:
   group: post-deploy-check
-  cancel-in-progress: true
+  cancel-in-progress: false
 
 jobs:
   health-check:
@@ -78,7 +78,7 @@ jobs:
   rollback:
     name: Auto Rollback
     needs: health-check
-    if: failure()
+    if: failure() && !startsWith(github.event.head_commit.message, 'Revert "')
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -93,7 +93,15 @@ jobs:
         run: |
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git revert HEAD --no-edit
+          # Merge commits (from PR merges) require -m 1 to specify which
+          # parent to revert against. Without it, git revert fails with:
+          #   "commit XXXXX is a merge but no -m option was given"
+          PARENTS=$(git cat-file -p HEAD | grep -c '^parent')
+          if [ "$PARENTS" -gt 1 ]; then
+            git revert -m 1 HEAD --no-edit
+          else
+            git revert HEAD --no-edit
+          fi
           git push origin main
 
       - name: Create issue
