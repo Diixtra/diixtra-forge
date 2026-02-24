@@ -46,7 +46,9 @@ jobs:
         run: |
           echo "Waiting for all HelmReleases to reconcile..."
           for i in $(seq 1 60); do
-            NOT_READY=$(flux get helmreleases -A --no-header | grep -v "True" || true)
+            # Exclude nvidia-device-plugin: its DaemonSet needs a GPU node
+            # with node.kubernetes.io/gpu=true label — schedules 0 pods otherwise
+            NOT_READY=$(flux get helmreleases -A --no-header | grep -v "nvidia-device-plugin" | grep -v "True" || true)
             if [ -z "$NOT_READY" ]; then
               echo "All HelmReleases are Ready"
               flux get helmreleases -A

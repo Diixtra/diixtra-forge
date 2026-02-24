@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # =============================================================================
-# GPU Node Provisioning Script — NVIDIA + K3s Layer
+# GPU Node Provisioning Script — NVIDIA + kubeadm Worker Layer
 # =============================================================================
 #
 # PURPOSE:
@@ -8,31 +8,32 @@
 #   Run AFTER provision-k8s-node.sh. This script adds:
 #     - NVIDIA driver (570+ for Blackwell/RTX 5070 Ti)
 #     - NVIDIA Container Toolkit (lets containerd expose GPU to containers)
-#     - K3s (lightweight single-node Kubernetes)
+#     - First-boot script for kubeadm join + GPU taint/labels
+#
+#   kubeadm, kubelet, and kubectl are already installed by provision-k8s-node.sh.
+#   This script does NOT install a separate Kubernetes distribution.
 #
 # LEARNING NOTE — WHY A SEPARATE SCRIPT:
 #   The shared provision-k8s-node.sh handles packages every K8s node needs
-#   (open-iscsi, nfs-common, 1password-cli, kernel modules). This script
-#   adds GPU-specific layers. Separation means:
+#   (open-iscsi, nfs-common, 1password-cli, kernel modules, kubeadm/kubelet).
+#   This script adds GPU-specific layers. Separation means:
 #     - The base image works for CPU-only nodes
 #     - The GPU image = base + this script
 #     - Changes to GPU tooling don't require rebuilding all images
 #   This is the same layering principle behind Docker multi-stage builds
 #   and Kustomize overlays — share the common base, vary the specifics.
 #
-# LEARNING NOTE — WHY K3s AND NOT KUBEADM:
-#   The main cluster uses kubeadm because it's multi-node with separate
-#   control plane and workers. The GPU VM is a single-node standalone
-#   cluster — K3s is purpose-built for this:
-#     - Single binary (~70MB), runs control plane + worker in one process
-#     - Embedded etcd (no external datastore needed)
-#     - Bundled containerd, Flannel, CoreDNS, local-path-provisioner
-#     - ~400MB RAM overhead vs ~1.5GB for full kubeadm control plane
-#     - CNCF certified — same Kubernetes API, same kubectl, same Flux
+# LEARNING NOTE — WHY KUBEADM JOIN (NOT STANDALONE K3s):
+#   Previously the GPU node ran a standalone K3s cluster. This meant:
+#     - Separate Flux instance, separate 1Password operator, separate monitoring
+#     - GPU only accessible to pods on that single node
+#     - Two clusters to manage with different distributions
 #
-#   From Flux's perspective, K3s and kubeadm are identical. The same
-#   HelmReleases, Kustomizations, and GitOps workflows work on both.
-#   The only difference is how the cluster was bootstrapped.
+#   By joining the main kubeadm cluster as a worker:
+#     - Any pod in the cluster can request nvidia.com/gpu resources
+#     - Single Flux, single Alloy, single Kyverno, single 1Password operator
+#     - GPU node gets all cluster security policies automatically
+#     - Simpler operations — one cluster to manage
 #
 # LEARNING NOTE — GPU DURING PACKER BUILD:
 #   The GPU is NOT present during the Packer build. Packer creates a
@@ -54,7 +55,7 @@
 set -euo pipefail
 
 echo "═══════════════════════════════════════════════════"
-echo "  GPU Node Provisioning — NVIDIA + K3s"
+echo "  GPU Node Provisioning — NVIDIA + kubeadm Worker"
 echo "═══════════════════════════════════════════════════"
 
 # ── Helper Functions ────────────────────────────────────────────────
@@ -178,7 +179,7 @@ ok "NVIDIA Container Toolkit installed"
 #   Packer build). It takes effect on first boot.
 log "Configuring Container Toolkit for containerd..."
 
-# Create containerd config directory (K3s will use this)
+# Create containerd config directory
 mkdir -p /etc/containerd
 
 # Generate default config if it doesn't exist
@@ -192,92 +193,15 @@ nvidia-ctk runtime configure --runtime=containerd --set-as-default 2>/dev/null |
 
 ok "Container Toolkit configured for containerd"
 
-# ── 4. K3s Installation ────────────────────────────────────────────
-# LEARNING NOTE — K3s INSTALL BUT DON'T START:
-#   We install K3s during the Packer build but DON'T start it. Why?
-#
-#   K3s generates cluster-specific data on first start:
-#     - TLS certificates (unique per cluster)
-#     - Cluster CA (the certificate authority that signs all certs)
-#     - Node token (for joining additional nodes)
-#     - etcd database (the cluster state store)
-#
-#   If K3s starts during the Packer build, all that data gets baked
-#   into the image. Every VM cloned from the template would share the
-#   same CA, same certs, same cluster identity — a security disaster
-#   and a functional failure (multiple clusters thinking they're the same).
-#
-#   Instead, we install the binary and systemd service, but disable
-#   automatic start. On first boot of a cloned VM, you run:
-#     systemctl enable k3s && systemctl start k3s
-#   K3s generates fresh cluster identity and starts cleanly.
-#
-# LEARNING NOTE — K3s INSTALL SCRIPT:
-#   K3s provides a curl-pipe-bash installer (https://get.k3s.io) that:
-#     1. Detects architecture (amd64/arm64)
-#     2. Downloads the correct binary
-#     3. Creates systemd service files
-#     4. Optionally starts the service
-#
-#   INSTALL_K3S_SKIP_START=true prevents it from starting.
-#   INSTALL_K3S_SKIP_ENABLE=true prevents systemd from starting it on boot.
-#   We want the binary and service files installed, but the service OFF
-#   until the cloned VM is configured.
-log "Installing K3s..."
-
-curl -sfL https://get.k3s.io | INSTALL_K3S_SKIP_START=true INSTALL_K3S_SKIP_ENABLE=true sh -s - \
-    --write-kubeconfig-mode "0644"
-
-# Verify K3s binary is installed
-if command -v k3s &> /dev/null; then
-    ok "K3s installed: $(k3s --version | head -1)"
-else
-    echo "  ❌ K3s installation failed"
-    exit 1
-fi
-
-# ── 5. K3s NVIDIA Integration Config ───────────────────────────────
-# LEARNING NOTE — K3s CONTAINERD CONFIG:
-#   K3s bundles its own containerd (doesn't use the system containerd).
-#   To tell K3s's containerd about the NVIDIA runtime, we create a
-#   config template at /var/lib/rancher/k3s/agent/etc/containerd/config.toml.tmpl
-#
-#   The .tmpl extension is important — K3s treats this as a TEMPLATE
-#   that it merges with its own generated config. A plain config.toml
-#   would be overwritten by K3s on every start. The .tmpl is preserved.
-log "Configuring K3s for NVIDIA runtime..."
-
-K3S_CONTAINERD_DIR="/var/lib/rancher/k3s/agent/etc/containerd"
-mkdir -p "${K3S_CONTAINERD_DIR}"
-
-cat > "${K3S_CONTAINERD_DIR}/config.toml.tmpl" << 'CONTAINERD_CONFIG'
-# K3s containerd configuration template
-# This is merged with K3s's generated config on each start.
-
-[plugins."io.containerd.grpc.v1.cri".containerd]
-  default_runtime_name = "nvidia"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia]
-  privileged_without_host_devices = false
-  runtime_engine = ""
-  runtime_root = ""
-  runtime_type = "io.containerd.runc.v2"
-
-[plugins."io.containerd.grpc.v1.cri".containerd.runtimes.nvidia.options]
-  BinaryName = "/usr/bin/nvidia-container-runtime"
-CONTAINERD_CONFIG
-
-ok "K3s NVIDIA containerd config template created"
-
-# ── 6. Create First-Boot Script ────────────────────────────────────
+# ── 4. Create First-Boot Script ────────────────────────────────────
 # LEARNING NOTE — FIRST-BOOT PATTERN:
 #   Some configuration can't happen in the Packer build because it
 #   depends on runtime state (GPU present, network configured, etc.).
 #   A first-boot script runs once after cloning and handles:
 #     - Verify GPU is visible (nvidia-smi)
-#     - Enable and start K3s
-#     - Wait for K3s to be ready
-#     - Apply GPU-specific K8s resources (taint, labels)
+#     - Read kubeadm join credentials from 1Password
+#     - Join the main cluster as a worker node
+#     - Apply GPU-specific taints and labels
 #
 #   This script is idempotent — safe to run multiple times. It checks
 #   whether each step has already been done before doing it.
@@ -286,21 +210,39 @@ log "Creating first-boot helper script..."
 cat > /usr/local/bin/gpu-node-init.sh << 'FIRST_BOOT'
 #!/usr/bin/env bash
 # =============================================================================
-# GPU Node First-Boot Initialisation
+# GPU Node First-Boot Initialisation — kubeadm join
 # =============================================================================
 # Run this once after cloning the template and attaching the GPU via passthrough.
-# It verifies the GPU, starts K3s, and applies node configuration.
+# Verifies the GPU, reads kubeadm join credentials from 1Password, joins the
+# main cluster, and applies GPU-specific node labels and taints.
 #
-# Usage: sudo gpu-node-init.sh
+# Prerequisites:
+#   - GPU passed through via Proxmox PCI passthrough
+#   - 1Password item "kubeadm-join-credentials" in the Homelab vault with:
+#       token            kubeadm bootstrap token (abcdef.0123456789abcdef)
+#       ca-cert-hash     sha256:<64-hex-chars>
+#       api-server       control plane address (10.2.0.X:6443)
+#       kubeconfig       admin kubeconfig for applying labels/taints
+#   - OP_SERVICE_ACCOUNT_TOKEN exported in the environment
+#
+# Usage: sudo -E gpu-node-init.sh
 
 set -euo pipefail
 
 log() { echo "▸ $*"; }
 ok()  { echo "  ✅ $*"; }
 err() { echo "  ❌ $*"; exit 1; }
+warn(){ echo "  ⚠️  $*"; }
+
+# Ensure sensitive files and variables are cleaned up on any exit
+cleanup() {
+    rm -f "/tmp/gpu-init-kubeconfig"
+    unset JOIN_TOKEN CA_CERT_HASH API_SERVER KUBECONFIG_CONTENT 2>/dev/null || true
+}
+trap cleanup EXIT
 
 echo "═══════════════════════════════════════════════════"
-echo "  GPU Node First-Boot Initialisation"
+echo "  GPU Node First-Boot Initialisation (kubeadm)"
 echo "═══════════════════════════════════════════════════"
 
 # ── 1. Verify GPU ──────────────────────────────────────────────────
@@ -313,91 +255,121 @@ else
     err "No NVIDIA GPU detected. Check PCI passthrough configuration in Proxmox."
 fi
 
-# ── 2. Start K3s ───────────────────────────────────────────────────
-log "Enabling and starting K3s..."
-if systemctl is-active --quiet k3s; then
-    ok "K3s already running"
-else
-    systemctl enable k3s
-    systemctl start k3s
+# ── 2. Read join credentials from 1Password ────────────────────────
+# LEARNING NOTE — WHY 1PASSWORD FOR JOIN CREDENTIALS:
+#   kubeadm join tokens contain enough material to join a node to the
+#   cluster as a trusted worker. Passing them via cloud-init user-data
+#   is insecure (visible in Proxmox VM config). 1Password keeps them
+#   out of the image, out of Git, and out of Proxmox.
+#
+#   To refresh the token before booting a new node:
+#     kubeadm token create --print-join-command
+#     op item edit kubeadm-join-credentials --vault Homelab token=<new>
+log "Reading kubeadm join credentials from 1Password..."
 
-    # Wait for K3s to be ready (API server accepting connections)
-    log "Waiting for K3s API server..."
-    TIMEOUT=120
-    ELAPSED=0
-    while ! k3s kubectl get nodes &>/dev/null; do
-        sleep 5
-        ELAPSED=$((ELAPSED + 5))
-        if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
-            err "K3s failed to start within ${TIMEOUT}s. Check: journalctl -u k3s"
-        fi
-    done
-    ok "K3s is running"
+if [ -z "${OP_SERVICE_ACCOUNT_TOKEN:-}" ]; then
+    err "OP_SERVICE_ACCOUNT_TOKEN not set. Export it before running this script."
 fi
 
-# ── 3. Verify GPU in K3s ──────────────────────────────────────────
-# The NVIDIA device plugin needs time to register the GPU resource.
-# K3s auto-detects the NVIDIA runtime and deploys the device plugin.
-log "Waiting for GPU resource registration..."
+JOIN_TOKEN=$(op read "op://Homelab/kubeadm-join-credentials/token" 2>/dev/null) \
+    || err "Failed to read join token from 1Password."
+CA_CERT_HASH=$(op read "op://Homelab/kubeadm-join-credentials/ca-cert-hash" 2>/dev/null) \
+    || err "Failed to read CA cert hash from 1Password."
+API_SERVER=$(op read "op://Homelab/kubeadm-join-credentials/api-server" 2>/dev/null) \
+    || err "Failed to read API server endpoint from 1Password."
+
+ok "Join credentials retrieved from 1Password"
+
+# ── 3. kubeadm join ────────────────────────────────────────────────
+if [ -f /etc/kubernetes/kubelet.conf ]; then
+    ok "Node already joined (kubelet.conf exists). Skipping kubeadm join."
+else
+    log "Joining cluster at ${API_SERVER}..."
+    kubeadm join "${API_SERVER}" \
+        --token "${JOIN_TOKEN}" \
+        --discovery-token-ca-cert-hash "${CA_CERT_HASH}" \
+        --node-name "$(hostname)"
+    ok "kubeadm join completed"
+fi
+
+# ── 4. Wait for kubelet ────────────────────────────────────────────
+log "Waiting for kubelet to become active..."
 TIMEOUT=120
 ELAPSED=0
-while true; do
-    GPU_COUNT=$(k3s kubectl get node "$(hostname)" -o jsonpath='{.status.allocatable.nvidia\.com/gpu}' 2>/dev/null || echo "0")
-    if [ "${GPU_COUNT}" != "0" ] && [ -n "${GPU_COUNT}" ]; then
-        ok "GPU registered in Kubernetes: nvidia.com/gpu=${GPU_COUNT}"
-        break
-    fi
-    sleep 10
-    ELAPSED=$((ELAPSED + 10))
+while ! systemctl is-active --quiet kubelet; do
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
     if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
-        warn "GPU not yet registered after ${TIMEOUT}s"
-        warn "This may require the NVIDIA GPU Operator or device plugin"
-        warn "Deploy via Flux: infrastructure/gpu-server/nvidia-device-plugin/"
-        break
+        err "kubelet failed to start within ${TIMEOUT}s. Check: journalctl -u kubelet"
     fi
 done
+ok "kubelet is active"
 
-# ── 4. Apply Node Taint ───────────────────────────────────────────
-log "Applying GPU node taint..."
+# ── 5. Set up kubeconfig for label/taint operations ────────────────
+# LEARNING NOTE — WHY A SEPARATE KUBECONFIG:
+#   After kubeadm join, the node's kubelet has only bootstrap-level
+#   permissions. It can register the node but can't set labels or taints.
+#   We need an admin kubeconfig to apply those. The kubeconfig is stored
+#   in 1Password alongside the join credentials.
+log "Fetching admin kubeconfig from 1Password..."
+KUBECONFIG_CONTENT=$(op read "op://Homelab/kubeadm-join-credentials/kubeconfig" 2>/dev/null) \
+    || err "Failed to read kubeconfig from 1Password."
+
+export KUBECONFIG="/tmp/gpu-init-kubeconfig"
+echo "${KUBECONFIG_CONTENT}" > "${KUBECONFIG}"
+chmod 600 "${KUBECONFIG}"
+
 NODE_NAME=$(hostname)
-TAINT_EXISTS=$(k3s kubectl get node "${NODE_NAME}" -o jsonpath='{.spec.taints}' 2>/dev/null | grep -c "nvidia.com/gpu" || true)
+
+# Wait for node to appear in the cluster
+log "Waiting for node ${NODE_NAME} to be registered..."
+TIMEOUT=180
+ELAPSED=0
+while ! kubectl get node "${NODE_NAME}" &>/dev/null; do
+    sleep 5
+    ELAPSED=$((ELAPSED + 5))
+    if [ "${ELAPSED}" -ge "${TIMEOUT}" ]; then
+        err "Node ${NODE_NAME} not registered after ${TIMEOUT}s."
+    fi
+done
+ok "Node ${NODE_NAME} is registered"
+
+# ── 6. Apply Node Taint ───────────────────────────────────────────
+log "Applying GPU node taint..."
+TAINT_EXISTS=$(kubectl get node "${NODE_NAME}" -o jsonpath='{.spec.taints}' 2>/dev/null | grep -c "nvidia.com/gpu" || true)
 if [ "${TAINT_EXISTS}" -gt 0 ]; then
     ok "GPU taint already applied"
 else
-    k3s kubectl taint nodes "${NODE_NAME}" nvidia.com/gpu=present:NoSchedule
+    kubectl taint nodes "${NODE_NAME}" nvidia.com/gpu=present:NoSchedule
     ok "Taint applied: nvidia.com/gpu=present:NoSchedule"
 fi
 
-# ── 5. Apply Node Labels ──────────────────────────────────────────
+# ── 7. Apply Node Labels ──────────────────────────────────────────
 log "Applying node labels..."
-k3s kubectl label nodes "${NODE_NAME}" \
+kubectl label nodes "${NODE_NAME}" \
     node.kubernetes.io/gpu=true \
-    nvidia.com/gpu.product="${GPU_NAME// /-}" \
+    "nvidia.com/gpu.product=${GPU_NAME// /-}" \
     --overwrite
 ok "Node labels applied"
 
 echo ""
 echo "═══════════════════════════════════════════════════"
-echo "  ✅ GPU node initialised"
-echo "  GPU:  ${GPU_NAME} (${GPU_VRAM})"
-echo "  K3s:  $(k3s --version | head -1)"
+echo "  ✅ GPU node joined to main cluster"
+echo "  GPU:      ${GPU_NAME} (${GPU_VRAM})"
+echo "  Cluster:  ${API_SERVER}"
 echo ""
 echo "  Next steps:"
-echo "    1. Bootstrap Flux on this cluster:"
-echo "       flux bootstrap github --owner=Diixtra \\"
-echo "         --repository=diixtra-forge --branch=main \\"
-echo "         --path=clusters/gpu-server --personal=false --token-auth"
-echo "    2. Create 1Password bootstrap secret:"
-echo "       kubectl create secret generic onepassword-service-account-token \\"
-echo "         --namespace onepassword-system \\"
-echo "         --from-literal=token=\$(op read 'op://Homelab/<item>/credential')"
+echo "    1. Verify node joined:  kubectl get nodes"
+echo "    2. Flux will deploy nvidia-device-plugin automatically."
+echo "    3. Verify GPU resource (~2 min after device plugin starts):"
+echo "       kubectl get node ${NODE_NAME} -o jsonpath='{.status.allocatable}'"
 echo "═══════════════════════════════════════════════════"
 FIRST_BOOT
 
 chmod +x /usr/local/bin/gpu-node-init.sh
 ok "First-boot script created at /usr/local/bin/gpu-node-init.sh"
 
-# ── 7. Blacklist Nouveau Driver ────────────────────────────────────
+# ── 5. Blacklist Nouveau Driver ────────────────────────────────────
 # LEARNING NOTE — NOUVEAU vs NVIDIA PROPRIETARY:
 #   Linux ships with an open-source NVIDIA driver called "nouveau."
 #   It provides basic display output but has zero compute/CUDA support —
@@ -421,7 +393,7 @@ EOF
 update-initramfs -u 2>/dev/null || warn "initramfs update skipped (OK during Packer build)"
 ok "Nouveau driver blacklisted"
 
-# ── 8. Cleanup ──────────────────────────────────────────────────────
+# ── 6. Cleanup ──────────────────────────────────────────────────────
 log "Cleaning up..."
 apt-get autoremove -y -qq
 apt-get clean
@@ -431,13 +403,14 @@ rm -rf /tmp/*
 echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  ✅ GPU provisioning complete"
-echo "  NVIDIA driver:    570 (Blackwell support)"
+echo "  NVIDIA driver:     570 (Blackwell support)"
 echo "  Container Toolkit: installed"
-echo "  K3s:              installed (not started)"
-echo "  First-boot:       /usr/local/bin/gpu-node-init.sh"
+echo "  K8s:               kubeadm/kubelet (from base image)"
+echo "  First-boot:        /usr/local/bin/gpu-node-init.sh"
 echo ""
 echo "  After cloning this template in Proxmox:"
 echo "    1. Attach GPU via PCI passthrough"
-echo "    2. Boot the VM"
-echo "    3. Run: sudo gpu-node-init.sh"
+echo "    2. Ensure 1Password item 'kubeadm-join-credentials' is current"
+echo "    3. Boot the VM, set OP_SERVICE_ACCOUNT_TOKEN"
+echo "    4. Run: sudo -E gpu-node-init.sh"
 echo "═══════════════════════════════════════════════════"

@@ -1,0 +1,46 @@
+# NVIDIA Device Plugin — exposes GPU as nvidia.com/gpu schedulable resource
+#
+# Without this plugin, Kubernetes has no way to know GPUs exist on a node.
+# The device plugin DaemonSet:
+#   1. Runs on nodes labelled node.kubernetes.io/gpu=true
+#   2. Talks to kubelet via the device plugin Unix socket
+#   3. Reports GPU count as an Extended Resource (nvidia.com/gpu: N)
+#   4. The scheduler can then place GPU-requesting pods on GPU nodes
+#
+# K3s auto-deployed this; kubeadm does not — hence this HelmRelease.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: nvidia-device-plugin
+  namespace: nvidia-device-plugin
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: nvidia-device-plugin
+      version: "*" # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: nvidia
+        namespace: flux-system
+      interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
+  values:
+    # Only run on nodes that have a GPU attached.
+    # The first-boot script applies this label after kubeadm join.
+    nodeSelector:
+      node.kubernetes.io/gpu: "true"
+
+    # Chart defaults already tolerate nvidia.com/gpu:NoSchedule and
+    # CriticalAddonsOnly. No override needed — just use the defaults.
+
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+      limits:
+        cpu: 200m
+        memory: 128Mi
