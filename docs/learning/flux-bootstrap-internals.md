@@ -82,13 +82,13 @@ Once Flux is watching `clusters/homelab/`, it discovers three files:
   - `apps.yaml` → Points at `apps/homelab/` (dependsOn: platform)
 
 The `dependsOn` field is critical. It means:
-  - infrastructure deploys first (Cilium, Traefik, MetalLB, 1Password Operator)
+  - infrastructure deploys first (Cilium, Traefik, 1Password Operator)
   - platform waits until infrastructure health checks pass, then deploys
   - apps waits until platform is healthy, then deploys
 
 This ordering prevents race conditions. You don't want Kyverno trying to enforce
 policies before the policy engine's CRDs exist. You don't want apps requesting
-LoadBalancer IPs before MetalLB is running.
+LoadBalancer IPs before Cilium L2 announcements are active.
 
 ### Key Tradeoffs
 

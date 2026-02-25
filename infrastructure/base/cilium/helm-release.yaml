@@ -23,9 +23,12 @@ spec:
   # LEARNING NOTE — VALUES MUST MATCH BOOTSTRAP:
   #   The bootstrap script (scripts/bootstrap.py) installs Cilium via
   #   Helm CLI before Flux is running. When Flux later deploys this
-  #   HelmRelease, it adopts the existing release. To avoid drift, the
-  #   values here MUST match what bootstrap.py passes via --set flags.
-  #   If you change values here, update install_cilium_cni() too.
+  #   HelmRelease, it adopts the existing release. Core values (kube-proxy,
+  #   IPAM, resources, L2) MUST match bootstrap.py's --set flags.
+  #   Hubble metrics below intentionally extend beyond what bootstrap sets —
+  #   the httpV2 metric string contains semicolons and commas that break
+  #   Helm's --set parser. Flux upgrades the release on first reconcile
+  #   to add these; the brief Cilium restart is acceptable during bootstrap.
   values:
     # --- kube-proxy replacement (eBPF datapath) ---
     kubeProxyReplacement: true

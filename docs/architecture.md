@@ -17,7 +17,7 @@ source of truth, reconciled by Kubernetes-native controllers.
 │  clusters/     infrastructure/    platform/    apps/    terraform/   │
 │  (Flux         (Layer 1:          (Layer 2:    (Layer 3: (Cloud     │
 │   entrypoints)  Cilium, Traefik,  Kyverno,    Diixtra   resources  │
-│                 MetalLB, 1PW)     Alloy)      services)  via GHA)  │
+│                 1PW)              Alloy)      services)  via GHA)  │
 └────────┬───────────────────────────┬───────────────────────┬────────┘
          │                           │                       │
     ┌────▼────┐                ┌─────▼─────┐          ┌─────▼──────┐
@@ -52,14 +52,14 @@ healthy before the next begins:
 
 | Layer | Directory         | Contents                          | Depends On     |
 |-------|-------------------|-----------------------------------|----------------|
-| 1     | `infrastructure/` | Cilium, Traefik, MetalLB, 1Password, democratic-csi, Flux addons | —  |
+| 1     | `infrastructure/` | Cilium, Traefik, 1Password, democratic-csi, Flux addons | —  |
 | 2a    | `platform/crds`   | Kyverno HelmRelease, Grafana Alloy | Infrastructure |
 | 2b    | `platform/policies`| Kyverno ClusterPolicies           | Platform CRDs  |
 | 3     | `apps/`           | Diixtra services (future)         | Platform       |
 
 This ordering guarantees:
 - 1Password Operator is running before any workload needs secrets
-- MetalLB is assigning IPs before any Service needs a LoadBalancer
+- Cilium L2 announcements are active before any Service needs a LoadBalancer IP
 - Kyverno policies are enforced before application pods are admitted
 - Grafana Alloy is collecting metrics before apps start generating them
 
@@ -79,8 +79,7 @@ domains, replica counts) are expressed as overlay patches.
 | Component     | Role                                           |
 |---------------|------------------------------------------------|
 | Unifi         | Physical network, VLANs, DHCP, DNS             |
-| Cilium        | CNI (eBPF), kube-proxy replacement, L2 announcements, NetworkPolicy enforcement (ADR-008) |
-| MetalLB       | Kubernetes LoadBalancer IPs (L2 mode, 10.2.0.200-210) — being replaced by Cilium L2 |
+| Cilium        | CNI (eBPF), kube-proxy replacement, L2 LoadBalancer IPs (10.2.0.200-210), NetworkPolicy enforcement (ADR-008) |
 | Traefik       | Reverse proxy, TLS termination (Cloudflare DNS-01, IngressRoute CRDs) |
 | CoreDNS       | Cluster DNS with explicit upstream servers      |
 
@@ -202,9 +201,8 @@ diixtra-forge/
 │   └── dev/
 ├── infrastructure/          Layer 1: core cluster services
 │   ├── base/                Shared manifests
-│   │   ├── cilium/          CNI (eBPF), kube-proxy replacement (ADR-008)
+│   │   ├── cilium/          CNI (eBPF), kube-proxy replacement, L2 LB (ADR-008)
 │   │   ├── traefik/
-│   │   ├── metallb/
 │   │   ├── democratic-csi/  NFS + iSCSI (dataset paths: OVERRIDE_IN_ENV_PATCH)
 │   │   ├── onepassword-operator/
 │   │   ├── github-actions-runner/  Self-hosted ARC runner (homelab)
@@ -214,7 +212,7 @@ diixtra-forge/
 │   │   └── flux-addons/     HelmRepositories, Image Automation
 │   ├── homelab/             Homelab overlays (IP pool, dataset paths)
 │   │   ├── democratic-csi/patches/  TrueNAS pool paths (kaz.cloud/...)
-│   │   └── metallb/patches/
+│   │   └── cilium/           L2 config (IP pool, announcement policy)
 │   └── dev/                 Dev overlays
 ├── platform/                Layer 2: IDP + observability
 │   ├── base/

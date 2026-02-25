@@ -28,7 +28,7 @@ Flux deploys resources in dependency order:
 
 ```
 infrastructure (Layer 1)  →  platform (Layer 2)  →  apps (Layer 3)
-  Cilium, Traefik, MetalLB,    Kyverno, Alloy,       Diixtra services
+  Cilium, Traefik,             Kyverno, Alloy,       Diixtra services
   1Password Operator            Crossplane, Backstage
 ```
 
