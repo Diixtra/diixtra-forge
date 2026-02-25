@@ -58,6 +58,7 @@ data:
   GRAFANA_LOKI_URL: "https://logs-prod-035.grafana.net/loki/api/v1/push"
   GRAFANA_LOKI_USERNAME: "1481965"
   # ── Network Configuration ──────────────────────────────────────
+  K8S_API_HOST: "10.2.0.35"
   METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"
   TRUENAS_ISCSI_PORTAL: "10.2.0.232:3260"

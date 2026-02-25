@@ -14,9 +14,10 @@ WHAT THIS SCRIPT DOES (in order):
     2. GitHub repo setup    — Creates the private repo via `gh` CLI (idempotent)
     3. Git push             — Initializes local scaffold and pushes to GitHub
     4. Bootstrap secret     — Creates the 1Password SA token secret on the cluster
-    5. Flux bootstrap       — Installs Flux controllers and configures GitOps sync
-    6. RBAC recovery        — Applies gotk-components.yaml if controllers can't auth
-    7. Verification         — Polls all 6 Flux Kustomizations until fully reconciled
+    5. Cilium CNI           — Installs Cilium via Helm CLI (CNI chicken-and-egg fix)
+    6. Flux bootstrap       — Installs Flux controllers and configures GitOps sync
+    7. RBAC recovery        — Applies gotk-components.yaml if controllers can't auth
+    8. Verification         — Polls all 6 Flux Kustomizations until fully reconciled
 
 LEARNING NOTES — WHY PYTHON AND NOT BASH:
     Bash is fine for linear "do A then B then C" scripts. But this bootstrap has:
@@ -53,6 +54,9 @@ USAGE:
 
     # Skip UniFi network checks (for offline/CI environments):
     python3 scripts/bootstrap.py --skip-network-checks
+
+    # Skip Cilium install (if CNI is already running):
+    python3 scripts/bootstrap.py --skip-cilium
 """
 
 import argparse
@@ -154,6 +158,18 @@ class Config:
     # ── Dry Run ─────────────────────────────────────────────────────────
     dry_run: bool = False
 
+    # ── Cilium CNI ─────────────────────────────────────────────────────
+    # LEARNING NOTE — CNI CHICKEN-AND-EGG:
+    #   kubeadm needs a CNI for CoreDNS → DNS → Flux, but Flux deploys
+    #   the CNI HelmRelease. Solution: install Cilium via Helm CLI during
+    #   bootstrap BEFORE Flux. Flux then adopts the existing Helm release.
+    #   Values here MUST match infrastructure/base/cilium/helm-release.yaml.
+    cilium_chart_version: str = "1.17.3"
+    cilium_helm_repo: str = "https://helm.cilium.io/"
+    pod_cidr: str = "10.244.0.0/16"
+    k8s_api_host: str = ""  # Override for Cilium kube-proxy replacement. Auto-detected if empty.
+    skip_cilium: bool = False
+
     # ── Network Checks ──────────────────────────────────────────────────
     # When True, skip UniFi API pre-flight network validation.
     # Useful in offline/CI environments without UniFi controller access.
@@ -185,6 +201,10 @@ class Config:
             "CLUSTER_PATH", f"clusters/{self.cluster_name}"
         )
         self.kube_context = os.environ.get("KUBE_CONTEXT", self.kube_context)
+        self.cilium_chart_version = os.environ.get(
+            "CILIUM_CHART_VERSION", self.cilium_chart_version
+        )
+        self.k8s_api_host = os.environ.get("K8S_API_HOST", self.k8s_api_host)
 
 
 # =============================================================================
@@ -293,6 +313,7 @@ def preflight_checks(config: Config) -> None:
     required_tools = {
         "flux": "Flux CLI — install: curl -s https://fluxcd.io/install.sh | sudo bash",
         "kubectl": "Kubernetes CLI — install: https://kubernetes.io/docs/tasks/tools/",
+        "helm": "Helm CLI — install: curl https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash",
         "gh": "GitHub CLI — install: https://cli.github.com/",
         "git": "Git — install: sudo apt install git",
         "op": "1Password CLI — install: https://developer.1password.com/docs/cli/get-started/",
@@ -654,7 +675,158 @@ def create_bootstrap_secret(config: Config) -> None:
 
 
 # =============================================================================
-# STEP 5: FLUX BOOTSTRAP
+# STEP 5: INSTALL CILIUM CNI
+# =============================================================================
+#
+# LEARNING NOTE — WHY CILIUM BEFORE FLUX (THE CNI CHICKEN-AND-EGG):
+#   kubeadm creates CoreDNS pods, but they stay Pending until a CNI plugin
+#   assigns them IPs. Without CoreDNS, cluster DNS is dead. Without DNS,
+#   Flux can't resolve github.com to pull the Git repo. Without Flux,
+#   the Cilium HelmRelease never gets applied. Deadlock.
+#
+#   The solution: install Cilium via Helm CLI as an imperative step BEFORE
+#   Flux bootstraps. Once Cilium is running, CoreDNS gets IPs, DNS works,
+#   and Flux can bootstrap normally.
+#
+#   When Flux later deploys its Cilium HelmRelease, it detects the existing
+#   Helm release and ADOPTS it — no conflict, no reinstall. The chart
+#   values here MUST match the Flux HelmRelease to avoid drift.
+#
+#   This pattern (imperative install → GitOps adoption) is explicitly
+#   supported by Flux: https://fluxcd.io/flux/guides/helmreleases/#primitives
+# =============================================================================
+
+def install_cilium_cni(config: Config) -> None:
+    """Install Cilium CNI via Helm CLI so CoreDNS can start before Flux."""
+    if config.skip_cilium:
+        log("⏭️ ", "Skipping Cilium install (--skip-cilium)")
+        return
+
+    log("🔌", "Installing Cilium CNI (pre-Flux, solves DNS chicken-and-egg)...")
+
+    if config.dry_run:
+        log("  🏜️", "DRY RUN — would install Cilium via Helm")
+        return
+
+    # Check if Cilium is already installed
+    check = run_cmd(
+        ["helm", "status", "cilium", "-n", "kube-system"],
+        capture=True, check=False,
+    )
+    if check.returncode == 0:
+        log("  ℹ️ ", "Cilium Helm release already exists — skipping install.")
+        log("  ", "Flux will adopt and manage this release.")
+        return
+
+    # Determine API server IP for Cilium's kube-proxy replacement.
+    # K8S_API_HOST env var takes priority (recommended). Falls back to
+    # auto-detection from kubeconfig, but warns if it resolves to loopback
+    # (common when using an SSH tunnel from a dev machine).
+    if config.k8s_api_host:
+        api_host = config.k8s_api_host
+        log("  ", f"Using configured API server: {api_host} (from K8S_API_HOST)")
+    else:
+        api_host = run_cmd(
+            kube_cmd(config, "config", "view", "--minify",
+                     "-o", "jsonpath={.clusters[0].cluster.server}"),
+            capture=True,
+        ).stdout.strip()
+
+        # Extract host from URL (e.g. https://10.2.0.35:6443 → 10.2.0.35)
+        api_host = api_host.replace("https://", "").replace("http://", "")
+        if ":" in api_host:
+            api_host = api_host.rsplit(":", 1)[0]
+        api_host = api_host.strip("[]")  # Strip brackets from IPv6
+
+        log("  ", f"Auto-detected API server: {api_host}")
+
+    # Guard against loopback — Cilium agents on worker nodes can't reach
+    # the API server at localhost. This commonly happens when running the
+    # bootstrap from a dev machine with an SSH tunnel to the control plane.
+    if api_host in ("127.0.0.1", "localhost", "::1"):
+        log("💀", f"API server resolved to loopback ({api_host}).")
+        log("  ", "Cilium agents on worker nodes cannot reach the API server at localhost.")
+        log("  ", "Fix: set K8S_API_HOST to the control plane IP before running bootstrap:")
+        log("  ", "  export K8S_API_HOST=10.2.0.35")
+        sys.exit(1)
+
+    # Add Cilium Helm repository
+    run_cmd(["helm", "repo", "add", "cilium", config.cilium_helm_repo],
+            capture=True, check=False)
+    run_cmd(["helm", "repo", "update", "cilium"], capture=True)
+    log("  ✅", "Cilium Helm repo added")
+
+    # Install Cilium with values matching the Flux HelmRelease.
+    # These values MUST stay in sync with infrastructure/base/cilium/helm-release.yaml
+    helm_install = [
+        "helm", "install", "cilium", "cilium/cilium",
+        "--namespace", "kube-system",
+        "--version", config.cilium_chart_version,
+        # kube-proxy replacement
+        "--set", "kubeProxyReplacement=true",
+        "--set", f"k8sServiceHost={api_host}",
+        "--set", "k8sServicePort=6443",
+        # IPAM — match kubeadm pod CIDR
+        "--set", f"ipam.operator.clusterPoolIPv4PodCIDRList={{{config.pod_cidr}}}",
+        # Hubble observability
+        "--set", "hubble.enabled=true",
+        "--set", "hubble.relay.enabled=true",
+        "--set", "hubble.relay.resources.requests.cpu=25m",
+        "--set", "hubble.relay.resources.requests.memory=64Mi",
+        "--set", "hubble.relay.resources.limits.cpu=100m",
+        "--set", "hubble.relay.resources.limits.memory=128Mi",
+        "--set", "hubble.ui.enabled=false",
+        "--set", "hubble.metrics.enableOpenMetrics=true",
+        "--set", "hubble.metrics.enabled={dns,drop,tcp,flow,port-distribution,icmp}",
+        # L2 announcements (replaces MetalLB)
+        "--set", "l2announcements.enabled=true",
+        "--set", "externalIPs.enabled=true",
+        # Agent resources
+        "--set", "resources.requests.cpu=100m",
+        "--set", "resources.requests.memory=256Mi",
+        "--set", "resources.limits.cpu=500m",
+        "--set", "resources.limits.memory=512Mi",
+        # Operator
+        "--set", "operator.replicas=1",
+        "--set", "operator.resources.requests.cpu=50m",
+        "--set", "operator.resources.requests.memory=128Mi",
+        "--set", "operator.resources.limits.cpu=250m",
+        "--set", "operator.resources.limits.memory=256Mi",
+        # Wait for rollout
+        "--wait",
+        "--timeout", "5m",
+    ]
+
+    result = run_cmd(helm_install, check=False)
+
+    if result.returncode == 0:
+        log("  ✅", "Cilium installed successfully")
+    else:
+        log("  ⚠️ ", "Cilium Helm install returned non-zero (checking CoreDNS to verify)")
+
+    # Wait for CoreDNS to become ready (proves CNI is working).
+    # This is the real success gate — even if Helm exited non-zero,
+    # CoreDNS readiness proves the CNI datapath is functional.
+    # If CoreDNS doesn't come up, Flux can't bootstrap (no DNS).
+    log("  ⏳", "Waiting for CoreDNS to confirm CNI is functional...")
+    coredns_wait = run_cmd(
+        kube_cmd(config, "rollout", "status", "deployment/coredns",
+                 "-n", "kube-system", "--timeout=120s"),
+        capture=True, check=False,
+    )
+
+    if coredns_wait.returncode == 0:
+        log("  ✅", "CoreDNS is running — cluster DNS is operational")
+    else:
+        log("💀", "CoreDNS is not ready — cluster has no working DNS.")
+        log("  ", "Flux cannot bootstrap without DNS. Aborting.")
+        log("  ", "Debug: kubectl get pods -n kube-system")
+        log("  ", "       helm status cilium -n kube-system")
+        sys.exit(1)
+
+
+# =============================================================================
+# STEP 6: FLUX BOOTSTRAP (was step 5)
 # =============================================================================
 #
 # LEARNING NOTE — WHAT `flux bootstrap github` ACTUALLY DOES:
@@ -722,7 +894,7 @@ def flux_bootstrap(config: Config) -> None:
 
 
 # =============================================================================
-# STEP 6: RBAC RECOVERY
+# STEP 7: RBAC RECOVERY
 # =============================================================================
 
 def rbac_recovery(config: Config) -> None:
@@ -779,7 +951,7 @@ def rbac_recovery(config: Config) -> None:
 
 
 # =============================================================================
-# STEP 7: VERIFY RECONCILIATION
+# STEP 8: VERIFY RECONCILIATION
 # =============================================================================
 
 def verify_reconciliation(config: Config) -> None:
@@ -905,6 +1077,9 @@ Examples:
   export OP_SA_TOKEN=$(op read "op://Homelab/<item-id>/credential")
   python3 scripts/bootstrap.py
 
+  # Skip Cilium (if CNI already installed):
+  python3 scripts/bootstrap.py --skip-cilium
+
   # Custom cluster:
   CLUSTER_NAME=dev python3 scripts/bootstrap.py
         """,
@@ -916,6 +1091,10 @@ Examples:
     parser.add_argument(
         "--skip-rbac-recovery", action="store_true",
         help="Skip the gotk-components.yaml apply step",
+    )
+    parser.add_argument(
+        "--skip-cilium", action="store_true",
+        help="Skip Cilium CNI installation (use if CNI is already running)",
     )
     parser.add_argument(
         "--skip-network-checks", action="store_true",
@@ -934,6 +1113,7 @@ def main():
     config = Config()
     config.dry_run = args.dry_run
     config.rbac_recovery_enabled = not args.skip_rbac_recovery
+    config.skip_cilium = args.skip_cilium
     config.skip_network_checks = args.skip_network_checks
 
     try:
@@ -941,6 +1121,7 @@ def main():
         create_github_repo(config)
         git_init_and_push(config)
         create_bootstrap_secret(config)
+        install_cilium_cni(config)
         flux_bootstrap(config)
         rbac_recovery(config)
         verify_reconciliation(config)

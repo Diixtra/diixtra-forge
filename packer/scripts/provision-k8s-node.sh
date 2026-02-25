@@ -112,7 +112,22 @@ apt-get update -qq
 apt-get install -y -qq 1password-cli
 ok "1Password CLI installed: $(op --version)"
 
-# ── 4. Enable iSCSI Daemon ─────────────────────────────────────────
+# ── 4. Install Helm CLI ──────────────────────────────────────────────
+# LEARNING NOTE — WHY HELM ON THE NODE IMAGE:
+#   The bootstrap script (bootstrap.py) installs Cilium CNI via Helm
+#   BEFORE Flux is running. This solves the CNI chicken-and-egg problem:
+#   kubeadm needs a CNI for CoreDNS → DNS → Flux, but Flux deploys the
+#   CNI HelmRelease. By pre-installing Cilium via Helm CLI, the cluster
+#   has a working CNI immediately, and Flux adopts the existing release.
+#
+#   Helm is only needed on the control plane node, but installing it on
+#   all images keeps them identical (same template, different roles).
+log "Installing Helm CLI..."
+
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+ok "Helm installed: $(helm version --short)"
+
+# ── 5. Enable iSCSI Daemon ─────────────────────────────────────────
 # LEARNING NOTE — ENABLE VS START:
 #   `systemctl enable` creates a symlink so the service starts on boot.
 #   `systemctl start` starts it NOW. In a Packer build, we only `enable`
@@ -123,7 +138,7 @@ log "Enabling iSCSI daemon..."
 systemctl enable iscsid
 ok "iscsid enabled (will start on boot)"
 
-# ── 5. Kubernetes Networking Prerequisites ──────────────────────────
+# ── 6. Kubernetes Networking Prerequisites ──────────────────────────
 # LEARNING NOTE — WHY THESE KERNEL MODULES:
 #   br_netfilter: Allows iptables rules to see bridged traffic. Without
 #     this, kube-proxy can't do Service-to-Pod routing because packets
@@ -165,7 +180,7 @@ EOF
 sysctl --system > /dev/null 2>&1 || warn "sysctl apply skipped (OK in chroot/container)"
 ok "sysctl parameters configured"
 
-# ── 6. Kubelet DNS Configuration ──────────────────────────────────────
+# ── 7. Kubelet DNS Configuration ──────────────────────────────────────
 # LEARNING NOTE — WHY A CUSTOM RESOLV.CONF FOR KUBELET:
 #   By default, kubelet reads the node's /etc/resolv.conf and propagates
 #   its search domains into every pod. If the node has `search kazie.co.uk`
@@ -191,7 +206,7 @@ EOF
 
 ok "Kubelet DNS resolv.conf created (/etc/kubernetes/resolv.conf)"
 
-# ── 7. Raspberry Pi Specific Configuration ─────────────────────────
+# ── 8. Raspberry Pi Specific Configuration ─────────────────────────
 # LEARNING NOTE — CGROUP MEMORY ON RASPBERRY PI:
 #   The Raspberry Pi's default kernel boot parameters don't enable the
 #   memory cgroup controller. Kubelet REQUIRES memory cgroups to enforce
@@ -229,7 +244,7 @@ if [ "${NODE_ARCH}" = "arm64" ]; then
     fi
 fi
 
-# ── 8. Cleanup ──────────────────────────────────────────────────────
+# ── 9. Cleanup ──────────────────────────────────────────────────────
 # LEARNING NOTE — WHY CLEAN UP IN A PACKER BUILD:
 #   Packer captures the VM state as a template image. Any temporary files,
 #   apt caches, or logs from the provisioning process are baked into the
@@ -266,7 +281,7 @@ ok "machine-id cleared (will regenerate on first boot)"
 echo ""
 echo "═══════════════════════════════════════════════════"
 echo "  ✅ Provisioning complete"
-echo "  Packages: open-iscsi, nfs-common, 1password-cli, jq"
+echo "  Packages: open-iscsi, nfs-common, 1password-cli, jq, helm"
 echo "  Configs:  kernel modules, sysctl, iscsid, kubelet DNS"
 echo "  Role: ${NODE_ROLE} | Arch: ${NODE_ARCH}"
 echo "═══════════════════════════════════════════════════"
