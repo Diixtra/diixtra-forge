@@ -1,0 +1,197 @@
+name: Packer — Build Proxmox K8s Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      template:
+        description: "Which template to build"
+        required: true
+        type: choice
+        options:
+          - all
+          - ubuntu
+          - debian
+          - gpu
+  push:
+    branches: [main]
+    paths:
+      - "packer/proxmox-ubuntu/**"
+      - "packer/proxmox-debian/**"
+      - "packer/proxmox-gpu/**"
+      - "packer/scripts/provision-k8s-node.sh"
+      - "packer/scripts/provision-gpu-node.sh"
+      - "packer/variables.auto.pkrvars.hcl"
+
+concurrency:
+  # Only one Proxmox build at a time — templates use temporary VM IDs
+  # that can conflict, and the Proxmox API serialises poorly under
+  # concurrent VM creation/template conversion.
+  group: packer-proxmox
+  cancel-in-progress: false
+
+env:
+  OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
+
+jobs:
+  # ── Determine which templates need building ──────────────────────
+  detect:
+    name: Detect changes
+    runs-on: ubuntu-latest
+    outputs:
+      ubuntu: ${{ steps.changes.outputs.ubuntu }}
+      debian: ${{ steps.changes.outputs.debian }}
+      gpu: ${{ steps.changes.outputs.gpu }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 2
+
+      - name: Check changed paths
+        id: changes
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            TEMPLATE="${{ inputs.template }}"
+            echo "ubuntu=$( [ "$TEMPLATE" = "all" ] || [ "$TEMPLATE" = "ubuntu" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "debian=$( [ "$TEMPLATE" = "all" ] || [ "$TEMPLATE" = "debian" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+            echo "gpu=$( [ "$TEMPLATE" = "all" ] || [ "$TEMPLATE" = "gpu" ] && echo true || echo false )" >> "$GITHUB_OUTPUT"
+          else
+            CHANGED=$(git diff --name-only HEAD~1 HEAD)
+            # Shared scripts trigger all templates
+            if echo "$CHANGED" | grep -qE "packer/scripts/provision-k8s-node.sh|packer/variables.auto.pkrvars.hcl"; then
+              echo "ubuntu=true" >> "$GITHUB_OUTPUT"
+              echo "debian=true" >> "$GITHUB_OUTPUT"
+              echo "gpu=true" >> "$GITHUB_OUTPUT"
+            else
+              echo "ubuntu=$( echo "$CHANGED" | grep -q "packer/proxmox-ubuntu/" && echo true || echo false )" >> "$GITHUB_OUTPUT"
+              echo "debian=$( echo "$CHANGED" | grep -q "packer/proxmox-debian/" && echo true || echo false )" >> "$GITHUB_OUTPUT"
+              GPU_TRIGGER=$( echo "$CHANGED" | grep -qE "packer/proxmox-gpu/|packer/scripts/provision-gpu-node.sh" && echo true || echo false )
+              echo "gpu=$GPU_TRIGGER" >> "$GITHUB_OUTPUT"
+            fi
+          fi
+
+  # ── Ubuntu (control plane — kaz-k8-1) ────────────────────────────
+  ubuntu:
+    name: Build Ubuntu K8s
+    needs: detect
+    if: needs.detect.outputs.ubuntu == 'true'
+    runs-on: packer
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install 1Password CLI
+        run: |
+          curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | sudo tee /etc/apt/sources.list.d/1password.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli
+
+      - name: Read Proxmox token from 1Password
+        id: secrets
+        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@v3
+
+      - name: Packer init
+        run: packer init proxmox-ubuntu/
+        working-directory: packer
+
+      - name: Packer build
+        run: packer build proxmox-ubuntu/
+        working-directory: packer
+        env:
+          PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Ubuntu K8s Template" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Template:** proxmox-ubuntu" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Node:** kaz-k8-1 (control plane)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── Debian (worker — k8-worker-1) ─────────────────────────────────
+  debian:
+    name: Build Debian K8s
+    needs: [detect, ubuntu]
+    # Run after ubuntu (serialised for Proxmox), but don't fail if ubuntu was skipped
+    if: always() && needs.detect.outputs.debian == 'true' && needs.ubuntu.result != 'failure'
+    runs-on: packer
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install 1Password CLI
+        run: |
+          curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | sudo tee /etc/apt/sources.list.d/1password.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli
+
+      - name: Read Proxmox token from 1Password
+        id: secrets
+        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@v3
+
+      - name: Packer init
+        run: packer init proxmox-debian/
+        working-directory: packer
+
+      - name: Packer build
+        run: packer build proxmox-debian/
+        working-directory: packer
+        env:
+          PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### Debian K8s Template" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Template:** proxmox-debian" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Node:** k8-worker-1" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
+
+  # ── GPU (NVIDIA worker) ───────────────────────────────────────────
+  gpu:
+    name: Build GPU K8s
+    needs: [detect, debian]
+    if: always() && needs.detect.outputs.gpu == 'true' && needs.debian.result != 'failure'
+    runs-on: packer
+    timeout-minutes: 90
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install 1Password CLI
+        run: |
+          curl -sS https://downloads.1password.com/linux/keys/1password.asc | sudo gpg --dearmor -o /usr/share/keyrings/1password-archive-keyring.gpg
+          echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/1password-archive-keyring.gpg] https://downloads.1password.com/linux/debian/$(dpkg --print-architecture) stable main" | sudo tee /etc/apt/sources.list.d/1password.list
+          sudo apt-get update -qq && sudo apt-get install -y -qq 1password-cli
+
+      - name: Read Proxmox token from 1Password
+        id: secrets
+        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+
+      - name: Setup Packer
+        uses: hashicorp/setup-packer@v3
+
+      - name: Packer init
+        run: packer init proxmox-gpu/
+        working-directory: packer
+
+      - name: Packer build
+        run: packer build proxmox-gpu/
+        working-directory: packer
+        env:
+          PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}
+
+      - name: Summary
+        if: always()
+        run: |
+          echo "### GPU K8s Template" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Template:** proxmox-gpu (NVIDIA 570)" >> "$GITHUB_STEP_SUMMARY"
+          echo "- **Commit:** \`$(git rev-parse --short HEAD)\`" >> "$GITHUB_STEP_SUMMARY"
