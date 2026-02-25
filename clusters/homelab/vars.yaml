@@ -59,6 +59,13 @@ data:
   GRAFANA_LOKI_USERNAME: "1481965"
   # ── Network Configuration ──────────────────────────────────────
   K8S_API_HOST: "10.2.0.35"
+  # LoadBalancer IP pool for Cilium L2 announcements (replaces MetalLB).
+  # Must not overlap with DHCP range on the Kaznet VLAN.
+  LB_POOL_START: "10.2.0.200"
+  LB_POOL_STOP: "10.2.0.210"
+  LB_TRAEFIK_IP: "10.2.0.200"
+  # Legacy alias — consumed by scripts/network_checks.py advisory checks.
+  # Remove once network_checks.py is updated to use LB_POOL_START/STOP.
   METALLB_IP_RANGE: "10.2.0.200-10.2.0.210"
   TRUENAS_HOST: "10.2.0.232"
   TRUENAS_ISCSI_PORTAL: "10.2.0.232:3260"

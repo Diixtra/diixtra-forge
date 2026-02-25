@@ -16,8 +16,8 @@ source of truth, reconciled by Kubernetes-native controllers.
 │                                                                     │
 │  clusters/     infrastructure/    platform/    apps/    terraform/   │
 │  (Flux         (Layer 1:          (Layer 2:    (Layer 3: (Cloud     │
-│   entrypoints)  Traefik, MetalLB, Kyverno,    Diixtra   resources  │
-│                 1Password)        Alloy)      services)  via GHA)  │
+│   entrypoints)  Cilium, Traefik,  Kyverno,    Diixtra   resources  │
+│                 1PW)              Alloy)      services)  via GHA)  │
 └────────┬───────────────────────────┬───────────────────────┬────────┘
          │                           │                       │
     ┌────▼────┐                ┌─────▼─────┐          ┌─────▼──────┐
@@ -31,7 +31,7 @@ source of truth, reconciled by Kubernetes-native controllers.
     │                                      │          │ (Cloudflare│
     │  ┌──────────┐  ┌──────────────────┐  │          │  AWS, etc) │
     │  │ Layer 1   │  │ Layer 2          │  │          └────────────┘
-    │  │ MetalLB   │  │ Kyverno          │  │
+    │  │ Cilium    │  │ Kyverno          │  │
     │  │ Traefik   │  │ Grafana Alloy    │  │
     │  │ 1Password │  │ (→ Backstage)    │  │
     │  │ Operator  │  │ (→ Crossplane)   │  │
@@ -52,14 +52,14 @@ healthy before the next begins:
 
 | Layer | Directory         | Contents                          | Depends On     |
 |-------|-------------------|-----------------------------------|----------------|
-| 1     | `infrastructure/` | Traefik, MetalLB, 1Password, democratic-csi, Flux addons | —  |
+| 1     | `infrastructure/` | Cilium, Traefik, 1Password, democratic-csi, Flux addons | —  |
 | 2a    | `platform/crds`   | Kyverno HelmRelease, Grafana Alloy | Infrastructure |
 | 2b    | `platform/policies`| Kyverno ClusterPolicies           | Platform CRDs  |
 | 3     | `apps/`           | Diixtra services (future)         | Platform       |
 
 This ordering guarantees:
 - 1Password Operator is running before any workload needs secrets
-- MetalLB is assigning IPs before any Service needs a LoadBalancer
+- Cilium L2 announcements are active before any Service needs a LoadBalancer IP
 - Kyverno policies are enforced before application pods are admitted
 - Grafana Alloy is collecting metrics before apps start generating them
 
@@ -79,15 +79,19 @@ domains, replica counts) are expressed as overlay patches.
 | Component     | Role                                           |
 |---------------|------------------------------------------------|
 | Unifi         | Physical network, VLANs, DHCP, DNS             |
-| MetalLB       | Kubernetes LoadBalancer IPs (L2 mode, 10.2.0.200-210) |
+| Cilium        | CNI (eBPF), kube-proxy replacement, L2 LoadBalancer IPs (10.2.0.200-210), NetworkPolicy enforcement (ADR-008) |
 | Traefik       | Reverse proxy, TLS termination (Cloudflare DNS-01, IngressRoute CRDs) |
-| Flannel       | Pod-to-pod networking (VXLAN overlay)           |
 | CoreDNS       | Cluster DNS with explicit upstream servers      |
 
 **Key learning**: Kubernetes nodes require static IP assignments. DHCP
-reassignment causes silent Flannel VXLAN failures because the overlay
-network tunnels are bound to specific node IPs. Future: UniFi API
-pre-flight checks (KAZ-61) will validate this before bootstrap.
+reassignment causes silent overlay failures because tunnels are bound to
+specific node IPs. Future: UniFi API pre-flight checks (KAZ-61) will
+validate this before bootstrap.
+
+**Cilium bootstrap**: Cilium is installed via Helm CLI during bootstrap
+(step 5) BEFORE Flux, because kubeadm needs a CNI for CoreDNS before
+Flux can resolve github.com. Flux later adopts the existing Helm release.
+See `docs/runbooks/bootstrap.md` and ADR-008 for details.
 
 ## Secrets Management (ADR-007)
 
@@ -159,6 +163,7 @@ See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 | 005 | Auto-update strategy with phased evolution | 2026-02-14 |
 | 006 | TrueNAS dynamic storage via democratic-csi | 2026-02-14 |
 | 007 | 1Password Operator over Sealed Secrets     | 2026-02-14 |
+| 008 | CNI replacement (Flannel to Cilium) and NetworkPolicy | 2026-02-24 |
 
 ## Runbooks
 
@@ -196,8 +201,8 @@ diixtra-forge/
 │   └── dev/
 ├── infrastructure/          Layer 1: core cluster services
 │   ├── base/                Shared manifests
+│   │   ├── cilium/          CNI (eBPF), kube-proxy replacement, L2 LB (ADR-008)
 │   │   ├── traefik/
-│   │   ├── metallb/
 │   │   ├── democratic-csi/  NFS + iSCSI (dataset paths: OVERRIDE_IN_ENV_PATCH)
 │   │   ├── onepassword-operator/
 │   │   ├── github-actions-runner/  Self-hosted ARC runner (homelab)
@@ -207,7 +212,7 @@ diixtra-forge/
 │   │   └── flux-addons/     HelmRepositories, Image Automation
 │   ├── homelab/             Homelab overlays (IP pool, dataset paths)
 │   │   ├── democratic-csi/patches/  TrueNAS pool paths (kaz.cloud/...)
-│   │   └── metallb/patches/
+│   │   └── cilium/           L2 config (IP pool, announcement policy)
 │   └── dev/                 Dev overlays
 ├── platform/                Layer 2: IDP + observability
 │   ├── base/

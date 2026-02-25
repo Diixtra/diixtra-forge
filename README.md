@@ -28,8 +28,8 @@ Flux deploys resources in dependency order:
 
 ```
 infrastructure (Layer 1)  →  platform (Layer 2)  →  apps (Layer 3)
-  Traefik, MetalLB,            Kyverno, Alloy,       Diixtra services
-  1Password Operator           Crossplane, Backstage
+  Cilium, Traefik,             Kyverno, Alloy,       Diixtra services
+  1Password Operator            Crossplane, Backstage
 ```
 
 ## Auto-Update Strategy
@@ -69,5 +69,5 @@ full procedure, or run `python3 scripts/bootstrap.py` for automated setup.
 | [`docs/runbooks/secrets-management.md`](docs/runbooks/secrets-management.md) | 1Password secrets lifecycle |
 | [`docs/runbooks/truenas-setup.md`](docs/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
 | [`docs/traefik-tls-migration.md`](docs/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–007) |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–008) |
 | [`docs/learning/`](docs/learning/) | Deep-dive educational content |

@@ -33,8 +33,8 @@ spec:
       namespace: onepassword-system
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
-      name: metallb
-      namespace: metallb-system
+      name: cilium
+      namespace: kube-system
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
       name: crossplane
@@ -43,7 +43,7 @@ spec:
 # Stage 2: CRD Consumers
 # Deploys resources that depend on CRDs installed by infrastructure-crds:
 #   - OnePasswordItem (1Password Operator CRD)
-#   - IPAddressPool, L2Advertisement (MetalLB CRDs)
+#   - CiliumLoadBalancerIPPool, CiliumL2AnnouncementPolicy (Cilium CRDs)
 #
 # Dependency chain: infrastructure-crds → infrastructure → platform-crds → platform → apps
 apiVersion: kustomize.toolkit.fluxcd.io/v1

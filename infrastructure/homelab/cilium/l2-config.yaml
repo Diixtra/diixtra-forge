@@ -1,0 +1,34 @@
+---
+# CiliumLoadBalancerIPPool defines the range of IPs Cilium can assign
+# to LoadBalancer services. This replaces MetalLB's IPAddressPool.
+# The range must be outside your DHCP range and not conflict with any
+# static IPs on the Kaznet VLAN.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumLoadBalancerIPPool
+metadata:
+  name: homelab-pool
+spec:
+  blocks:
+    - start: "${LB_POOL_START}"
+      stop: "${LB_POOL_STOP}"
+---
+# CiliumL2AnnouncementPolicy tells Cilium to respond to ARP requests
+# for LoadBalancer IPs, making them reachable from any device on the
+# same subnet. This replaces MetalLB's L2Advertisement.
+#
+# LEARNING NOTE --- L2 VS BGP:
+#   L2 (ARP) mode works on flat networks without router configuration.
+#   The node holding a LoadBalancer IP responds to ARP requests, so
+#   other devices on the LAN send traffic directly to that node.
+#   BGP mode advertises routes to a BGP-speaking router. We use L2
+#   because the homelab is a flat VLAN with no BGP infrastructure.
+apiVersion: cilium.io/v2alpha1
+kind: CiliumL2AnnouncementPolicy
+metadata:
+  name: homelab-l2
+spec:
+  loadBalancerIPs: true
+  externalIPs: true
+  interfaces:
+    - ^eth[0-9]+
+    - ^en[ops][0-9]+

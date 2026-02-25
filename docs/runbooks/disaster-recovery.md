@@ -2,7 +2,7 @@
 
 ## Overview
 
-This runbook covers recovery procedures for the homelab k3s cluster after node reboots, TrueNAS outages, and cascading Flux failures.
+This runbook covers recovery procedures for the homelab kubeadm cluster after node reboots, TrueNAS outages, and cascading Flux failures.
 
 ## Prerequisites
 
