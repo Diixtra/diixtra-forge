@@ -188,6 +188,7 @@ diixtra-forge/
 │   ├── dns-cloudflare-sync.yaml  Cloudflare DNS record sync
 │   ├── flux-validate.yaml   Kustomize build + kubeconform on PRs
 │   ├── packer-pi-build.yaml Packer Pi image build (privileged ARC runner)
+│   ├── packer-proxmox-build.yaml Packer Proxmox template builds (ubuntu, debian, gpu)
 │   ├── post-deploy-check.yaml    Cluster health check + auto-rollback
 │   ├── renovate.yaml        Self-hosted Renovate Bot (every 6h)
 │   └── terraform-*.yaml     Plan on PR, apply on merge
