@@ -27,7 +27,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: mcp-memory
-          image: node:22-alpine
+          image: node:24-alpine
           command:
             - sh
             - -ec
