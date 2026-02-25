@@ -190,9 +190,39 @@ packer/
     └── pi-k8s.pkr.hcl                  # Packer template
 ```
 
-## CI/CD — Automated Pi Builds
+## CI/CD — Automated Image Builds
 
-The `arm-debian` Pi image can be built automatically via GitHub Actions:
+All image builds are automated via GitHub Actions on a **privileged ARC runner**
+(`runs-on: packer`) deployed in the `packer-runners` namespace.
+
+Infrastructure: `infrastructure/base/packer-runner/` (HelmRelease, namespace,
+1Password secret sync).
+
+### Proxmox Templates
+
+```bash
+# Trigger manually — build all templates
+gh workflow run "Packer — Build Proxmox K8s Images" -f template=all
+
+# Build a specific template
+gh workflow run "Packer — Build Proxmox K8s Images" -f template=ubuntu
+gh workflow run "Packer — Build Proxmox K8s Images" -f template=debian
+gh workflow run "Packer — Build Proxmox K8s Images" -f template=gpu
+
+# Triggers automatically on push to main when these paths change:
+#   packer/proxmox-ubuntu/**  → ubuntu only
+#   packer/proxmox-debian/**  → debian only
+#   packer/proxmox-gpu/**     → gpu only
+#   packer/scripts/provision-gpu-node.sh  → gpu only
+#   packer/scripts/provision-k8s-node.sh  → all templates
+#   packer/variables.auto.pkrvars.hcl     → all templates
+```
+
+Builds run sequentially (ubuntu → debian → gpu) to avoid Proxmox VM ID
+conflicts. The Proxmox API token is fetched at runtime from 1Password via
+`op read`.
+
+### Pi Images
 
 ```bash
 # Trigger manually
@@ -203,17 +233,8 @@ gh workflow run packer-pi-build.yaml
 #   packer/scripts/provision-k8s-node.sh
 ```
 
-The workflow runs on a **privileged ARC runner** (`runs-on: packer`) deployed in
-the `packer-runners` namespace. This runner has root access required for
-loop-device mounting, kpartx, and QEMU binfmt_misc emulation. The built image
-is compressed with `xz` and uploaded as a GitHub Actions artifact (retained 90
-days).
-
-Infrastructure: `infrastructure/base/packer-runner/` (HelmRelease, namespace,
-1Password secret sync).
-
-> Proxmox template builds (`proxmox-ubuntu`, `proxmox-debian`, `proxmox-gpu`)
-> still require manual execution from a host with Proxmox API access.
+The built Pi image is compressed with `xz` and uploaded as a GitHub Actions
+artifact (retained 90 days).
 
 ## Rebuilding Images
 

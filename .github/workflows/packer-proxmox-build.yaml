@@ -89,7 +89,10 @@ jobs:
 
       - name: Read Proxmox token from 1Password
         id: secrets
-        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+        run: |
+          TOKEN=$(op read 'op://Homelab/proxmox-packer-token/credential')
+          echo "::add-mask::$TOKEN"
+          echo "proxmox_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@v3
@@ -132,7 +135,10 @@ jobs:
 
       - name: Read Proxmox token from 1Password
         id: secrets
-        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+        run: |
+          TOKEN=$(op read 'op://Homelab/proxmox-packer-token/credential')
+          echo "::add-mask::$TOKEN"
+          echo "proxmox_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@v3
@@ -174,7 +180,10 @@ jobs:
 
       - name: Read Proxmox token from 1Password
         id: secrets
-        run: echo "proxmox_token=$(op read 'op://Homelab/proxmox-packer-token/credential')" >> "$GITHUB_OUTPUT"
+        run: |
+          TOKEN=$(op read 'op://Homelab/proxmox-packer-token/credential')
+          echo "::add-mask::$TOKEN"
+          echo "proxmox_token=$TOKEN" >> "$GITHUB_OUTPUT"
 
       - name: Setup Packer
         uses: hashicorp/setup-packer@v3

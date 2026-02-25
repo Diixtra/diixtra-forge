@@ -75,6 +75,8 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 | packer-build-gpu | `packer build -var-file="variables.auto.pkrvars.hcl" proxmox-gpu/` | packer, images |
 | packer-build-pi | `sudo packer build arm-debian/` | packer, images |
 | packer-build-pi-ci | `gh workflow run packer-pi-build.yaml` | packer, images, ci |
+| packer-build-proxmox-ci-all | `gh workflow run "Packer — Build Proxmox K8s Images" -f template=all` | packer, images, ci |
+| packer-build-proxmox-ci | `gh workflow run "Packer — Build Proxmox K8s Images" -f template={{template}}` | packer, images, ci |
 | packer-validate | `packer validate -var-file="variables.auto.pkrvars.hcl" {{template_dir}}/` | packer, images |
 | packer-token-from-1p | `export PKR_VAR_proxmox_api_token_secret=$(op read "op://Homelab/proxmox-packer-token/credential")` | packer, 1password |
 
@@ -100,7 +102,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 | Name | Command | Tags |
 |------|---------|------|
 | debug-traefik | `kubectl logs -n traefik-system deploy/traefik` | debug, traefik |
-| debug-metallb | `kubectl logs -n metallb-system deploy/metallb-controller` | debug, metallb |
+| debug-cilium | `kubectl -n kube-system exec ds/cilium -- cilium status --brief` | debug, cilium |
 | debug-democratic-csi-nfs | `kubectl logs -n democratic-csi deploy/truenas-nfs-democratic-csi-controller -c csi-driver` | debug, storage |
 | debug-flux-source | `kubectl logs -n flux-system deploy/source-controller` | debug, flux |
 | debug-flux-kustomize | `kubectl logs -n flux-system deploy/kustomize-controller` | debug, flux |
@@ -130,7 +132,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 
 ---
 
-**Total: 67 commands across 11 categories**
+**Total: 69 commands across 11 categories**
 
 ### Template Variables
 
@@ -145,6 +147,7 @@ Commands using `{{variable}}` placeholders require substitution before running:
 | `{{token}}` | 1Password Service Account token |
 | `{{issue_number}}` | Linear issue number (e.g., `75`) |
 | `{{description}}` | Short kebab-case description |
+| `{{template}}` | Packer template name (ubuntu, debian, gpu) |
 | `{{template_dir}}` | Packer template directory |
 | `{{api_key}}` | TrueNAS API key |
 | `{{title}}` | PR title |
