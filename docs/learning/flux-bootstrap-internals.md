@@ -82,7 +82,7 @@ Once Flux is watching `clusters/homelab/`, it discovers three files:
   - `apps.yaml` → Points at `apps/homelab/` (dependsOn: platform)
 
 The `dependsOn` field is critical. It means:
-  - infrastructure deploys first (Traefik, MetalLB, 1Password Operator)
+  - infrastructure deploys first (Cilium, Traefik, MetalLB, 1Password Operator)
   - platform waits until infrastructure health checks pass, then deploys
   - apps waits until platform is healthy, then deploys
 

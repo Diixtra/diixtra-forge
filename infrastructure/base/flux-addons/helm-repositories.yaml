@@ -9,15 +9,15 @@ spec:
   interval: 24h
   url: https://1password.github.io/connect-helm-charts
 ---
-# MetalLB Helm chart registry
+# Cilium Helm chart registry (CNI, kube-proxy replacement, L2 LB)
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
 metadata:
-  name: metallb
+  name: cilium
   namespace: flux-system
 spec:
   interval: 24h
-  url: https://metallb.github.io/metallb
+  url: https://helm.cilium.io/
 ---
 # Kyverno Helm chart registry (used by platform layer)
 apiVersion: source.toolkit.fluxcd.io/v1

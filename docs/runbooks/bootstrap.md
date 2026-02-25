@@ -8,11 +8,12 @@ can't deploy itself, and GitHub Actions runners can't reach the homelab
 until the runner is inside the cluster.
 
 After bootstrap, the sequence is:
-1. Manual `flux bootstrap` installs Flux + infrastructure layer
-2. Flux deploys 1Password Operator, MetalLB, **and** the self-hosted
+1. Cilium CNI installed via Helm CLI (pre-Flux, solves DNS chicken-and-egg)
+2. Manual `flux bootstrap` installs Flux + infrastructure layer
+3. Flux deploys 1Password Operator, MetalLB, **and** the self-hosted
    GitHub Actions runner (KAZ-62)
-3. Runner connects to GitHub → pipelines now have cluster access
-4. All subsequent operations (re-bootstrap, upgrades, new cluster
+4. Runner connects to GitHub → pipelines now have cluster access
+5. All subsequent operations (re-bootstrap, upgrades, new cluster
    onboarding) happen through GitHub Actions workflows
 
 The `flux bootstrap` command is idempotent — running it again updates
@@ -25,12 +26,13 @@ Before running the bootstrap script, ensure you have:
 
 1. **Flux CLI** installed: `curl -s https://fluxcd.io/install.sh | sudo bash`
 2. **kubectl** configured and pointing at your homelab cluster
-3. **GitHub CLI** (`gh`) installed and authenticated: `gh auth login`
-4. **GitHub Fine-Grained PAT** with:
+3. **Helm CLI** installed (pre-installed on Packer-built node images)
+4. **GitHub CLI** (`gh`) installed and authenticated: `gh auth login`
+5. **GitHub Fine-Grained PAT** with:
    - Repository: `diixtra-forge` (must exist first)
    - Contents: Read and write
    - Administration: Read and write (for deploy key creation)
-5. **1Password SA token** for the Homelab vault
+6. **1Password SA token** for the Homelab vault
 
 ## Pre-Flight Checks
 
@@ -68,11 +70,14 @@ python3 scripts/bootstrap.py
 ```
 
 ### What the Script Does
-1. **Pre-flight checks** — flux CLI, kubectl, kubeconfig context
+1. **Pre-flight checks** — flux CLI, kubectl, helm, kubeconfig context
 2. **GitHub repo creation** — if repo doesn't exist
 3. **Git init + push** — scaffold to the repo
 4. **Bootstrap secret** — creates `op-service-account-token` in `onepassword-system`
-5. **Flux bootstrap** — installs controllers with auto-update components:
+5. **Cilium CNI install** — installs Cilium via Helm CLI to solve the DNS
+   chicken-and-egg problem (kubeadm needs a CNI for CoreDNS before Flux can
+   run). Use `--skip-cilium` if the CNI is already running.
+6. **Flux bootstrap** — installs controllers with auto-update components:
    ```
    flux bootstrap github \
      --token-auth \
@@ -85,7 +90,8 @@ python3 scripts/bootstrap.py
      --read-write-key \
      --reconcile
    ```
-6. **Reconciliation verification** — waits for all Kustomizations to report Ready
+7. **RBAC recovery** — applies gotk-components.yaml if controllers can't auth
+8. **Reconciliation verification** — waits for all Kustomizations to report Ready
 
 ### Key Flags Explained
 - `--components-extra` installs Image Automation controllers alongside the
@@ -124,7 +130,40 @@ kubectl create secret generic op-service-account-token \
   --from-literal=token=$OP_SA_TOKEN
 ```
 
-### Step 4: Bootstrap Flux
+### Step 4: Install Cilium CNI
+```bash
+helm repo add cilium https://helm.cilium.io/
+helm repo update
+
+# K8S_API_HOST = control plane IP (check clusters/homelab/vars.yaml)
+helm install cilium cilium/cilium \
+  --namespace kube-system \
+  --version 1.17.3 \
+  --set kubeProxyReplacement=true \
+  --set k8sServiceHost=$K8S_API_HOST \
+  --set k8sServicePort=6443 \
+  --set ipam.operator.clusterPoolIPv4PodCIDRList="{10.244.0.0/16}" \
+  --set hubble.enabled=true \
+  --set hubble.relay.enabled=true \
+  --set hubble.ui.enabled=false \
+  --set l2announcements.enabled=true \
+  --set externalIPs.enabled=true \
+  --set operator.replicas=1 \
+  --set resources.requests.cpu=100m \
+  --set resources.requests.memory=256Mi \
+  --set resources.limits.cpu=500m \
+  --set resources.limits.memory=512Mi \
+  --set operator.resources.requests.cpu=50m \
+  --set operator.resources.requests.memory=128Mi \
+  --set operator.resources.limits.cpu=250m \
+  --set operator.resources.limits.memory=256Mi \
+  --wait --timeout 5m
+
+# Verify CoreDNS starts (proves CNI is working)
+kubectl rollout status deployment/coredns -n kube-system --timeout=120s
+```
+
+### Step 5: Bootstrap Flux
 ```bash
 flux bootstrap github \
   --token-auth \
@@ -138,7 +177,7 @@ flux bootstrap github \
   --reconcile
 ```
 
-### Step 5: Verify
+### Step 6: Verify
 ```bash
 # All Flux controllers should be Running
 kubectl get pods -n flux-system
