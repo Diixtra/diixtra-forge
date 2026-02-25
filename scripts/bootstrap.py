@@ -167,6 +167,7 @@ class Config:
     cilium_chart_version: str = "1.17.3"
     cilium_helm_repo: str = "https://helm.cilium.io/"
     pod_cidr: str = "10.244.0.0/16"
+    k8s_api_host: str = ""  # Override for Cilium kube-proxy replacement. Auto-detected if empty.
     skip_cilium: bool = False
 
     # ── Network Checks ──────────────────────────────────────────────────
@@ -203,6 +204,7 @@ class Config:
         self.cilium_chart_version = os.environ.get(
             "CILIUM_CHART_VERSION", self.cilium_chart_version
         )
+        self.k8s_api_host = os.environ.get("K8S_API_HOST", self.k8s_api_host)
 
 
 # =============================================================================
@@ -716,22 +718,37 @@ def install_cilium_cni(config: Config) -> None:
         log("  ", "Flux will adopt and manage this release.")
         return
 
-    # Auto-detect API server IP from kubeconfig
-    api_host = run_cmd(
-        kube_cmd(config, "config", "view", "--minify",
-                 "-o", "jsonpath={.clusters[0].cluster.server}"),
-        capture=True,
-    ).stdout.strip()
+    # Determine API server IP for Cilium's kube-proxy replacement.
+    # K8S_API_HOST env var takes priority (recommended). Falls back to
+    # auto-detection from kubeconfig, but warns if it resolves to loopback
+    # (common when using an SSH tunnel from a dev machine).
+    if config.k8s_api_host:
+        api_host = config.k8s_api_host
+        log("  ", f"Using configured API server: {api_host} (from K8S_API_HOST)")
+    else:
+        api_host = run_cmd(
+            kube_cmd(config, "config", "view", "--minify",
+                     "-o", "jsonpath={.clusters[0].cluster.server}"),
+            capture=True,
+        ).stdout.strip()
 
-    # Extract host from URL (e.g. https://10.2.0.35:6443 → 10.2.0.35)
-    # Handle both IP:port and hostname formats
-    api_host = api_host.replace("https://", "").replace("http://", "")
-    if ":" in api_host:
-        api_host = api_host.rsplit(":", 1)[0]
-    # Strip brackets from IPv6
-    api_host = api_host.strip("[]")
+        # Extract host from URL (e.g. https://10.2.0.35:6443 → 10.2.0.35)
+        api_host = api_host.replace("https://", "").replace("http://", "")
+        if ":" in api_host:
+            api_host = api_host.rsplit(":", 1)[0]
+        api_host = api_host.strip("[]")  # Strip brackets from IPv6
 
-    log("  ", f"Detected API server: {api_host}")
+        log("  ", f"Auto-detected API server: {api_host}")
+
+    # Guard against loopback — Cilium agents on worker nodes can't reach
+    # the API server at localhost. This commonly happens when running the
+    # bootstrap from a dev machine with an SSH tunnel to the control plane.
+    if api_host in ("127.0.0.1", "localhost", "::1"):
+        log("💀", f"API server resolved to loopback ({api_host}).")
+        log("  ", "Cilium agents on worker nodes cannot reach the API server at localhost.")
+        log("  ", "Fix: set K8S_API_HOST to the control plane IP before running bootstrap:")
+        log("  ", "  export K8S_API_HOST=10.2.0.35")
+        sys.exit(1)
 
     # Add Cilium Helm repository
     run_cmd(["helm", "repo", "add", "cilium", config.cilium_helm_repo],
@@ -785,10 +802,12 @@ def install_cilium_cni(config: Config) -> None:
     if result.returncode == 0:
         log("  ✅", "Cilium installed successfully")
     else:
-        log("  ⚠️ ", "Cilium install exited non-zero (may still be rolling out)")
-        log("  ", "Continuing — Flux will reconcile the final state.")
+        log("  ⚠️ ", "Cilium Helm install returned non-zero (checking CoreDNS to verify)")
 
-    # Wait for CoreDNS to become ready (proves CNI is working)
+    # Wait for CoreDNS to become ready (proves CNI is working).
+    # This is the real success gate — even if Helm exited non-zero,
+    # CoreDNS readiness proves the CNI datapath is functional.
+    # If CoreDNS doesn't come up, Flux can't bootstrap (no DNS).
     log("  ⏳", "Waiting for CoreDNS to confirm CNI is functional...")
     coredns_wait = run_cmd(
         kube_cmd(config, "rollout", "status", "deployment/coredns",
@@ -799,8 +818,11 @@ def install_cilium_cni(config: Config) -> None:
     if coredns_wait.returncode == 0:
         log("  ✅", "CoreDNS is running — cluster DNS is operational")
     else:
-        log("  ⚠️ ", "CoreDNS not fully ready yet (may need more time)")
-        log("  ", "Bootstrap will continue — Flux may take longer to reconcile.")
+        log("💀", "CoreDNS is not ready — cluster has no working DNS.")
+        log("  ", "Flux cannot bootstrap without DNS. Aborting.")
+        log("  ", "Debug: kubectl get pods -n kube-system")
+        log("  ", "       helm status cilium -n kube-system")
+        sys.exit(1)
 
 
 # =============================================================================
