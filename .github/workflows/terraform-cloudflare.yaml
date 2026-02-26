@@ -19,11 +19,30 @@ env:
   TF_WORKING_DIR: terraform/cloudflare
 
 jobs:
+  check-runner:
+    name: Check GitHub Runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    outputs:
+      runner: ${{ steps.set.outputs.runner }}
+    steps:
+      - id: set
+        run: echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
+
   plan:
     name: Terraform Plan
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: check-runner
+    if: ${{ (needs.check-runner.result == 'success' || needs.check-runner.result == 'failure') && github.event_name == 'pull_request' }}
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     steps:
+      - name: Log runner selection
+        run: |
+          if [ "${{ needs.check-runner.result }}" != "success" ]; then
+            echo "::warning::GitHub-hosted runner unavailable — falling back to self-hosted runner"
+            echo "### Runner Fallback" >> "$GITHUB_STEP_SUMMARY"
+            echo "GitHub-hosted runner probe **failed**. Running on self-hosted \`homelab\` runner." >> "$GITHUB_STEP_SUMMARY"
+          fi
+
       - name: Checkout
         uses: actions/checkout@v6
 
@@ -68,8 +87,9 @@ jobs:
 
   apply:
     name: Terraform Apply
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: check-runner
+    if: ${{ needs.check-runner.result == 'success' && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
