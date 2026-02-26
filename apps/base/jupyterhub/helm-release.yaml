@@ -81,6 +81,23 @@ spec:
             node_selector:
               node.kubernetes.io/gpu: "true"
 
+    prePuller:
+      resources:
+        requests:
+          cpu: 1m
+          memory: 8Mi
+        limits:
+          cpu: 50m
+          memory: 32Mi
+      hook:
+        resources:
+          requests:
+            cpu: 1m
+            memory: 8Mi
+          limits:
+            cpu: 50m
+            memory: 32Mi
+
     scheduling:
       userScheduler:
         enabled: false
