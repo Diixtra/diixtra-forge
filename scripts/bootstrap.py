@@ -792,6 +792,11 @@ def install_cilium_cni(config: Config) -> None:
         "--set", "operator.resources.requests.memory=128Mi",
         "--set", "operator.resources.limits.cpu=250m",
         "--set", "operator.resources.limits.memory=256Mi",
+        # Envoy proxy — prevent OOM on memory-constrained ARM nodes
+        "--set", "envoy.resources.requests.cpu=25m",
+        "--set", "envoy.resources.requests.memory=64Mi",
+        "--set", "envoy.resources.limits.cpu=250m",
+        "--set", "envoy.resources.limits.memory=256Mi",
         # Wait for rollout
         "--wait",
         "--timeout", "5m",
