@@ -31,12 +31,6 @@ spec:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       extraEnvVarsSecrets:
         - backstage-github-app
-      extraEnvVars:
-        - name: POSTGRES_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: backstage-postgresql
-              key: password
       podSecurityContext:
         runAsNonRoot: true
         runAsUser: 1000
