@@ -72,6 +72,16 @@ spec:
     externalIPs:
       enabled: true
 
+    # --- Envoy proxy ---
+    envoy:
+      resources:
+        requests:
+          cpu: 25m
+          memory: 64Mi
+        limits:
+          cpu: 250m
+          memory: 256Mi
+
     # --- Agent resources ---
     resources:
       requests:
