@@ -74,7 +74,15 @@ spec:
 
     # --- Envoy proxy ---
     # Explicit limits prevent OOM on memory-constrained ARM nodes.
+    # Pi4 (2GB) excluded — tcmalloc requires 1GB contiguous mmap on startup.
     envoy:
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: node.kubernetes.io/low-memory
+                    operator: DoesNotExist
       resources:
         requests:
           cpu: 25m
