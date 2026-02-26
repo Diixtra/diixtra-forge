@@ -8,9 +8,21 @@ on:
       - "apps/**"
       - "clusters/**"
 jobs:
+  check-runner:
+    name: Check GitHub Runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      runner: ${{ steps.set.outputs.runner }}
+    steps:
+      - id: set
+        run: echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
+
   validate:
     name: Validate Kustomize Builds
-    runs-on: ubuntu-latest
+    needs: check-runner
+    if: ${{ !cancelled() }}
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     strategy:
       matrix:
         # Validate every cluster overlay independently.

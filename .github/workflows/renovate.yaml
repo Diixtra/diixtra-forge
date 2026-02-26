@@ -12,8 +12,20 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  renovate:
+  check-runner:
+    name: Check GitHub Runner
     runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      runner: ${{ steps.set.outputs.runner }}
+    steps:
+      - id: set
+        run: echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
+
+  renovate:
+    needs: check-runner
+    if: ${{ !cancelled() }}
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6

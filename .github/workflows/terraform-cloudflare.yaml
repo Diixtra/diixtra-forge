@@ -19,10 +19,21 @@ env:
   TF_WORKING_DIR: terraform/cloudflare
 
 jobs:
+  check-runner:
+    name: Check GitHub Runner
+    runs-on: ubuntu-latest
+    timeout-minutes: 1
+    outputs:
+      runner: ${{ steps.set.outputs.runner }}
+    steps:
+      - id: set
+        run: echo "runner=ubuntu-latest" >> "$GITHUB_OUTPUT"
+
   plan:
     name: Terraform Plan
-    runs-on: ubuntu-latest
-    if: github.event_name == 'pull_request'
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
+    if: ${{ !cancelled() && github.event_name == 'pull_request' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -68,8 +79,9 @@ jobs:
 
   apply:
     name: Terraform Apply
-    runs-on: ubuntu-latest
-    if: github.ref == 'refs/heads/main' && github.event_name == 'push'
+    needs: check-runner
+    runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
+    if: ${{ !cancelled() && github.ref == 'refs/heads/main' && github.event_name == 'push' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
