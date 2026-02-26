@@ -101,3 +101,14 @@ metadata:
 spec:
   type: ExternalName
   externalName: backstage.backstage.svc.cluster.local
+
+---
+# ── Hubble UI (in-cluster, kube-system namespace) ─────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: hubble-ui-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: hubble-ui.kube-system.svc.cluster.local
