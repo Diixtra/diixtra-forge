@@ -31,7 +31,7 @@ jobs:
   sync:
     name: Sync A Records
     needs: check-runner
-    if: ${{ needs.check-runner.result == 'success' || needs.check-runner.result == 'failure' }}
+    if: ${{ always() }}
     runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     steps:
       - name: Log runner selection
