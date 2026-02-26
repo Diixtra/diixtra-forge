@@ -1,0 +1,89 @@
+# JupyterHub — multi-user Jupyter notebook server
+#
+# Components:
+#   - Hub: authenticates users, spawns notebook servers
+#   - Proxy: routes HTTP traffic to Hub and notebook pods
+#   - Singleuser: per-user notebook pods (spawned on demand)
+#
+# Traefik routes to the proxy-public service on port 80.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: jupyterhub
+  namespace: jupyterhub
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: jupyterhub
+      version: "*" # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: jupyterhub
+        namespace: flux-system
+      interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
+  values:
+    hub:
+      resources:
+        requests:
+          cpu: 100m
+          memory: 256Mi
+        limits:
+          cpu: 500m
+          memory: 512Mi
+      db:
+        pvc:
+          storageClassName: truenas-nfs
+
+    proxy:
+      service:
+        type: ClusterIP
+      chp:
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+
+    singleuser:
+      storage:
+        capacity: 5Gi
+        dynamic:
+          storageClass: truenas-nfs
+      cpu:
+        limit: 2
+        guarantee: 0.25
+      memory:
+        limit: 4G
+        guarantee: 512M
+      profileList:
+        - display_name: "CPU Notebook"
+          description: "Standard notebook without GPU"
+          default: true
+        - display_name: "GPU Notebook (NVIDIA)"
+          description: "Notebook with GPU access for ML workloads"
+          kubespawner_override:
+            extra_resource_limits:
+              nvidia.com/gpu: "1"
+            extra_resource_guarantees:
+              nvidia.com/gpu: "1"
+            tolerations:
+              - key: nvidia.com/gpu
+                operator: Equal
+                value: present
+                effect: NoSchedule
+            node_selector:
+              node.kubernetes.io/gpu: "true"
+
+    scheduling:
+      userScheduler:
+        enabled: false
+
+    ingress:
+      enabled: false

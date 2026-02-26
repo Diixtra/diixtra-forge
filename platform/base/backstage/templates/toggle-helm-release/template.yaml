@@ -1,0 +1,113 @@
+apiVersion: scaffolder.backstage.io/v1beta3
+kind: Template
+metadata:
+  name: toggle-helm-release
+  title: Toggle Helm Release (Enable/Disable)
+  description: Suspend or resume a Flux HelmRelease by creating a Kustomize strategic-merge patch, and open a PR against diixtra-forge.
+  tags:
+    - kubernetes
+    - helm
+    - flux
+    - ops
+spec:
+  owner: platform-team
+  type: ops
+
+  parameters:
+    - title: HelmRelease Details
+      required:
+        - layer
+        - component
+        - helmReleaseName
+        - helmReleaseNamespace
+        - action
+      properties:
+        layer:
+          title: Layer
+          type: string
+          description: Top-level directory containing the component.
+          enum:
+            - infrastructure
+            - platform
+            - apps
+        component:
+          title: Component
+          type: string
+          description: "Directory name under <layer>/base/ (e.g. ollama, jupyterhub, backstage)."
+          pattern: "^[a-z][a-z0-9-]*$"
+        helmReleaseName:
+          title: HelmRelease Name
+          type: string
+          description: metadata.name of the HelmRelease to toggle.
+        helmReleaseNamespace:
+          title: HelmRelease Namespace
+          type: string
+          description: metadata.namespace of the HelmRelease.
+        action:
+          title: Action
+          type: string
+          description: Suspend (disable) or resume (enable) the HelmRelease.
+          enum:
+            - suspend
+            - resume
+          enumNames:
+            - "Suspend (disable)"
+            - "Resume (enable)"
+
+  steps:
+    - id: fetch-skeleton
+      name: Fetch skeleton
+      action: fetch:template
+      input:
+        url: ./skeleton
+        targetPath: ${{ parameters.layer }}/base/${{ parameters.component }}
+        values:
+          helmReleaseName: ${{ parameters.helmReleaseName }}
+          helmReleaseNamespace: ${{ parameters.helmReleaseNamespace }}
+          suspend: ${{ parameters.action === "suspend" }}
+
+    - id: fetch-kustomization
+      name: Fetch existing kustomization.yaml
+      action: fetch:plain:file
+      input:
+        url: https://github.com/Diixtra/diixtra-forge/blob/main/${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        targetPath: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+
+    - id: append-resource
+      name: Add suspend-patch to kustomization resources
+      action: fs:append
+      input:
+        file: ${{ parameters.layer }}/base/${{ parameters.component }}/kustomization.yaml
+        content: "  - suspend-patch.yaml\n"
+
+    - id: open-pr
+      name: Open Pull Request
+      action: publish:github:pull-request
+      input:
+        repoUrl: github.com?owner=Diixtra&repo=diixtra-forge
+        branchName: backstage/${{ parameters.action }}-${{ parameters.component }}
+        title: "ops(${{ parameters.component }}): ${{ parameters.action }} HelmRelease"
+        description: |
+          ## Scaffolded by Backstage — Toggle Helm Release
+
+          | Field | Value |
+          |-------|-------|
+          | **Layer** | `${{ parameters.layer }}` |
+          | **Component** | `${{ parameters.component }}` |
+          | **HelmRelease** | `${{ parameters.helmReleaseName }}` |
+          | **Namespace** | `${{ parameters.helmReleaseNamespace }}` |
+          | **Action** | `${{ parameters.action }}` |
+
+          ### What this does
+          Sets `spec.suspend` on the HelmRelease. When suspended, Flux stops
+          reconciling the release (effectively disabling it). When resumed,
+          Flux re-enables reconciliation and deploys the release.
+
+          ### Reviewer checklist
+          - [ ] Confirm the intended action (${{ parameters.action }})
+          - [ ] Verify no dependent services are affected
+
+  output:
+    links:
+      - title: Pull Request
+        url: ${{ steps['open-pr'].output.remoteUrl }}

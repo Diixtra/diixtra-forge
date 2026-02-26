@@ -148,3 +148,23 @@ metadata:
 spec:
   interval: 24h
   url: https://charts.crossplane.io/stable
+---
+# Ollama — local LLM inference server
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: ollama
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://otwld.github.io/ollama-helm/
+---
+# JupyterHub — multi-user notebook server
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: jupyterhub
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://hub.jupyter.org/helm-chart/

@@ -121,6 +121,8 @@ spec:
             - type: url
               target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/add-reverse-proxy/template.yaml
             - type: url
+              target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/templates/toggle-helm-release/template.yaml
+            - type: url
               target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/cluster-entity.yaml
     postgresql:
       enabled: true

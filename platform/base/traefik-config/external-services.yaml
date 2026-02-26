@@ -101,3 +101,25 @@ metadata:
 spec:
   type: ExternalName
   externalName: backstage.backstage.svc.cluster.local
+
+---
+# ── Ollama (in-cluster, different namespace) ─────────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: ollama-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: ollama.ollama.svc.cluster.local
+
+---
+# ── JupyterHub (in-cluster, different namespace) ─────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: jupyterhub-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: proxy-public.jupyterhub.svc.cluster.local
