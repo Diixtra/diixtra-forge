@@ -81,6 +81,10 @@ spec:
           requiredDuringSchedulingIgnoredDuringExecution:
             nodeSelectorTerms:
               - matchExpressions:
+                  - key: cilium.io/no-schedule
+                    operator: NotIn
+                    values:
+                      - "true"
                   - key: node.kubernetes.io/low-memory
                     operator: DoesNotExist
       resources:
