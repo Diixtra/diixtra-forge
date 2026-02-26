@@ -54,7 +54,23 @@ spec:
             cpu: 100m
             memory: 128Mi
       ui:
-        enabled: false
+        enabled: true
+        frontend:
+          resources:
+            requests:
+              cpu: 1m
+              memory: 10Mi
+            limits:
+              cpu: 100m
+              memory: 64Mi
+        backend:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 250m
+              memory: 256Mi
       metrics:
         enableOpenMetrics: true
         enabled:
