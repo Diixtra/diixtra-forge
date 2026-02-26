@@ -34,7 +34,6 @@
     "@terasky/backstage-plugin-crossplane-resources-frontend": "*",
     "@terasky/backstage-plugin-entity-scaffolder-content": "*",
     "@terasky/backstage-plugin-gitops-manifest-updater": "*",
-    "@terasky/backstage-plugin-kubernetes-resources-frontend": "*",
     "@terasky/backstage-plugin-template-builder": "*",
     "react": "^18.0.2",
     "react-dom": "^18.0.2",

@@ -16,10 +16,6 @@ import {
   CrossplaneResourcesTableSelector,
   isCrossplaneAvailable,
 } from '@terasky/backstage-plugin-crossplane-resources-frontend';
-import {
-  KubernetesResourcesPage,
-  isKubernetesResourcesAvailable,
-} from '@terasky/backstage-plugin-kubernetes-resources-frontend';
 import { EntityScaffolderContent } from '@terasky/backstage-plugin-entity-scaffolder-content';
 
 // ---------------------------------------------------------------------------
@@ -51,14 +47,6 @@ const serviceEntityPage = (
       if={isKubernetesAvailable}
     >
       <EntityKubernetesContent />
-    </EntityLayout.Route>
-
-    <EntityLayout.Route
-      path="/kubernetes-resources"
-      title="K8s Resources"
-      if={isKubernetesResourcesAvailable}
-    >
-      <KubernetesResourcesPage />
     </EntityLayout.Route>
 
     <EntityLayout.Route
@@ -96,14 +84,6 @@ const resourceEntityPage = (
       if={isKubernetesAvailable}
     >
       <EntityKubernetesContent />
-    </EntityLayout.Route>
-
-    <EntityLayout.Route
-      path="/kubernetes-resources"
-      title="K8s Resources"
-      if={isKubernetesResourcesAvailable}
-    >
-      <KubernetesResourcesPage />
     </EntityLayout.Route>
 
     <EntityLayout.Route
