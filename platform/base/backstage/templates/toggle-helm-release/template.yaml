@@ -3,7 +3,7 @@ kind: Template
 metadata:
   name: toggle-helm-release
   title: Toggle Helm Release (Enable/Disable)
-  description: Suspend or resume a Flux HelmRelease by creating a Kustomize strategic-merge patch, and open a PR against diixtra-forge.
+  description: Suspend or resume a Flux HelmRelease by adding a Kustomize resource overlay that sets spec.suspend, and open a PR against diixtra-forge.
   tags:
     - kubernetes
     - helm

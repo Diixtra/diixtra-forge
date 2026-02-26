@@ -122,4 +122,4 @@ metadata:
   namespace: traefik-system
 spec:
   type: ExternalName
-  externalName: proxy-public.jupyterhub.svc.cluster.local
+  externalName: jupyterhub-proxy-public.jupyterhub.svc.cluster.local
