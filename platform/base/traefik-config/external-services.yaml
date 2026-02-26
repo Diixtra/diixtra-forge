@@ -133,7 +133,7 @@ metadata:
   namespace: traefik-system
 spec:
   type: ExternalName
-  externalName: jupyterhub-proxy-public.jupyterhub.svc.cluster.local
+  externalName: proxy-public.jupyterhub.svc.cluster.local
 
 ---
 # ── Flux Operator WebUI (in-cluster, flux-system namespace) ─────
