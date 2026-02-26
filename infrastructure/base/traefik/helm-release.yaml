@@ -70,6 +70,24 @@ spec:
     deployment:
       annotations:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
+      # NFS does not honour fsGroup — the volume is root-owned and Traefik
+      # runs as UID 65532.  Fix permissions before the main container starts.
+      initContainers:
+        - name: volume-permissions
+          image: busybox:latest
+          command: ["sh", "-c", "chown -R 65532:65532 /data"]
+          volumeMounts:
+            - name: data
+              mountPath: /data
+          securityContext:
+            runAsUser: 0
+          resources:
+            requests:
+              cpu: 10m
+              memory: 16Mi
+            limits:
+              cpu: 50m
+              memory: 32Mi
       dnsConfig:
         options:
           - name: ndots
