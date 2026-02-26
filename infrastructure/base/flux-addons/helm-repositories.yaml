@@ -168,3 +168,14 @@ metadata:
 spec:
   interval: 24h
   url: https://hub.jupyter.org/helm-chart/
+---
+# Flux Operator — lifecycle manager and web UI for Flux CD
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: flux-operator
+  namespace: flux-system
+spec:
+  type: oci
+  interval: 24h
+  url: oci://ghcr.io/controlplaneio-fluxcd/charts
