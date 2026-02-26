@@ -47,7 +47,7 @@ jobs:
   detect:
     name: Detect changes
     needs: check-runner
-    if: ${{ needs.check-runner.result == 'success' || needs.check-runner.result == 'failure' }}
+    if: ${{ always() }}
     runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     outputs:
       ubuntu: ${{ steps.changes.outputs.ubuntu }}

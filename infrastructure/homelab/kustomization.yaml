@@ -9,6 +9,7 @@ resources:
   - ../base/github-actions-runner
   - ../base/packer-runner
   - ../base/nvidia-device-plugin
+  - ../base/flux-operator
   # Cilium L2 announcements — need Cilium CRDs from infrastructure-crds
   - cilium/l2-config.yaml
 patches:

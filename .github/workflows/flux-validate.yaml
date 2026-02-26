@@ -21,7 +21,7 @@ jobs:
   validate:
     name: Validate Kustomize Builds
     needs: check-runner
-    if: ${{ needs.check-runner.result == 'success' || needs.check-runner.result == 'failure' }}
+    if: ${{ always() }}
     runs-on: ${{ needs.check-runner.outputs.runner || 'homelab' }}
     strategy:
       matrix:
