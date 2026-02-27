@@ -46,6 +46,7 @@ jobs:
         run: terraform init
 
       - name: Terraform Plan
+        id: plan
         working-directory: ${{ env.TF_WORKING_DIR }}
         run: terraform plan -no-color -out=tfplan
         env:
