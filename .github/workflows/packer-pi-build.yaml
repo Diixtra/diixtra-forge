@@ -16,6 +16,7 @@ jobs:
   build:
     name: Build Pi Image
     runs-on: packer
+    timeout-minutes: 60
     steps:
       - name: Checkout
         uses: actions/checkout@v6

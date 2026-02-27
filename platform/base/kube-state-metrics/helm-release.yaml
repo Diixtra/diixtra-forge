@@ -15,6 +15,27 @@ spec:
         namespace: flux-system
       interval: 1h
   values:
+    # ── Metric Reduction — Grafana Cloud Free Tier (10k series) ──
+    # By default KSM exposes ~30 resource types. Most are high-cardinality
+    # and unnecessary for a homelab. Only enable the collectors we actually
+    # dashboard or alert on. This alone cuts series from ~8k+ to ~2k.
+    collectors:
+      - daemonsets
+      - deployments
+      - nodes
+      - pods
+      - statefulsets
+      - namespaces
+      - persistentvolumeclaims
+      - persistentvolumes
+      - cronjobs
+      - jobs
+    # Further reduce by dropping per-label and per-condition metrics
+    # that create high cardinality without actionable signal.
+    metricLabelsAllowlist:
+      pods: [namespace,pod,phase]
+      nodes: [node]
+      deployments: [namespace,deployment]
     resources:
       requests:
         cpu: 50m

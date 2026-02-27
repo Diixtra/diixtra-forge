@@ -1,0 +1,66 @@
+name: Cluster Health Gate
+
+# Reusable workflow that checks cluster health before running jobs.
+# Call this from other workflows to avoid scheduling work on an
+# unstable cluster, which causes cascading failures and timeouts.
+
+on:
+  workflow_call:
+    outputs:
+      healthy:
+        description: "Whether the cluster passed all health checks"
+        value: ${{ jobs.gate.outputs.healthy }}
+
+jobs:
+  gate:
+    name: Cluster Ready
+    runs-on: homelab
+    timeout-minutes: 5
+    outputs:
+      healthy: ${{ steps.check.outputs.healthy }}
+    steps:
+      - name: Check cluster health
+        id: check
+        run: |
+          set -euo pipefail
+          HEALTHY=true
+
+          # 1. API server reachable
+          if ! kubectl cluster-info --request-timeout=10s > /dev/null 2>&1; then
+            echo "::error::API server unreachable"
+            echo "healthy=false" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+
+          # 2. All nodes Ready
+          NOT_READY=$(kubectl get nodes --no-headers | grep -v " Ready " || true)
+          if [ -n "$NOT_READY" ]; then
+            echo "::warning::Nodes not ready:"
+            echo "$NOT_READY"
+            HEALTHY=false
+          fi
+
+          # 3. No DiskPressure / MemoryPressure / PIDPressure
+          PRESSURE=$(kubectl get nodes -o jsonpath='{range .items[*]}{.metadata.name}{range .status.conditions[?(@.status=="True")]}{" "}{.type}{end}{"\n"}{end}' \
+            | grep -E "DiskPressure|MemoryPressure|PIDPressure" || true)
+          if [ -n "$PRESSURE" ]; then
+            echo "::warning::Node pressure detected:"
+            echo "$PRESSURE"
+            HEALTHY=false
+          fi
+
+          # 4. Flux source is not suspended/failing
+          FLUX_FAILING=$(kubectl get kustomizations -n flux-system --no-headers 2>/dev/null \
+            | grep -v "True" | head -5 || true)
+          if [ -n "$FLUX_FAILING" ]; then
+            echo "::warning::Flux kustomizations not ready:"
+            echo "$FLUX_FAILING"
+            # Don't block on Flux — it may be reconciling this very commit
+          fi
+
+          echo "healthy=$HEALTHY" >> "$GITHUB_OUTPUT"
+          if [ "$HEALTHY" = "true" ]; then
+            echo "Cluster health check passed"
+          else
+            echo "::warning::Cluster health check has warnings — proceeding with caution"
+          fi
