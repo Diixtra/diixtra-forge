@@ -83,7 +83,7 @@ spec:
     #   For a homelab, this is perfect — save resources.
     #   In production, minRunners: 1+ keeps a warm runner for faster starts.
     minRunners: 0
-    maxRunners: 2
+    maxRunners: 3
     # Listener pod spec — the long-polling pod that detects queued jobs.
     # Must have resource limits to satisfy Kyverno require-resource-limits policy.
     listenerTemplate:

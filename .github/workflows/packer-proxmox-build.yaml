@@ -103,7 +103,13 @@ jobs:
         working-directory: packer
 
       - name: Packer build
-        run: packer build proxmox-ubuntu/
+        run: |
+          # Retry once on failure — Proxmox API can timeout during VM creation
+          if ! packer build proxmox-ubuntu/; then
+            echo "::warning::First attempt failed, retrying after 30s..."
+            sleep 30
+            packer build proxmox-ubuntu/
+          fi
         working-directory: packer
         env:
           PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}
@@ -149,7 +155,12 @@ jobs:
         working-directory: packer
 
       - name: Packer build
-        run: packer build proxmox-debian/
+        run: |
+          if ! packer build proxmox-debian/; then
+            echo "::warning::First attempt failed, retrying after 30s..."
+            sleep 30
+            packer build proxmox-debian/
+          fi
         working-directory: packer
         env:
           PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}
@@ -194,7 +205,12 @@ jobs:
         working-directory: packer
 
       - name: Packer build
-        run: packer build proxmox-gpu/
+        run: |
+          if ! packer build proxmox-gpu/; then
+            echo "::warning::First attempt failed, retrying after 30s..."
+            sleep 30
+            packer build proxmox-gpu/
+          fi
         working-directory: packer
         env:
           PKR_VAR_proxmox_api_token_secret: ${{ steps.secrets.outputs.proxmox_token }}

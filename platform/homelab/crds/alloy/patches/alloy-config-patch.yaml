@@ -53,7 +53,21 @@ spec:
 
           // ════════════════════════════════════════════════════════════
           // Metrics — Kubelet (per-node)
+          // Only keep essential kubelet metrics. The default /metrics endpoint
+          // exposes ~400 series per node including Go runtime, gRPC, and
+          // storage operation histograms that we don't dashboard or alert on.
           // ════════════════════════════════════════════════════════════
+          prometheus.relabel "kubelet_filter" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+            // Keep only kubelet operational metrics we actually use
+            rule {
+              source_labels = ["__name__"]
+              regex         = "kubelet_running_pods|kubelet_running_containers|kubelet_node_name|kubelet_volume_stats_.*|kubelet_pod_start_duration_seconds_count|up"
+              action        = "keep"
+            }
+          }
+
           prometheus.scrape "kubelet" {
             targets = [{
               __address__ = env("HOSTNAME") + ":10250",
@@ -64,7 +78,7 @@ spec:
               insecure_skip_verify = true
             }
             scrape_interval = "60s"
-            forward_to      = [prometheus.remote_write.grafana_cloud.receiver]
+            forward_to      = [prometheus.relabel.kubelet_filter.receiver]
           }
 
           // ════════════════════════════════════════════════════════════
@@ -99,6 +113,24 @@ spec:
               regex         = "container_tasks_state"
               action        = "drop"
             }
+            // Drop per-interface network byte counters (high cardinality)
+            rule {
+              source_labels = ["__name__"]
+              regex         = "container_network_(receive|transmit)_bytes_total"
+              action        = "drop"
+            }
+            // Drop container spec metrics (static, rarely change)
+            rule {
+              source_labels = ["__name__"]
+              regex         = "container_spec_.*"
+              action        = "drop"
+            }
+            // Drop container start/last-seen timestamps (not useful for dashboards)
+            rule {
+              source_labels = ["__name__"]
+              regex         = "container_(start_time_seconds|last_seen)"
+              action        = "drop"
+            }
           }
 
           prometheus.scrape "cadvisor" {
@@ -117,7 +149,28 @@ spec:
 
           // ════════════════════════════════════════════════════════════
           // Metrics — kube-state-metrics (cluster-wide)
+          // KSM collectors are already restricted in the HelmRelease values.
+          // This relabel pass drops the remaining high-cardinality series
+          // we don't need: labels/annotations hashes, owner references,
+          // and status reason/message strings that explode cardinality.
           // ════════════════════════════════════════════════════════════
+          prometheus.relabel "ksm_filter" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+            // Drop label and annotation metrics (one series per unique label combo)
+            rule {
+              source_labels = ["__name__"]
+              regex         = "kube_(pod|node|deployment|statefulset|daemonset|namespace)_labels|kube_pod_info|kube_pod_owner"
+              action        = "drop"
+            }
+            // Drop status reason/message metrics (high cardinality strings)
+            rule {
+              source_labels = ["__name__"]
+              regex         = "kube_pod_status_reason|kube_pod_container_status_last_terminated_reason"
+              action        = "drop"
+            }
+          }
+
           prometheus.scrape "kube_state_metrics" {
             targets = [{
               __address__ = "kube-state-metrics.monitoring.svc.cluster.local:8080",
@@ -126,7 +179,7 @@ spec:
             clustering {
               enabled = true
             }
-            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+            forward_to = [prometheus.relabel.ksm_filter.receiver]
           }
 
           // ════════════════════════════════════════════════════════════
@@ -134,6 +187,20 @@ spec:
           // ════════════════════════════════════════════════════════════
           // TrueNAS pushes Graphite plaintext to graphite-exporter:9109.
           // The exporter converts to Prometheus format on :9108/metrics.
+          // TrueNAS exports hundreds of per-disk, per-interface, per-dataset
+          // series. Only keep the ones we actually dashboard: pool usage,
+          // disk temperature, CPU, memory, and network throughput.
+          prometheus.relabel "truenas_filter" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+            // Keep only the TrueNAS metrics we dashboard on
+            rule {
+              source_labels = ["__name__"]
+              regex         = "graphite_exporter_.*|truenas_pool.*|truenas_disk_temperature.*|truenas_cpu.*|truenas_memory.*|truenas_network_(sent|received)_bytes.*|truenas_dataset_(used|available)_bytes.*|up"
+              action        = "keep"
+            }
+          }
+
           prometheus.scrape "truenas" {
             targets = [{
               __address__ = "graphite-exporter.monitoring.svc.cluster.local:9108",
@@ -142,7 +209,7 @@ spec:
             clustering {
               enabled = true
             }
-            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+            forward_to = [prometheus.relabel.truenas_filter.receiver]
           }
 
           // ════════════════════════════════════════════════════════════
