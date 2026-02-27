@@ -28,8 +28,7 @@ After migration, the Diixtra GitHub org will have these repos:
 ```
 diixtra-forge/                  (post-migration)
 ├── .github/workflows/          flux-validate.yaml, post-deploy-check.yaml,
-│                               dns-cloudflare-sync.yaml, terraform-cloudflare.yaml,
-│                               renovate.yaml
+│                               dns-cloudflare-sync.yaml, terraform-cloudflare.yaml
 ├── apps/                       Kustomize overlays (HelmReleases, namespaces)
 │   ├── base/
 │   │   ├── jupyterhub/
@@ -164,18 +163,27 @@ diixtra-forge/                  (post-migration)
 - [ ] Remove `packer-console.log` and `packer-debug.log` from `diixtra-forge` root
 - [ ] The `packer-runner` ARC runner set in `infrastructure/base/packer-runner/`
       **stays** — it's cluster infrastructure that provides the runner, not Packer source
-- [ ] Update `ARC_GITHUB_CONFIG_URL` in `clusters/homelab/vars.yaml`:
-  - Currently scoped to `diixtra-forge` repo — will need to become org-level
-    (`https://github.com/Diixtra`) or the runner set needs to serve both repos
 - [ ] Update `README.md` to link to new repo
 
-### 2.6 Handle ARC Runner Scope Change
-- [ ] **Decision required:** Org-level runners vs. per-repo runner sets
-  - **Option A (recommended):** Change `ARC_GITHUB_CONFIG_URL` to
-    `https://github.com/Diixtra` (org-level) so runners serve all repos
-  - **Option B:** Deploy a second `arc-runner-set` for `diixtra-packer`
-- [ ] Update `infrastructure/base/github-actions-runner/` accordingly
-- [ ] Update Packer workflows `runs-on` labels if runner names change
+### 2.6 Migrate ARC Runners to Org-Level
+**Decision: Org-level runners** — a single pool of runners serving all repos in the
+Diixtra org. No per-repo runner sets; org-level avoids duplicating infrastructure
+as repos are added.
+
+- [ ] Change `ARC_GITHUB_CONFIG_URL` in `clusters/homelab/vars.yaml`:
+  ```yaml
+  # Before
+  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra/diixtra-forge"
+  # After
+  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra"
+  ```
+- [ ] Update `infrastructure/base/github-actions-runner/` HelmRelease values
+      to use org-level GitHub App or PAT authentication (org runners require a
+      GitHub App installation or PAT with `admin:org` scope — repo-level tokens
+      won't work)
+- [ ] Verify `homelab` and `packer` runner labels are available to all org repos
+- [ ] Test workflows in `diixtra-forge` still pick up runners after the scope change
+      **before** moving any workflows to new repos
 
 ### 2.7 Validate
 - [ ] Trigger `packer-proxmox-build.yaml` via workflow_dispatch in new repo
@@ -208,16 +216,51 @@ custom server code
   ```
 - [ ] Preserve git history with `git filter-repo --subdirectory-filter apps/base/mcp-servers`
 
-### 3.3 Decide deployment model
-- [ ] **Decision required:** How Flux consumes the new repo
-  - **Option A (recommended for now):** Continue embedding manifests in
-    `diixtra-forge` under `apps/base/mcp-servers/` — treat `diixtra-mcp-servers`
-    as the development repo and sync manifests via CI or Flux GitRepository
-  - **Option B:** Add a second Flux `GitRepository` source pointing to
-    `diixtra-mcp-servers` and a corresponding Flux Kustomization
-  - **Option C:** Package MCP manifests as a Helm chart published to GHCR,
-    reference via HelmRelease in `diixtra-forge`
-- [ ] Implement chosen deployment model
+### 3.3 Deploy via Flux GitRepository (decided)
+**Decision: Second Flux `GitRepository`** — Flux natively supports watching multiple
+git repos. This avoids CI sync pipelines (fragile, adds lag) and Helm chart packaging
+overhead (over-engineering for static Kustomize manifests). When custom MCP server
+images are added later, the same repo houses code + manifests.
+
+- [ ] Add `GitRepository` source in `diixtra-forge` for the new repo:
+  ```yaml
+  # clusters/homelab/mcp-servers.yaml
+  apiVersion: source.toolkit.fluxcd.io/v1
+  kind: GitRepository
+  metadata:
+    name: mcp-servers
+    namespace: flux-system
+  spec:
+    interval: 5m
+    url: https://github.com/Diixtra/diixtra-mcp-servers
+    ref:
+      branch: main
+  ---
+  apiVersion: kustomize.toolkit.fluxcd.io/v1
+  kind: Kustomization
+  metadata:
+    name: mcp-servers
+    namespace: flux-system
+  spec:
+    interval: 10m
+    sourceRef:
+      kind: GitRepository
+      name: mcp-servers
+    path: ./
+    prune: true
+    wait: true
+    dependsOn:
+      - name: platform
+    postBuild:
+      substituteFrom:
+        - kind: ConfigMap
+          name: cluster-vars
+  ```
+- [ ] Add `mcp-servers.yaml` to `clusters/homelab/kustomization.yaml` resources
+- [ ] Add matching entry for `clusters/dev/` if MCP servers deploy to dev cluster
+- [ ] Remove `apps/base/mcp-servers/` from `diixtra-forge` (manifests now live in
+      `diixtra-mcp-servers` and are consumed via the new GitRepository)
+- [ ] Update `apps/base/kustomization.yaml` to remove mcp-servers reference
 
 ### 3.4 Add CI/CD to `diixtra-mcp-servers`
 - [ ] Add Kustomize build validation workflow
@@ -226,10 +269,9 @@ custom server code
 - [ ] If building custom MCP server images in future: add Docker build pipeline
 
 ### 3.5 Update `diixtra-forge`
-- [ ] Based on 3.3 decision, either:
-  - Keep `apps/base/mcp-servers/` as-is (synced from external repo), or
-  - Replace with Flux `GitRepository` + `Kustomization` pointing to new repo, or
-  - Replace with `HelmRelease` referencing OCI chart
+- [ ] Remove `apps/base/mcp-servers/` directory (handled by Flux GitRepository now)
+- [ ] Update `apps/base/kustomization.yaml` to remove mcp-servers reference
+- [ ] Add `flux-validate.yaml` matrix entry for the new GitRepository if needed
 - [ ] Update `README.md`
 
 ### 3.6 Validate
@@ -279,27 +321,28 @@ custom server code
 
 ## Phase 5: Post-Migration Cleanup & Configuration
 
-### 5.1 Update Renovate Bot
-- [ ] **`diixtra-forge`:** Update `.renovaterc` — remove Backstage and Packer managers
-- [ ] **`diixtra-backstage`:** Add `.renovaterc` with npm/yarn manager
-- [ ] **`diixtra-packer`:** Add `.renovaterc` with Packer and Terraform managers
-- [ ] **Decision:** Run Renovate per-repo (GitHub App) or keep self-hosted?
-  - Self-hosted Renovate in `diixtra-forge` currently scans one repo
-  - Need to update `RENOVATE_REPOSITORIES` to include all repos, or
-  - Switch to Renovate GitHub App (zero-config, runs on their infrastructure)
+### 5.1 Switch Renovate to GitHub App (decided)
+**Decision: Renovate GitHub App** — self-hosted Renovate was right for one repo.
+With multiple repos, the GitHub App auto-discovers repos in the org, requires zero
+infrastructure (no workflow, no runner time, no 1Password token), and `.renovaterc`
+configs in each repo work identically.
 
-### 5.2 Update GitHub Actions Runners (ARC)
-- [ ] Migrate `ARC_GITHUB_CONFIG_URL` from repo-level to org-level:
-  ```yaml
-  # clusters/homelab/vars.yaml
-  # Before
-  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra/diixtra-forge"
-  # After
-  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra"
-  ```
-- [ ] Update ARC runner set to serve org-level runners
-- [ ] Verify `homelab` and `packer` runner labels are available to all repos
-- [ ] Test workflows in each repo can pick up self-hosted runners
+- [ ] Install the [Renovate GitHub App](https://github.com/apps/renovate) on the
+      `Diixtra` org (select all repos or specific repos)
+- [ ] Add `.renovaterc` to each new repo:
+  - **`diixtra-backstage`:** npm/yarn manager
+  - **`diixtra-packer`:** regex manager for Packer plugin versions
+  - **`diixtra-mcp-servers`:** regex manager for container image tags
+- [ ] Verify Renovate App creates PRs in each repo
+- [ ] Remove `renovate.yaml` self-hosted workflow from `diixtra-forge`
+- [ ] Remove `RENOVATE_TOKEN` PAT from 1Password (no longer needed)
+- [ ] Update `diixtra-forge/.renovaterc` — remove Backstage/Packer managers,
+      keep Helm chart + Flux image version managers
+
+### 5.2 Verify Org-Level ARC Runners (done in Phase 2.6)
+- [ ] Confirm all repos can use `homelab` and `packer` runner labels
+- [ ] Verify runner utilisation is acceptable with additional repos
+- [ ] Consider runner group policies if repos need runner isolation later
 
 ### 5.3 Update Flux Image Automation
 - [ ] Verify image update automation still works for Backstage:
@@ -337,19 +380,21 @@ custom server code
 ## Migration Order & Dependencies
 
 ```
-Phase 1: Backstage     ← Zero deployment risk (image-based decoupling)
+Phase 0: ARC → org-level  ← PREREQUISITE: must happen first so new repos get runners
     ↓
-Phase 2: Packer        ← Zero deployment risk (offline build tooling)
-    ↓
-Phase 3: MCP Servers   ← Requires Flux config change (medium risk)
+Phase 1: Backstage     ← Zero deployment risk (image-based decoupling)  ─┐
+Phase 2: Packer        ← Zero deployment risk (offline build tooling)   ─┤ parallel
+    ↓                                                                     │
+Phase 3: MCP Servers   ← Requires Flux GitRepository config (med risk) ←─┘
     ↓
 Phase 4: Docs          ← Zero risk (no runtime impact)
     ↓
-Phase 5: Cleanup       ← Consolidate cross-cutting concerns
+Phase 5: Cleanup       ← Renovate App, Backstage catalog, final validation
 ```
 
-Phases 1 and 2 can be done in parallel — they have no dependencies on each other.
-Phase 3 should wait until the ARC runner scope change (Phase 2.6 / 5.2) is settled.
+**Phase 0** (ARC org-level migration from Phase 2.6) is a prerequisite — new repos
+need runners before their workflows can execute. Phases 1 and 2 can run in parallel
+once runners are org-level. Phase 3 waits for 1+2 to validate the multi-repo pattern.
 
 ## Risk Mitigation
 
@@ -358,7 +403,7 @@ Phase 3 should wait until the ARC runner scope change (Phase 2.6 / 5.2) is settl
 | Flux stops reconciling during migration | No Flux config changes in Phases 1-2; image references are decoupled |
 | Self-hosted runners unavailable to new repos | Move to org-level ARC before moving workflows |
 | Lost git history | Use `git filter-repo` to preserve per-directory history |
-| Broken Renovate | Test Renovate in each new repo before removing from monorepo |
+| Broken Renovate | Install GitHub App before removing self-hosted workflow; verify PRs appear |
 | Backstage image stops building | Keep old workflow in monorepo until new one is confirmed working |
 | Secrets missing in new repos | Audit 1Password service account scope; add secrets before moving workflows |
 
