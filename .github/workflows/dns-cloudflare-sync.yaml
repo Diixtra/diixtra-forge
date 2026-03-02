@@ -32,7 +32,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CF_API_TOKEN: op://Homela/cloudflare dns API Credentials/credential
+          CF_API_TOKEN: op://Homelab/cloudflare dns API Credentials/credential
 
       - name: Extract hostnames from IngressRoutes
         id: extract

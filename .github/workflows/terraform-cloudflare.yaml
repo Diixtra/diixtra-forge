@@ -36,7 +36,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: op://Homela/cloudflare dns API Credentials/credential
+          CLOUDFLARE_API_TOKEN: op://Homelab/cloudflare dns API Credentials/credential
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
@@ -83,7 +83,7 @@ jobs:
           export-env: true
         env:
           OP_SERVICE_ACCOUNT_TOKEN: ${{ secrets.OP_SERVICE_ACCOUNT_TOKEN }}
-          CLOUDFLARE_API_TOKEN: op://Homela/cloudflare dns API Credentials/credential
+          CLOUDFLARE_API_TOKEN: op://Homelab/cloudflare dns API Credentials/credential
 
       - name: Setup Terraform
         uses: hashicorp/setup-terraform@v4
