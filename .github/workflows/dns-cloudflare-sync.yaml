@@ -59,7 +59,7 @@ jobs:
                   host = m.group(1)
                   # Resolve Flux ${VAR} substitutions
                   for k, v in vars_map.items():
-                      host = host.replace(f"${{{k}}}", v)
+                      host = host.replace("${" + k + "}", v)
                   hostnames.add(host)
 
           data = {
