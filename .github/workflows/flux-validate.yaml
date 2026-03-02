@@ -34,7 +34,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v6
       - name: Setup Flux CLI
-        uses: fluxcd/flux2/action@main
+        uses: fluxcd/flux2/action@v2.8.1
       - name: Validate Kustomize build
         # 'kustomize build' renders the final YAML without applying it.
         # If this fails, the manifests have structural issues.
