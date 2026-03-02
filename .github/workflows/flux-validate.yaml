@@ -10,7 +10,7 @@ on:
 jobs:
   validate:
     name: Validate Kustomize Builds
-    runs-on: homelab
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     strategy:
       matrix:
