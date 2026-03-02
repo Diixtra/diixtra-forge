@@ -36,7 +36,7 @@ jobs:
   # ── Determine which templates need building ──────────────────────
   detect:
     name: Detect changes
-    runs-on: homelab
+    runs-on: ubuntu-latest
     timeout-minutes: 5
     outputs:
       ubuntu: ${{ steps.changes.outputs.ubuntu }}

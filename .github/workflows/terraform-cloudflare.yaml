@@ -22,7 +22,7 @@ jobs:
   plan:
     name: Terraform Plan
     if: ${{ github.event_name == 'pull_request' }}
-    runs-on: homelab
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
@@ -71,7 +71,7 @@ jobs:
   apply:
     name: Terraform Apply
     if: ${{ github.ref == 'refs/heads/main' && github.event_name == 'push' }}
-    runs-on: homelab
+    runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
       - name: Checkout
