@@ -209,6 +209,7 @@ source "proxmox-iso" "ubuntu-k8s" {
     type         = "scsi"
     discard      = true   # Enable TRIM for thin provisioning
     ssd          = true   # Hint to guest OS for SSD optimisation
+    io_thread    = true   # Offload I/O to dedicated CPU thread
   }
 
   # Dedicated etcd disk — isolates etcd WAL/data I/O from the OS disk.
@@ -220,6 +221,7 @@ source "proxmox-iso" "ubuntu-k8s" {
     type         = "scsi"
     discard      = true
     ssd          = true
+    io_thread    = true
   }
 
   network_adapters {

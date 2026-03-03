@@ -251,6 +251,20 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
         echo 'ACTION=="add|change", KERNEL=="sdb", ATTR{queue/discard_max_bytes}="0"' \
             > /etc/udev/rules.d/99-etcd-nodiscard.rules
 
+        # Force mq-deadline I/O scheduler on both disks.
+        # LEARNING NOTE — WHY MQ-DEADLINE INSTEAD OF NONE:
+        #   Proxmox sets ssd=true on virtual disks, which makes Linux default
+        #   to the `none` scheduler (designed for real NVMe with consistent
+        #   sub-millisecond latency). But thin-provisioned virtual disks have
+        #   variable latency — writes require block allocation at the
+        #   hypervisor, causing spikes of 50-300ms. The `none` scheduler
+        #   provides no request ordering or fairness, so etcd's critical
+        #   fdatasync calls get stuck behind bulk reads. mq-deadline gives
+        #   each request a deadline, preventing starvation.
+        cat > /etc/udev/rules.d/98-disk-scheduler.rules << 'UDEV'
+ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/scheduler}="mq-deadline"
+UDEV
+
         # Mount now to verify it works
         mount /var/lib/etcd
 
@@ -265,6 +279,76 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
         mkdir -p /var/lib/etcd
         chmod 700 /var/lib/etcd
     fi
+
+    # ── etcd Defragmentation Timer ─────────────────────────────────────
+    # LEARNING NOTE — WHY PERIODIC DEFRAG:
+    #   Kubernetes auto-compacts etcd (marks old revisions deletable) but
+    #   never defrags (reclaims the space on disk). Over time the DB file
+    #   grows with dead space — we've seen 90MB files with only 29MB of
+    #   real data (68% waste). Every read/write scans the full file, so
+    #   bloat directly increases I/O and etcd latency.
+    #
+    #   This timer runs compact + defrag weekly. It uses crictl exec to
+    #   run etcdctl inside the etcd container, so it works without
+    #   installing etcdctl on the host. The timer runs on the host (not
+    #   as a K8s CronJob) because etcd issues can make K8s too unstable
+    #   to schedule pods reliably.
+    cat > /etc/systemd/system/etcd-defrag.service << 'SYSTEMD'
+[Unit]
+Description=Compact and defragment etcd
+After=containerd.service
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/etcd-defrag.sh
+SYSTEMD
+
+    cat > /etc/systemd/system/etcd-defrag.timer << 'SYSTEMD'
+[Unit]
+Description=Weekly etcd defragmentation
+
+[Timer]
+OnCalendar=Sun *-*-* 04:00:00
+RandomizedDelaySec=1h
+Persistent=true
+
+[Install]
+WantedBy=timers.target
+SYSTEMD
+
+    cat > /usr/local/bin/etcd-defrag.sh << 'SCRIPT'
+#!/bin/bash
+set -euo pipefail
+
+ETCD_CONTAINER=$(crictl ps --name etcd -q 2>/dev/null)
+if [ -z "$ETCD_CONTAINER" ]; then
+    echo "etcd container not found, skipping"
+    exit 0
+fi
+
+CERTS="--endpoints=https://127.0.0.1:2379 \
+--cert=/etc/kubernetes/pki/etcd/server.crt \
+--key=/etc/kubernetes/pki/etcd/server.key \
+--cacert=/etc/kubernetes/pki/etcd/ca.crt"
+
+# Get current revision and compact
+REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>/dev/null \
+    | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Status"]["header"]["revision"])')
+echo "Compacting to revision $REV..."
+crictl exec "$ETCD_CONTAINER" etcdctl $CERTS compact "$REV"
+
+echo "Defragmenting..."
+crictl exec "$ETCD_CONTAINER" etcdctl $CERTS defrag
+
+echo "Status after defrag:"
+crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=table
+SCRIPT
+
+    chmod +x /usr/local/bin/etcd-defrag.sh
+    systemctl daemon-reload
+    systemctl enable etcd-defrag.timer
+
+    ok "etcd defrag timer installed (weekly, Sundays 04:00)"
 else
     log "Skipping etcd disk setup (worker node)"
 fi
