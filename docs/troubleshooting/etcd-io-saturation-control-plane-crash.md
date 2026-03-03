@@ -98,8 +98,8 @@ kubectl cluster-info
 kubectl get nodes
 
 # 2. Rebuild Cilium eBPF service maps on all nodes
-#    The cilium-healthcheck DaemonSet should handle this automatically,
-#    but verify its logs first. If it hasn't acted, restart manually:
+#    The cilium-healthcheck DaemonSet may have already handled this.
+#    Verify its logs, then force a restart to ensure all nodes are clean:
 kubectl logs -n kube-system -l app.kubernetes.io/name=cilium-healthcheck --tail=5
 kubectl rollout restart daemonset -n kube-system cilium
 kubectl rollout status daemonset -n kube-system cilium --timeout=120s

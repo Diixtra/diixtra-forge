@@ -7,10 +7,12 @@
 # invisible to standard Kubernetes health checks — nodes show Ready,
 # Cilium pods show Running, but pod-to-service networking is broken.
 #
-# The check runs on every node, tests ClusterIP connectivity and DNS
-# resolution via kubectl (which uses the mounted SA token and CA),
+# The check runs on every node via hostNetwork (bypassing Cilium's
+# datapath so it can still reach the API server when eBPF maps are
+# stale), tests ClusterIP connectivity and DNS resolution via kubectl,
 # and deletes the local Cilium agent pod if both fail persistently
-# (the DaemonSet controller recreates it, rebuilding the eBPF maps).
+# (rate-limited to 3 restarts per hour; the DaemonSet controller
+# recreates the pod, rebuilding the eBPF maps).
 # ══════════════════════════════════════════════════════════════════
 apiVersion: apps/v1
 kind: DaemonSet
@@ -34,6 +36,8 @@ spec:
         app.kubernetes.io/name: cilium-healthcheck
         app.kubernetes.io/managed-by: flux
     spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
       serviceAccountName: cilium-healthcheck
       tolerations:
         - operator: Exists
@@ -44,7 +48,8 @@ spec:
             - /bin/sh
             - -c
             - |
-              # No -e: loop must survive individual check failures
+              # No -e: individual check failures must not kill the loop.
+              # -u catches typos in variable names.
               set -u
 
               CHECK_INTERVAL=60
@@ -56,21 +61,37 @@ spec:
 
               RESTART_COUNT=0
               RESTART_WINDOW_START=$(date +%s)
+              RATE_LIMIT_HITS=0
               CHECKS=0
+              LAST_PROBE_ERR=""
 
               log() { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') $*"; }
 
               trap 'log "Received signal, shutting down"; exit 0' TERM INT
 
               # Uses kubectl with mounted SA token and CA — handles TLS and auth.
+              # Captures stderr so callers can inspect error type.
               test_clusterip() {
-                timeout 5 kubectl get --raw /livez >/dev/null 2>&1
+                LAST_PROBE_ERR=$(timeout 5 kubectl get --raw /livez 2>&1 >/dev/null) && return 0
+                return 1
               }
 
-              # Forces DNS resolution by using the FQDN via --server flag.
+              # Tests DNS resolution path: kubectl resolves the FQDN via CoreDNS,
+              # exercising a different eBPF service map entry than test_clusterip().
               test_dns() {
-                timeout 5 kubectl get --raw /livez \
-                  --server="https://kubernetes.default.svc.cluster.local:443" >/dev/null 2>&1
+                LAST_PROBE_ERR=$(timeout 5 kubectl get --raw /livez \
+                  --server="https://kubernetes.default.svc.cluster.local:443" 2>&1 >/dev/null) && return 0
+                return 1
+              }
+
+              # Check if probe errors indicate a non-Cilium problem (auth, RBAC).
+              # Returns 0 if the error is NOT a Cilium eBPF issue.
+              is_non_cilium_error() {
+                case "${LAST_PROBE_ERR}" in
+                  *Unauthorized*|*Forbidden*|*forbidden*|*certificate*expired*)
+                    return 0 ;;
+                esac
+                return 1
               }
 
               # Validate prerequisites
@@ -84,13 +105,16 @@ spec:
               fi
 
               log "Starting cilium-healthcheck on node ${NODE_NAME}"
-              log "Check interval: ${CHECK_INTERVAL}s, retries: ${RETRY_COUNT}, cooldown: ${COOLDOWN_AFTER_RESTART}s, max restarts: ${MAX_RESTARTS}/hour"
+              log "Check interval: ${CHECK_INTERVAL}s, retries: ${RETRY_COUNT}, cooldown: ${COOLDOWN_AFTER_RESTART}s, max restarts: ${MAX_RESTARTS}/${RESTART_WINDOW}s window"
+              touch /tmp/healthcheck-alive
 
               while true; do
                 sleep "${CHECK_INTERVAL}" &
                 wait $!
                 CHECKS=$((CHECKS + 1))
-                touch /tmp/healthcheck-alive
+                if ! touch /tmp/healthcheck-alive; then
+                  log "ERROR: Failed to update heartbeat file /tmp/healthcheck-alive — liveness probe will eventually kill this pod"
+                fi
 
                 # Quick check — if either passes, networking is fine
                 if test_clusterip || test_dns; then
@@ -129,15 +153,31 @@ spec:
                 log "  ClusterIP probe: ${CLUSTERIP_ERR}"
                 log "  DNS probe: ${DNS_ERR}"
 
+                # Skip remediation if the error is auth/RBAC, not a Cilium issue
+                if is_non_cilium_error; then
+                  log "ERROR: Probe failure appears to be auth/RBAC, NOT stale eBPF maps: ${LAST_PROBE_ERR}"
+                  sleep "${CHECK_INTERVAL}" &
+                  wait $!
+                  continue
+                fi
+
                 # Rate limit restarts to prevent infinite restart loops
-                NOW=$(date +%s)
+                NOW=$(date +%s) || { log "ERROR: date command failed"; sleep "${CHECK_INTERVAL}" & wait $!; continue; }
                 ELAPSED=$((NOW - RESTART_WINDOW_START))
                 if [ "${ELAPSED}" -gt "${RESTART_WINDOW}" ]; then
+                  if [ "${RESTART_COUNT}" -gt 0 ]; then
+                    log "WARN: Restart window expired. Previous window had ${RESTART_COUNT} restarts. Resetting counter."
+                  fi
                   RESTART_COUNT=0
                   RESTART_WINDOW_START=${NOW}
                 fi
                 if [ "${RESTART_COUNT}" -ge "${MAX_RESTARTS}" ]; then
-                  log "ERROR: Already restarted Cilium ${RESTART_COUNT} times in the last ${ELAPSED}s. Manual intervention required on ${NODE_NAME}."
+                  RATE_LIMIT_HITS=$((RATE_LIMIT_HITS + 1))
+                  log "ERROR: Already restarted Cilium ${RESTART_COUNT} times in the last ${ELAPSED}s (rate-limited ${RATE_LIMIT_HITS} times). Manual intervention required on ${NODE_NAME}."
+                  if [ "${RATE_LIMIT_HITS}" -ge 3 ]; then
+                    log "FATAL: Cilium restarts have not resolved the issue after ${RATE_LIMIT_HITS} rate limit cycles. Exiting to trigger pod restart."
+                    exit 1
+                  fi
                   sleep "${COOLDOWN_AFTER_RESTART}" &
                   wait $!
                   continue
@@ -148,8 +188,12 @@ spec:
                   --field-selector "spec.nodeName=${NODE_NAME}" \
                   -o jsonpath='{.items[0].metadata.name}' 2>/tmp/kubectl-stderr)
                 KUBECTL_RC=$?
+                KUBECTL_ERR=$(cat /tmp/kubectl-stderr 2>/dev/null)
+                rm -f /tmp/kubectl-stderr
+                if [ -n "${KUBECTL_ERR}" ] && [ "${KUBECTL_RC}" -eq 0 ]; then
+                  log "WARN: kubectl succeeded with warnings: ${KUBECTL_ERR}"
+                fi
                 if [ "${KUBECTL_RC}" -ne 0 ]; then
-                  KUBECTL_ERR=$(cat /tmp/kubectl-stderr 2>/dev/null)
                   log "ERROR: kubectl failed (rc=${KUBECTL_RC}) on ${NODE_NAME}: ${KUBECTL_ERR}"
                   sleep "${CHECK_INTERVAL}" &
                   wait $!
@@ -171,6 +215,16 @@ spec:
                     ;;
                 esac
 
+                # Skip deletion if Cilium pod is not Running (already restarting)
+                CILIUM_STATUS=$(timeout 30 kubectl get pod -n kube-system "${CILIUM_POD}" \
+                  -o jsonpath='{.status.phase}' 2>/dev/null) || true
+                if [ "${CILIUM_STATUS}" != "Running" ]; then
+                  log "WARN: Cilium pod ${CILIUM_POD} is in '${CILIUM_STATUS}' state, not Running. Skipping deletion."
+                  sleep "${CHECK_INTERVAL}" &
+                  wait $!
+                  continue
+                fi
+
                 log "Deleting Cilium agent ${CILIUM_POD} to rebuild eBPF maps..."
                 DELETE_OUTPUT=$(timeout 60 kubectl delete pod -n kube-system "${CILIUM_POD}" --grace-period=30 2>&1)
                 DELETE_RC=$?
@@ -188,11 +242,22 @@ spec:
                 sleep "${COOLDOWN_AFTER_RESTART}" &
                 wait $!
 
-                # Post-restart validation
-                if test_clusterip || test_dns; then
-                  log "Post-restart: connectivity restored on ${NODE_NAME}"
-                else
-                  log "WARN: Post-restart: connectivity still broken on ${NODE_NAME}"
+                # Post-restart validation with retries
+                POST_RESTART_OK=false
+                post_check=1
+                while [ "$post_check" -le 3 ]; do
+                  if test_clusterip || test_dns; then
+                    POST_RESTART_OK=true
+                    log "Post-restart check ${post_check}/3: connectivity restored on ${NODE_NAME}"
+                    break
+                  fi
+                  log "WARN: Post-restart check ${post_check}/3: connectivity not yet restored on ${NODE_NAME}"
+                  sleep 30 &
+                  wait $!
+                  post_check=$((post_check + 1))
+                done
+                if [ "${POST_RESTART_OK}" = "false" ]; then
+                  log "ERROR: Cilium restart did NOT restore connectivity on ${NODE_NAME}. Restart was ineffective."
                 fi
               done
           env:
@@ -209,6 +274,8 @@ spec:
               memory: 64Mi
           securityContext:
             allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            runAsUser: 65534
             capabilities:
               drop:
                 - ALL
@@ -218,7 +285,8 @@ spec:
               command:
                 - /bin/sh
                 - -c
-                - '[ $(($(date +%s) - $(stat -c %Y /tmp/healthcheck-alive 2>/dev/null || echo 0))) -lt 300 ]'
+                # Portable: find files modified within last 5 minutes
+                - 'find /tmp/healthcheck-alive -mmin -5 2>/dev/null | grep -q .'
             initialDelaySeconds: 120
             periodSeconds: 60
             failureThreshold: 3
