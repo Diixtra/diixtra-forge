@@ -81,17 +81,48 @@ Control plane resources increased from 2 CPU / 3.8GB RAM to 4 CPU / 5.8GB RAM.
 | Pod | Issue | Fix |
 |-----|-------|-----|
 | democratic-csi controllers (x2) | CrashLoopBackOff — leader election failures due to API server down | Self-healed once API server stabilised |
-| backstage | CrashLoopBackOff — DB connection timeout | Pod restart after PostgreSQL service recovered |
+| cilium agents (per-node) | Stale eBPF service maps — new pods get `EHOSTUNREACH` for ClusterIPs while existing pods work fine | Rolling restart: `kubectl rollout restart ds -n kube-system cilium` |
+| backstage | CrashLoopBackOff — DB connection timeout (`EHOSTUNREACH` for PostgreSQL ClusterIP due to stale Cilium eBPF) | Restart Cilium agent on affected node, then restart Backstage |
 | kube-state-metrics | CrashLoopBackOff — bad deployment revision with Go `map[]` syntax in args | Rolled back to revision 2 |
 | nvidia-device-plugin | ContainerCreating — NVIDIA kernel module not built for azure kernel | Installed `linux-headers-6.17.0-1008-azure`, DKMS rebuilt nvidia module |
 | ollama | Pending — no GPU resources available | Self-resolved once nvidia-device-plugin registered the GPU |
 | node-cleanup CronJob | ImagePullBackOff — `bitnami/kubectl:1.31` not found | Patched to `registry.k8s.io/kubectl:v1.35.1` |
 
+## Post-Recovery Checklist
+
+After the control plane recovers from any outage, run these steps in order:
+
+```bash
+# 1. Verify API server and nodes
+kubectl cluster-info
+kubectl get nodes
+
+# 2. Rebuild Cilium eBPF service maps on all nodes
+#    Without this, new pods may get EHOSTUNREACH for ClusterIPs
+kubectl rollout restart daemonset -n kube-system cilium
+kubectl rollout status daemonset -n kube-system cilium --timeout=120s
+
+# 3. Verify ClusterIP routing works (from a debug pod)
+kubectl run check-net --rm -it --restart=Never --image=busybox \
+  --overrides='{"spec":{"containers":[{"name":"check","image":"busybox","command":["sh","-c","nslookup kubernetes.default && echo OK || echo FAIL"],"resources":{"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  -n kube-system
+
+# 4. Restart any pods that were crash-looping during the outage
+kubectl get pods -A | grep -E 'CrashLoopBackOff|Error'
+# For each affected deployment/statefulset:
+# kubectl rollout restart deployment -n <namespace> <name>
+
+# 5. Run full cluster health check
+python3 scripts/ops/validate-cluster-health.py
+```
+
 ## Prevention
 
 1. **Packer builds** now include dedicated etcd disk with `nodiscard` mount and udev rule
 2. **Monitoring** — GitHub issue #475 created for Slack alerting on cluster health events
-3. **Future improvement:** Move VM disks to a Proxmox storage pool backed by local NVMe
+3. **Cilium health check DaemonSet** — automatically detects stale eBPF maps and restarts
+   the local Cilium agent (see `platform/base/cilium-healthcheck/`)
+4. **Future improvement:** Move VM disks to a Proxmox storage pool backed by local NVMe
    rather than network/thin-provisioned storage. etcd requires <10ms fdatasync latency;
    the current pool delivers ~250ms.
 

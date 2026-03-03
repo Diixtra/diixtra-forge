@@ -23,6 +23,7 @@ resources:
   - ../../base/traefik-config
   - ../../base/policy-reporter
   - ../../base/node-cleanup
+  - ../../base/cilium-healthcheck
   - ../../base/reloader
 patches:
   - target:
