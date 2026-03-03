@@ -20,17 +20,22 @@ jobs:
     runs-on: homelab
     timeout-minutes: 15
     if: "!startsWith(github.event.head_commit.message, 'Revert \"')"
+    outputs:
+      api_reachable: ${{ steps.preflight.outputs.api_reachable }}
     steps:
       - name: Pre-flight — API server reachable
+        id: preflight
         run: |
           for i in 1 2 3 4 5; do
             if kubectl cluster-info --request-timeout=10s > /dev/null 2>&1; then
               echo "API server reachable"
+              echo "api_reachable=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi
             echo "Attempt $i/5 — API server not responding, waiting 15s..."
             sleep 15
           done
+          echo "api_reachable=false" >> "$GITHUB_OUTPUT"
           echo "::error::API server unreachable after 5 attempts"
           exit 1
 
@@ -112,7 +117,13 @@ jobs:
   rollback:
     name: Auto Rollback
     needs: health-check
-    if: failure() && !startsWith(github.event.head_commit.message, 'Revert "')
+    # Only rollback when the API server was reachable but health checks failed.
+    # If the API is unreachable, reverting won't help and creates a loop with
+    # Flux image automation (revert → Flux pushes again → revert → ...).
+    if: >-
+      failure()
+      && needs.health-check.outputs.api_reachable == 'true'
+      && !startsWith(github.event.head_commit.message, 'Revert "')
     runs-on: ubuntu-latest
     timeout-minutes: 10
     permissions:
