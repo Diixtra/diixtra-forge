@@ -206,7 +206,70 @@ EOF
 
 ok "Kubelet DNS resolv.conf created (/etc/kubernetes/resolv.conf)"
 
-# ── 8. Raspberry Pi Specific Configuration ─────────────────────────
+# ── 8. Dedicated etcd Disk ──────────────────────────────────────────
+# LEARNING NOTE — WHY A DEDICATED ETCD DISK:
+#   etcd uses a write-ahead log (WAL) that requires fast, synchronous writes
+#   (fdatasync). When etcd shares a disk with containerd images, kubelet, and
+#   container logs, I/O contention causes fdatasync latency to spike from <10ms
+#   to 10-30 seconds. This makes etcd unresponsive, the API server times out,
+#   and the entire control plane crash-loops.
+#
+#   The Packer template attaches a second disk (sdb) specifically for etcd.
+#   This script formats it, mounts it at /var/lib/etcd, and adds an fstab
+#   entry so it persists across reboots. etcd then has dedicated I/O bandwidth
+#   and the control plane stays stable.
+#
+#   We only do this on control-plane nodes (workers don't run etcd).
+#   The disk is detected by looking for an unformatted second SCSI disk.
+if [ "${NODE_ROLE}" = "control-plane" ]; then
+    log "Configuring dedicated etcd disk..."
+
+    # Find the second disk (sdb) — added by Packer template
+    ETCD_DISK="/dev/sdb"
+    if [ -b "${ETCD_DISK}" ]; then
+        # Format with ext4 — etcd's recommended filesystem
+        mkfs.ext4 -q -L etcd-data "${ETCD_DISK}"
+
+        # Create mount point and add fstab entry
+        # LEARNING NOTE — NODISCARD MOUNT OPTION:
+        #   Proxmox thin-provisioned QEMU disks support TRIM/discard, but large
+        #   discard requests (up to 1GB) can stall the virtual disk completely —
+        #   100% util with zero throughput. This hangs etcd in uninterruptible I/O
+        #   sleep (D state), taking down the entire control plane. The `nodiscard`
+        #   mount option prevents ext4 from issuing inline TRIM commands. If TRIM
+        #   is needed for space reclamation, use scheduled `fstrim` instead.
+        mkdir -p /var/lib/etcd
+        echo "LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,nodiscard 0 2" >> /etc/fstab
+
+        # Disable discards at the block device level as a belt-and-suspenders
+        # safeguard. The udev rule persists this across reboots.
+        # LEARNING NOTE — WHY BOTH NODISCARD AND UDEV:
+        #   The fstab `nodiscard` prevents the filesystem from sending TRIMs.
+        #   The udev rule sets discard_max_bytes=0 at the block layer, catching
+        #   any other source of discard requests (e.g. blkdiscard, mkfs). Both
+        #   are needed because either one alone has edge cases.
+        echo 'ACTION=="add|change", KERNEL=="sdb", ATTR{queue/discard_max_bytes}="0"' \
+            > /etc/udev/rules.d/99-etcd-nodiscard.rules
+
+        # Mount now to verify it works
+        mount /var/lib/etcd
+
+        # Set permissions — etcd runs as root in the static pod but the
+        # data directory needs restricted access
+        chmod 700 /var/lib/etcd
+
+        ok "etcd disk formatted and mounted at /var/lib/etcd (${ETCD_DISK})"
+    else
+        warn "No second disk found at ${ETCD_DISK} — etcd will use root disk"
+        warn "Control plane performance may be degraded under I/O load"
+        mkdir -p /var/lib/etcd
+        chmod 700 /var/lib/etcd
+    fi
+else
+    log "Skipping etcd disk setup (worker node)"
+fi
+
+# ── 9. Raspberry Pi Specific Configuration ─────────────────────────
 # LEARNING NOTE — CGROUP MEMORY ON RASPBERRY PI:
 #   The Raspberry Pi's default kernel boot parameters don't enable the
 #   memory cgroup controller. Kubelet REQUIRES memory cgroups to enforce
@@ -244,7 +307,7 @@ if [ "${NODE_ARCH}" = "arm64" ]; then
     fi
 fi
 
-# ── 9. Cleanup ──────────────────────────────────────────────────────
+# ── 10. Cleanup ─────────────────────────────────────────────────────
 # LEARNING NOTE — WHY CLEAN UP IN A PACKER BUILD:
 #   Packer captures the VM state as a template image. Any temporary files,
 #   apt caches, or logs from the provisioning process are baked into the

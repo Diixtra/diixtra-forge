@@ -143,6 +143,12 @@ variable "network_bridge" {
   default     = "vmbr0"
 }
 
+variable "etcd_disk_size" {
+  type        = string
+  description = "Dedicated disk size for etcd data (control plane nodes)"
+  default     = "50G"
+}
+
 # ── Source: Proxmox ISO Builder ─────────────────────────────────────
 # LEARNING NOTE — HOW THE BUILD WORKS:
 #   1. Packer calls the Proxmox API to create a VM with the ISO attached
@@ -196,12 +202,24 @@ source "proxmox-iso" "ubuntu-k8s" {
   #   recommended controller for modern Linux VMs in Proxmox.
   scsi_controller = "virtio-scsi-single"
 
+  # OS disk
   disks {
     storage_pool = var.proxmox_disk_storage
     disk_size    = var.vm_disk_size
     type         = "scsi"
     discard      = true   # Enable TRIM for thin provisioning
     ssd          = true   # Hint to guest OS for SSD optimisation
+  }
+
+  # Dedicated etcd disk — isolates etcd WAL/data I/O from the OS disk.
+  # Without this, etcd shares the root disk with containerd, kubelet, and
+  # logs, causing fdatasync latency spikes (10-30s) that crash the API server.
+  disks {
+    storage_pool = var.proxmox_disk_storage
+    disk_size    = var.etcd_disk_size
+    type         = "scsi"
+    discard      = true
+    ssd          = true
   }
 
   network_adapters {
