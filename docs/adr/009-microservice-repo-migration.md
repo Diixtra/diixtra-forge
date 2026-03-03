@@ -24,13 +24,17 @@ GitOps control plane (`diixtra-forge`) as the deployment source of truth.
 
 ### Target Repositories
 
-| Repo | Contents | Purpose |
-|------|----------|---------|
-| `diixtra-forge` (stays) | clusters, infrastructure, platform, apps | GitOps control plane — Flux watches this |
-| `diixtra-backstage` | Backstage IDP source (TypeScript) | Internal Developer Platform |
-| `diixtra-packer` | Packer templates (HCL, Bash) | Golden VM/Pi images |
-| `diixtra-mcp-servers` | MCP server manifests + future code | Model Context Protocol servers |
-| `diixtra-docs` | ADRs, runbooks, learning docs | Documentation |
+| Repo | Contents | Purpose | Visibility |
+|------|----------|---------|------------|
+| `diixtra-forge` (stays) | clusters, infrastructure, platform, apps | GitOps control plane — Flux watches this | Private |
+| `diixtra-backstage` | Backstage IDP source (TypeScript) | Internal Developer Platform | Private |
+| `diixtra-packer` | Packer templates (HCL, Bash) | Golden VM/Pi images | Private |
+| `diixtra-mcp-servers` | MCP server manifests + future code | Model Context Protocol servers | Private |
+| `diixtra-docs` | ADRs, runbooks, learning docs | Documentation | **Private** |
+
+> **Note:** `diixtra-docs` is explicitly private to avoid exposing internal
+> architecture details, IP addresses, vault paths, and infrastructure topology.
+> All repos default to private unless there is a specific reason to publish.
 
 ### Key Design Decisions
 

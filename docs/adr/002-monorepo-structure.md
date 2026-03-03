@@ -1,7 +1,7 @@
 # ADR-002: Monorepo for All Infrastructure
 
 ## Status
-Accepted
+Superseded by [ADR-009](009-microservice-repo-migration.md)
 
 ## Date
 2026-02-13
@@ -23,3 +23,7 @@ Single monorepo (`diixtra-forge`) with path-based CI triggers.
 ## Migration Path
 Split into polyrepo if: team exceeds ~5 engineers, or different layers need
 isolated access controls, or CI pipeline times become unacceptable.
+
+## Superseded By
+ADR-009 (Multi-Repo Migration, 2026-02-27). The monorepo is being migrated
+to a purpose-specific multi-repo structure.

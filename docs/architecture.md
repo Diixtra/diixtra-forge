@@ -12,7 +12,7 @@ source of truth, reconciled by Kubernetes-native controllers.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Git Repository                               │
-│              diixtra-forge (monorepo)                         │
+│         diixtra-forge (GitOps control plane)                  │
 │                                                                     │
 │  clusters/     infrastructure/    platform/    apps/    terraform/   │
 │  (Flux         (Layer 1:          (Layer 2:    (Layer 3: (Cloud     │
@@ -145,7 +145,8 @@ can alert on the absence of new data.
 | Phase | Focus                          | Key Tools              |
 |-------|--------------------------------|------------------------|
 | 1     | GitOps bootstrap, auto-update  | Flux, Renovate         |
-| 2     | Policy enforcement, supply chain| Kyverno, Trivy, Cosign|
+| 1.5   | Artefact preservation           | Forgejo (ADR-010)      |
+| 2     | Policy enforcement, supply chain| Kyverno, Trivy, Cosign |
 | 3     | Developer self-service         | Backstage              |
 | 4     | Declarative everything         | Crossplane, UniFi API  |
 | 5     | Runtime security               | Falco, CSI driver, NetworkPolicies |
@@ -164,6 +165,8 @@ See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 | 006 | TrueNAS dynamic storage via democratic-csi | 2026-02-14 |
 | 007 | 1Password Operator over Sealed Secrets     | 2026-02-14 |
 | 008 | CNI replacement (Flannel to Cilium) and NetworkPolicy | 2026-02-24 |
+| 009 | Multi-repo migration (supersedes ADR-002)  | 2026-02-27 |
+| 010 | Self-hosted git mirror & supply chain resilience (Forgejo) | 2026-03-03 |
 
 ## Runbooks
 
