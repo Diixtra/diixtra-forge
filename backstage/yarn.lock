@@ -2792,8 +2792,8 @@ __metadata:
   linkType: hard
 
 "@backstage/plugin-catalog@npm:^1.33.0":
-  version: 1.33.0
-  resolution: "@backstage/plugin-catalog@npm:1.33.0"
+  version: 1.33.1
+  resolution: "@backstage/plugin-catalog@npm:1.33.1"
   dependencies:
     "@backstage/catalog-client": "npm:^1.13.0"
     "@backstage/catalog-model": "npm:^1.7.6"
@@ -2801,14 +2801,14 @@ __metadata:
     "@backstage/core-components": "npm:^0.18.7"
     "@backstage/core-plugin-api": "npm:^1.12.3"
     "@backstage/errors": "npm:^1.2.7"
-    "@backstage/frontend-plugin-api": "npm:^0.14.0"
+    "@backstage/frontend-plugin-api": "npm:^0.14.1"
     "@backstage/integration-react": "npm:^1.2.15"
     "@backstage/plugin-catalog-common": "npm:^1.1.8"
     "@backstage/plugin-catalog-react": "npm:^2.0.0"
     "@backstage/plugin-permission-react": "npm:^0.4.40"
     "@backstage/plugin-scaffolder-common": "npm:^1.7.6"
     "@backstage/plugin-search-common": "npm:^1.2.22"
-    "@backstage/plugin-search-react": "npm:^1.10.3"
+    "@backstage/plugin-search-react": "npm:^1.10.4"
     "@backstage/plugin-techdocs-common": "npm:^0.1.1"
     "@backstage/plugin-techdocs-react": "npm:^1.3.8"
     "@backstage/types": "npm:^1.2.2"
@@ -2834,7 +2834,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/69aa40e6a3d135cb909d759da1a6e1528a0dfca8e4d75588600ff1a54d603e57e46f9949cca7f9199a1039e78dce48407c36ef77a683c6bd71cb9cae737531dc
+  checksum: 10c0/57b70eb36c6a71e92292ce215c2891bdb21249a62549e07b28b95559b1396b76973f0d48f121178adbea163285e9e8abe301b24f8848b166bfbb0fd70b65489c
   languageName: node
   linkType: hard
 
@@ -3451,13 +3451,13 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage/plugin-search-react@npm:^1.10.3":
-  version: 1.10.3
-  resolution: "@backstage/plugin-search-react@npm:1.10.3"
+"@backstage/plugin-search-react@npm:^1.10.4":
+  version: 1.10.4
+  resolution: "@backstage/plugin-search-react@npm:1.10.4"
   dependencies:
     "@backstage/core-components": "npm:^0.18.7"
     "@backstage/core-plugin-api": "npm:^1.12.3"
-    "@backstage/frontend-plugin-api": "npm:^0.14.0"
+    "@backstage/frontend-plugin-api": "npm:^0.14.1"
     "@backstage/plugin-search-common": "npm:^1.2.22"
     "@backstage/theme": "npm:^0.7.2"
     "@backstage/types": "npm:^1.2.2"
@@ -3477,7 +3477,7 @@ __metadata:
   peerDependenciesMeta:
     "@types/react":
       optional: true
-  checksum: 10c0/3b9a3a263fe1635c0f032689d83575f09cb6c99906d01d9aa623efd5c77d21a912102890162a60ef5e20d11bcdc8e38a2118adba298a5d3246f1f5ca3eefa7c8
+  checksum: 10c0/e227090a820d09b572ff3b8383bcafe805070f5e5edd9cdf82e57dff77795382d4cb72d02304cceef5a288b4d6520852018335a7e16ffa7aa613876b7afb00af
   languageName: node
   linkType: hard
 
@@ -11212,40 +11212,6 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@terasky/backstage-plugin-kubernetes-resources-frontend@npm:*":
-  version: 0.11.0
-  resolution: "@terasky/backstage-plugin-kubernetes-resources-frontend@npm:0.11.0"
-  dependencies:
-    "@backstage/catalog-model": "npm:^1.7.6"
-    "@backstage/core-components": "npm:^0.18.7"
-    "@backstage/core-plugin-api": "npm:^1.12.3"
-    "@backstage/frontend-plugin-api": "npm:^0.14.0"
-    "@backstage/plugin-catalog-react": "npm:^2.0.0"
-    "@backstage/plugin-kubernetes": "npm:^0.12.16"
-    "@backstage/plugin-kubernetes-react": "npm:^0.5.16"
-    "@backstage/plugin-permission-common": "npm:^0.9.6"
-    "@backstage/plugin-permission-react": "npm:^0.4.40"
-    "@backstage/theme": "npm:^0.7.2"
-    "@material-ui/core": "npm:^4.12.4"
-    "@material-ui/icons": "npm:^4.11.3"
-    "@material-ui/lab": "npm:^4.0.0-alpha.61"
-    "@terasky/backstage-plugin-kubernetes-resources-common": "npm:^0.2.18"
-    "@types/pluralize": "npm:^0.0.33"
-    dagre: "npm:^0.8.5"
-    file-saver: "npm:^2.0.5"
-    js-yaml: "npm:^4.1.0"
-    pluralize: "npm:^8.0.0"
-    react-copy-to-clipboard: "npm:^5.1.0"
-    react-flow-renderer: "npm:^10.3.17"
-    react-json-view: "npm:^1.21.3"
-    react-syntax-highlighter: "npm:^15.6.1"
-    react-use: "npm:^17.6.0"
-  peerDependencies:
-    react: ^16.13.1 || ^17.0.0 || ^18.0.0
-  checksum: 10c0/0d7629e24bac037cfecd70158b8cea5a924b8feb4319b5d653531d1eb7499d1575a9f204a45bbe56eac4e1b8c6cfc81c3f8436fe5e39dd7ebae6b947b63d1770
-  languageName: node
-  linkType: hard
-
 "@terasky/backstage-plugin-kubernetes-resources-permissions-backend@npm:*":
   version: 0.8.0
   resolution: "@terasky/backstage-plugin-kubernetes-resources-permissions-backend@npm:0.8.0"
@@ -13149,7 +13115,6 @@ __metadata:
     "@terasky/backstage-plugin-crossplane-resources-frontend": "npm:*"
     "@terasky/backstage-plugin-entity-scaffolder-content": "npm:*"
     "@terasky/backstage-plugin-gitops-manifest-updater": "npm:*"
-    "@terasky/backstage-plugin-kubernetes-resources-frontend": "npm:*"
     "@terasky/backstage-plugin-template-builder": "npm:*"
     "@types/react-dom": "npm:*"
     react: "npm:^18.0.2"
