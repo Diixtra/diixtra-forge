@@ -15,10 +15,10 @@ disappear without warning:
 - **MCP server images** from solo maintainers (`ghcr.io/alexei-led/k8s-mcp-server`,
   `ghcr.io/grafana/mcp-grafana`, `hashicorp/terraform-mcp-server`) — young
   ecosystem, high churn risk
-- **8 Terasky Backstage plugins** pinned to `*` — single vendor, no version
+- **9 Terasky Backstage plugins** pinned to `*` — single vendor, no version
   pinning, could pivot or disappear
-- **npx-at-runtime pattern** for Cloudflare and Stripe MCP servers — if the
-  npm package is unpublished, pods fail on next restart
+- **npx-at-runtime pattern** for Cloudflare, Stripe, and Memory MCP servers —
+  if any of these npm packages is unpublished, pods fail on next restart
 - **GitHub itself** — having a local mirror enables portability if we choose
   to move off GitHub or if there's an extended outage
 
@@ -35,8 +35,8 @@ built-in repository mirroring, container registry, and package registry.
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Forgejo** | Community-governed fork of Gitea, lightweight (~200MB RAM), built-in mirror sync, OCI package registry, Helm chart available | Younger than Gitea |
-| Gitea | Mature, same feature set | Backed by Gitea Ltd (for-profit) — ironic dependency for an independence layer |
+| **Forgejo** | Community-governed fork of Gitea, lightweight (~256MB RAM), built-in mirror sync, OCI package registry, Helm chart available | Younger than Gitea |
+| Gitea | Mature, same feature set, Helm chart available | Backed by Gitea Ltd (for-profit) — ironic dependency for an independence layer |
 | GitLab CE | Full DevOps platform | 4GB+ RAM, massive overkill for mirroring |
 | Bare `git clone --mirror` on TrueNAS | Zero overhead | No UI, no mirror management, no container registry |
 
@@ -84,6 +84,9 @@ images with dependencies baked in. Eliminate runtime npm pulls entirely.
 - **Secrets:** 1Password for admin credentials and GitHub mirror tokens
 - **Layer:** Infrastructure (Layer 1) — other services may depend on it for
   source code access
+
+> These are the target deployment parameters. Implementation will be tracked
+> in a separate PR against `infrastructure/base/forgejo/`.
 
 ## Consequences
 

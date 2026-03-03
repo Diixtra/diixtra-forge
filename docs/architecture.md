@@ -145,7 +145,8 @@ can alert on the absence of new data.
 | Phase | Focus                          | Key Tools              |
 |-------|--------------------------------|------------------------|
 | 1     | GitOps bootstrap, auto-update  | Flux, Renovate         |
-| 2     | Policy enforcement, supply chain| Kyverno, Trivy, Cosign, Forgejo (ADR-010) |
+| 1.5   | Artefact preservation           | Forgejo (ADR-010)      |
+| 2     | Policy enforcement, supply chain| Kyverno, Trivy, Cosign |
 | 3     | Developer self-service         | Backstage              |
 | 4     | Declarative everything         | Crossplane, UniFi API  |
 | 5     | Runtime security               | Falco, CSI driver, NetworkPolicies |
