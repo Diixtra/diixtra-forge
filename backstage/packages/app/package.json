@@ -12,8 +12,8 @@
     "clean": "backstage-cli package clean"
   },
   "dependencies": {
-    "@backstage-community/plugin-github-actions": "*",
-    "@backstage-community/plugin-tech-radar": "*",
+    "@backstage-community/plugin-github-actions": "^0.21.0",
+    "@backstage-community/plugin-tech-radar": "^1.15.0",
     "@backstage/app-defaults": "^1.7.5",
     "@backstage/catalog-model": "^1.7.6",
     "@backstage/cli": "^0.35.4",
@@ -30,18 +30,18 @@
     "@kyverno/backstage-plugin-policy-reporter": "^2.6.0",
     "@material-ui/icons": "^4.9.1",
     "@mui/material": "^5.0.0",
-    "@terasky/backstage-plugin-api-docs-module-crd": "*",
-    "@terasky/backstage-plugin-crossplane-resources-frontend": "*",
-    "@terasky/backstage-plugin-entity-scaffolder-content": "*",
-    "@terasky/backstage-plugin-gitops-manifest-updater": "*",
-    "@terasky/backstage-plugin-template-builder": "*",
+    "@terasky/backstage-plugin-api-docs-module-crd": "^0.2.0",
+    "@terasky/backstage-plugin-crossplane-resources-frontend": "^2.12.0",
+    "@terasky/backstage-plugin-entity-scaffolder-content": "^1.7.0",
+    "@terasky/backstage-plugin-gitops-manifest-updater": "^2.5.0",
+    "@terasky/backstage-plugin-template-builder": "^0.2.0",
     "react": "^18.0.2",
     "react-dom": "^18.0.2",
     "react-router": "^7.0.0",
     "react-router-dom": "^7.0.0"
   },
   "devDependencies": {
-    "@types/react-dom": "*"
+    "@types/react-dom": "^18.3.7"
   },
   "browserslist": {
     "production": [
