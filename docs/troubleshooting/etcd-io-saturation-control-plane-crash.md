@@ -50,30 +50,25 @@ shorter than the disk latency, causing raft agreement to time out repeatedly.
 - `packer/proxmox-ubuntu/ubuntu-k8s.pkr.hcl` — added second disk block + `etcd_disk_size` variable
 - `packer/scripts/provision-k8s-node.sh` — formats sdb, mounts at `/var/lib/etcd`
 
-### 2. Disable TRIM/Discard on etcd Disk
-**fstab:** `nodiscard` mount option prevents ext4 from issuing inline TRIMs
-```
-LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,nodiscard 0 2
-```
+### 2. Moved etcd Disk to Local NVMe (`local-lvm`)
+The etcd disk was on `nas-1` (TrueNAS over network) — ~250ms fsync latency. Moved to
+`local-lvm` (NVMe on the Proxmox host) via `qm move-disk 101 scsi1 local-lvm --delete 1`.
 
-**udev rule:** Belt-and-suspenders block-layer discard disable
-```
-# /etc/udev/rules.d/99-etcd-nodiscard.rules
-ACTION=="add|change", KERNEL=="sdb", ATTR{queue/discard_max_bytes}="0"
-```
+This eliminated the root cause. The following NAS workarounds were **removed** as they are
+unnecessary (or harmful) on local NVMe:
 
-### 3. etcd Heartbeat Tuning (manual, applied to etcd.yaml on kaz-k8-1)
-For storage with >100ms latency, the default etcd heartbeat (100ms) is too aggressive:
-```yaml
-# /etc/kubernetes/manifests/etcd.yaml
-- --heartbeat-interval=500    # default: 100ms, 2x disk latency
-- --election-timeout=5000     # default: 1000ms, 10x heartbeat
-```
+| Workaround | Why removed |
+|---|---|
+| `nodiscard` fstab mount | NVMe handles TRIM fast; discard reclaims thin pool space |
+| `discard_max_bytes=0` udev rule | Same — only needed for NAS TRIM stalls |
+| `mq-deadline` I/O scheduler | NVMe has its own scheduler; `none` is optimal |
+| `--heartbeat-interval=500` | NVMe fsync is <1ms; default 100ms heartbeat is fine |
+| `--election-timeout=5000` | Default 1000ms is fine; 5000ms delays failure detection |
 
-**Note:** This was applied manually to the live node. For new clusters, this should be
-configured via kubeadm's `ClusterConfiguration.etcd.local.extraArgs` during bootstrap.
+**Packer template** updated: `etcd_disk_storage` variable allows placing the etcd disk on
+a separate storage pool from the OS disk. Set to `local-lvm` in variables file.
 
-### 4. VM Resource Increase
+### 3. VM Resource Increase
 Control plane resources increased from 2 CPU / 3.8GB RAM to 4 CPU / 5.8GB RAM.
 
 ## Cascade Effects Fixed
@@ -89,11 +84,10 @@ Control plane resources increased from 2 CPU / 3.8GB RAM to 4 CPU / 5.8GB RAM.
 
 ## Prevention
 
-1. **Packer builds** now include dedicated etcd disk with `nodiscard` mount and udev rule
-2. **Monitoring** — GitHub issue #475 created for Slack alerting on cluster health events
-3. **Future improvement:** Move VM disks to a Proxmox storage pool backed by local NVMe
-   rather than network/thin-provisioned storage. etcd requires <10ms fdatasync latency;
-   the current pool delivers ~250ms.
+1. **etcd on local NVMe** — Packer template uses `etcd_disk_storage = "local-lvm"` to place
+   etcd on fast local storage. NAS/network storage should never be used for etcd.
+2. **Packer builds** include dedicated etcd disk with discard enabled and weekly defrag timer
+3. **Monitoring** — GitHub issue #475 created for Slack alerting on cluster health events
 
 ## Diagnostic Commands Reference
 
@@ -112,7 +106,7 @@ sudo crictl exec <etcd-container-id> etcdctl \
   --key=/etc/kubernetes/pki/etcd/server.key \
   endpoint status --write-out=table
 
-# Check TRIM/discard settings
-cat /sys/block/sdb/queue/discard_max_bytes  # should be 0
-mount | grep etcd  # should show nodiscard
+# Check TRIM/discard settings (on NVMe, discards should be enabled)
+cat /sys/block/sdb/queue/discard_max_bytes  # should be >0 on NVMe
+mount | grep etcd  # should show discard (not nodiscard)
 ```

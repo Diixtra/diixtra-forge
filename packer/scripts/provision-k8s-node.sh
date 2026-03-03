@@ -231,39 +231,16 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
         mkfs.ext4 -q -L etcd-data "${ETCD_DISK}"
 
         # Create mount point and add fstab entry
-        # LEARNING NOTE — NODISCARD MOUNT OPTION:
-        #   Proxmox thin-provisioned QEMU disks support TRIM/discard, but large
-        #   discard requests (up to 1GB) can stall the virtual disk completely —
-        #   100% util with zero throughput. This hangs etcd in uninterruptible I/O
-        #   sleep (D state), taking down the entire control plane. The `nodiscard`
-        #   mount option prevents ext4 from issuing inline TRIM commands. If TRIM
-        #   is needed for space reclamation, use scheduled `fstrim` instead.
+        # LEARNING NOTE — DISCARD ON LOCAL NVMe VS NAS:
+        #   The etcd disk should be on local NVMe (etcd_disk_storage = "local-lvm").
+        #   On local NVMe, discard/TRIM is fast and reclaims thin pool space.
+        #   On NAS (TrueNAS), large TRIM requests stall the virtual disk completely
+        #   (100% util, zero throughput). We previously used `nodiscard` and a udev
+        #   rule to block TRIMs when etcd was on NAS — those workarounds were removed
+        #   when we moved to local NVMe. If you must use NAS storage, add `nodiscard`
+        #   to the mount options and restore the udev rule from git history.
         mkdir -p /var/lib/etcd
-        echo "LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,nodiscard 0 2" >> /etc/fstab
-
-        # Disable discards at the block device level as a belt-and-suspenders
-        # safeguard. The udev rule persists this across reboots.
-        # LEARNING NOTE — WHY BOTH NODISCARD AND UDEV:
-        #   The fstab `nodiscard` prevents the filesystem from sending TRIMs.
-        #   The udev rule sets discard_max_bytes=0 at the block layer, catching
-        #   any other source of discard requests (e.g. blkdiscard, mkfs). Both
-        #   are needed because either one alone has edge cases.
-        echo 'ACTION=="add|change", KERNEL=="sdb", ATTR{queue/discard_max_bytes}="0"' \
-            > /etc/udev/rules.d/99-etcd-nodiscard.rules
-
-        # Force mq-deadline I/O scheduler on both disks.
-        # LEARNING NOTE — WHY MQ-DEADLINE INSTEAD OF NONE:
-        #   Proxmox sets ssd=true on virtual disks, which makes Linux default
-        #   to the `none` scheduler (designed for real NVMe with consistent
-        #   sub-millisecond latency). But thin-provisioned virtual disks have
-        #   variable latency — writes require block allocation at the
-        #   hypervisor, causing spikes of 50-300ms. The `none` scheduler
-        #   provides no request ordering or fairness, so etcd's critical
-        #   fdatasync calls get stuck behind bulk reads. mq-deadline gives
-        #   each request a deadline, preventing starvation.
-        cat > /etc/udev/rules.d/98-disk-scheduler.rules << 'UDEV'
-ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/scheduler}="mq-deadline"
-UDEV
+        echo "LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,discard 0 2" >> /etc/fstab
 
         # Mount now to verify it works
         mount /var/lib/etcd

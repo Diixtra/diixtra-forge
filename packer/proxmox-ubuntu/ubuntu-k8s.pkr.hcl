@@ -149,6 +149,12 @@ variable "etcd_disk_size" {
   default     = "50G"
 }
 
+variable "etcd_disk_storage" {
+  type        = string
+  description = "Storage pool for etcd disk. Use fast local storage (NVMe) — etcd needs <10ms fsync. Falls back to proxmox_disk_storage if empty."
+  default     = ""
+}
+
 # ── Source: Proxmox ISO Builder ─────────────────────────────────────
 # LEARNING NOTE — HOW THE BUILD WORKS:
 #   1. Packer calls the Proxmox API to create a VM with the ISO attached
@@ -215,8 +221,10 @@ source "proxmox-iso" "ubuntu-k8s" {
   # Dedicated etcd disk — isolates etcd WAL/data I/O from the OS disk.
   # Without this, etcd shares the root disk with containerd, kubelet, and
   # logs, causing fdatasync latency spikes (10-30s) that crash the API server.
+  # Use etcd_disk_storage to place this on fast local NVMe — etcd requires
+  # <10ms fdatasync latency; thin-provisioned shared storage delivers ~250ms.
   disks {
-    storage_pool = var.proxmox_disk_storage
+    storage_pool = var.etcd_disk_storage != "" ? var.etcd_disk_storage : var.proxmox_disk_storage
     disk_size    = var.etcd_disk_size
     type         = "scsi"
     discard      = true

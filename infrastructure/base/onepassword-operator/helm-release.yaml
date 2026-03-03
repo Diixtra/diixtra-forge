@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: connect
-      version: "*"          # Lab: always use latest. Pin in production.
+      version: "2.3.x"      # Pin to minor — WASM runtime bugs are hard to debug
       sourceRef:
         kind: HelmRepository
         name: onepassword
@@ -20,13 +20,17 @@ spec:
     operator:
       create: true
       authMethod: service-account
+      # The operator embeds a WASM runtime (extism) for the 1Password SDK.
+      # Under memory pressure or API instability, the WASM allocator
+      # (dlmalloc) can corrupt its heap with an unrecoverable OOB error.
+      # 1Gi gives the WASM runtime headroom to avoid this.
       resources:
         requests:
           cpu: 100m
-          memory: 128Mi
+          memory: 256Mi
         limits:
           cpu: 500m
-          memory: 512Mi
+          memory: 1Gi
       serviceAccountToken:
         # The chart mounts this Secret directly into the operator pod.
         # This is the ONE bootstrap secret that must be created manually
