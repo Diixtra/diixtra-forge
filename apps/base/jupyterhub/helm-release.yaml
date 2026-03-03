@@ -28,6 +28,14 @@ spec:
     timeout: 10m
   values:
     hub:
+      config:
+        KubeSpawner:
+          # Default is 3s — too short when the hub event loop is slow
+          # (e.g. SQLite over NFS on an overloaded Pi node). API calls
+          # time out before the event loop can send them, causing
+          # "Could not create PVC" spawn failures.
+          k8s_api_request_timeout: 30
+          k8s_api_request_retry_timeout: 60
       resources:
         requests:
           cpu: 100m
