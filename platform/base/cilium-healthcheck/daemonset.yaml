@@ -7,8 +7,10 @@
 # invisible to standard Kubernetes health checks — nodes show Ready,
 # Cilium pods show Running, but pod-to-service networking is broken.
 #
-# The check runs on every node, tests ClusterIP and DNS connectivity,
-# and restarts the local Cilium agent if both fail persistently.
+# The check runs on every node, tests ClusterIP connectivity and DNS
+# resolution, and deletes the local Cilium agent pod if both fail
+# persistently (the DaemonSet controller recreates it, rebuilding
+# the eBPF maps).
 # ══════════════════════════════════════════════════════════════════
 apiVersion: apps/v1
 kind: DaemonSet
@@ -22,6 +24,10 @@ spec:
   selector:
     matchLabels:
       app.kubernetes.io/name: cilium-healthcheck
+  updateStrategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxUnavailable: 1
   template:
     metadata:
       labels:
@@ -35,34 +41,58 @@ spec:
         - name: healthcheck
           image: registry.k8s.io/kubectl:v1.35.1
           command:
-            - /bin/bash
+            - /bin/sh
             - -c
             - |
-              set -uo pipefail
+              # No -e: loop must survive individual check failures
+              set -u
 
               CHECK_INTERVAL=60
               COOLDOWN_AFTER_RESTART=300
               RETRY_COUNT=3
               RETRY_DELAY=10
+              MAX_RESTARTS=3
+              RESTART_WINDOW=3600
+
+              RESTART_COUNT=0
+              RESTART_WINDOW_START=$(date +%s)
+              CHECKS=0
 
               log() { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') $*"; }
 
+              trap 'log "Received signal, shutting down"; exit 0' TERM INT
+
               test_clusterip() {
-                timeout 5 bash -c "echo > /dev/tcp/${KUBERNETES_SERVICE_HOST}/${KUBERNETES_SERVICE_PORT}" 2>/dev/null
+                wget --spider -q -T 5 "https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/livez" 2>/dev/null
               }
 
               test_dns() {
-                nslookup kubernetes.default.svc.cluster.local 2>/dev/null | grep -q "Address"
+                wget --spider -q -T 5 "https://kubernetes.default.svc.cluster.local:443/livez" 2>/dev/null
               }
 
+              # Validate prerequisites
+              if [ -z "${KUBERNETES_SERVICE_HOST:-}" ] || [ -z "${KUBERNETES_SERVICE_PORT:-}" ]; then
+                log "FATAL: KUBERNETES_SERVICE_HOST or KUBERNETES_SERVICE_PORT not set"
+                exit 1
+              fi
+              if [ -z "${NODE_NAME:-}" ]; then
+                log "FATAL: NODE_NAME not set"
+                exit 1
+              fi
+
               log "Starting cilium-healthcheck on node ${NODE_NAME}"
-              log "Check interval: ${CHECK_INTERVAL}s, retries: ${RETRY_COUNT}, cooldown: ${COOLDOWN_AFTER_RESTART}s"
+              log "Check interval: ${CHECK_INTERVAL}s, retries: ${RETRY_COUNT}, cooldown: ${COOLDOWN_AFTER_RESTART}s, max restarts: ${MAX_RESTARTS}/hour"
 
               while true; do
-                sleep "${CHECK_INTERVAL}"
+                sleep "${CHECK_INTERVAL}" &
+                wait $!
+                CHECKS=$((CHECKS + 1))
 
                 # Quick check — if either passes, networking is fine
                 if test_clusterip || test_dns; then
+                  if [ $((CHECKS % 10)) -eq 0 ]; then
+                    log "OK: ${CHECKS} checks completed, connectivity healthy on ${NODE_NAME}"
+                  fi
                   continue
                 fi
 
@@ -70,7 +100,8 @@ spec:
                 log "WARN: ClusterIP and DNS both unreachable, retrying ${RETRY_COUNT} times..."
                 CONFIRMED_FAILURE=true
 
-                for i in $(seq 1 "${RETRY_COUNT}"); do
+                i=1
+                while [ "$i" -le "${RETRY_COUNT}" ]; do
                   sleep "${RETRY_DELAY}"
                   if test_clusterip || test_dns; then
                     log "Retry ${i}/${RETRY_COUNT}: connectivity restored, false alarm"
@@ -78,34 +109,65 @@ spec:
                     break
                   fi
                   log "Retry ${i}/${RETRY_COUNT}: still failing"
+                  i=$((i + 1))
                 done
 
                 if [ "${CONFIRMED_FAILURE}" = "false" ]; then
                   continue
                 fi
 
-                # Persistent failure — restart Cilium agent on this node
+                # Persistent failure — delete Cilium agent on this node
                 log "ERROR: ClusterIP routing broken on ${NODE_NAME} after ${RETRY_COUNT} retries"
 
-                CILIUM_POD=$(kubectl get pods -n kube-system -l k8s-app=cilium \
-                  --field-selector "spec.nodeName=${NODE_NAME}" \
-                  -o jsonpath='{.items[0].metadata.name}' 2>/dev/null)
-
-                if [ -z "${CILIUM_POD}" ]; then
-                  log "ERROR: Could not find Cilium agent pod on ${NODE_NAME}"
+                # Rate limit restarts to prevent infinite restart loops
+                NOW=$(date +%s)
+                ELAPSED=$((NOW - RESTART_WINDOW_START))
+                if [ "${ELAPSED}" -gt "${RESTART_WINDOW}" ]; then
+                  RESTART_COUNT=0
+                  RESTART_WINDOW_START=${NOW}
+                fi
+                if [ "${RESTART_COUNT}" -ge "${MAX_RESTARTS}" ]; then
+                  log "ERROR: Already restarted Cilium ${RESTART_COUNT} times in the last ${RESTART_WINDOW}s. Manual intervention required on ${NODE_NAME}."
                   sleep "${COOLDOWN_AFTER_RESTART}"
                   continue
                 fi
 
+                KUBECTL_OUTPUT=$(timeout 30 kubectl get pods -n kube-system -l k8s-app=cilium \
+                  --field-selector "spec.nodeName=${NODE_NAME}" \
+                  -o jsonpath='{.items[0].metadata.name}' 2>&1)
+                KUBECTL_RC=$?
+                if [ "${KUBECTL_RC}" -ne 0 ]; then
+                  log "ERROR: kubectl failed (rc=${KUBECTL_RC}) on ${NODE_NAME}: ${KUBECTL_OUTPUT}"
+                  sleep "${CHECK_INTERVAL}"
+                  continue
+                fi
+                CILIUM_POD="${KUBECTL_OUTPUT}"
+                if [ -z "${CILIUM_POD}" ]; then
+                  log "ERROR: No Cilium agent pod found on ${NODE_NAME} (label k8s-app=cilium)"
+                  sleep "${CHECK_INTERVAL}"
+                  continue
+                fi
+
                 log "Deleting Cilium agent ${CILIUM_POD} to rebuild eBPF maps..."
-                if kubectl delete pod -n kube-system "${CILIUM_POD}" --grace-period=30; then
-                  log "Cilium agent deleted. DaemonSet will recreate it."
+                DELETE_OUTPUT=$(timeout 60 kubectl delete pod -n kube-system "${CILIUM_POD}" --grace-period=30 2>&1)
+                DELETE_RC=$?
+                if [ "${DELETE_RC}" -eq 0 ]; then
+                  RESTART_COUNT=$((RESTART_COUNT + 1))
+                  log "Cilium agent ${CILIUM_POD} deleted (${RESTART_COUNT}/${MAX_RESTARTS} in window). DaemonSet will recreate it."
                 else
-                  log "ERROR: Failed to delete Cilium agent ${CILIUM_POD}"
+                  log "ERROR: Failed to delete Cilium agent ${CILIUM_POD} (rc=${DELETE_RC}): ${DELETE_OUTPUT}"
                 fi
 
                 log "Cooldown: sleeping ${COOLDOWN_AFTER_RESTART}s before next check"
-                sleep "${COOLDOWN_AFTER_RESTART}"
+                sleep "${COOLDOWN_AFTER_RESTART}" &
+                wait $!
+
+                # Post-restart validation
+                if test_clusterip || test_dns; then
+                  log "Post-restart: connectivity restored on ${NODE_NAME}"
+                else
+                  log "WARN: Post-restart: connectivity still broken on ${NODE_NAME}"
+                fi
               done
           env:
             - name: NODE_NAME
@@ -125,6 +187,13 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+          volumeMounts:
+            - name: tmp
+              mountPath: /tmp
+      volumes:
+        - name: tmp
+          emptyDir:
+            sizeLimit: 1Mi
 ---
 apiVersion: v1
 kind: ServiceAccount
@@ -136,9 +205,10 @@ metadata:
     app.kubernetes.io/managed-by: flux
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: cilium-healthcheck
+  namespace: kube-system
   labels:
     app.kubernetes.io/name: cilium-healthcheck
     app.kubernetes.io/managed-by: flux
@@ -148,9 +218,10 @@ rules:
     verbs: ["get", "list", "delete"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: cilium-healthcheck
+  namespace: kube-system
   labels:
     app.kubernetes.io/name: cilium-healthcheck
     app.kubernetes.io/managed-by: flux
@@ -159,6 +230,6 @@ subjects:
     name: cilium-healthcheck
     namespace: kube-system
 roleRef:
-  kind: ClusterRole
+  kind: Role
   name: cilium-healthcheck
   apiGroup: rbac.authorization.k8s.io

@@ -98,19 +98,21 @@ kubectl cluster-info
 kubectl get nodes
 
 # 2. Rebuild Cilium eBPF service maps on all nodes
-#    Without this, new pods may get EHOSTUNREACH for ClusterIPs
+#    The cilium-healthcheck DaemonSet should handle this automatically,
+#    but verify its logs first. If it hasn't acted, restart manually:
+kubectl logs -n kube-system -l app.kubernetes.io/name=cilium-healthcheck --tail=5
 kubectl rollout restart daemonset -n kube-system cilium
 kubectl rollout status daemonset -n kube-system cilium --timeout=120s
 
 # 3. Verify ClusterIP routing works (from a debug pod)
 kubectl run check-net --rm -it --restart=Never --image=busybox \
-  --overrides='{"spec":{"containers":[{"name":"check","image":"busybox","command":["sh","-c","nslookup kubernetes.default && echo OK || echo FAIL"],"resources":{"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  --overrides='{"spec":{"containers":[{"name":"check-net","image":"busybox","command":["sh","-c","nslookup kubernetes.default && echo OK || echo FAIL"],"resources":{"requests":{"cpu":"50m","memory":"32Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
   -n kube-system
 
 # 4. Restart any pods that were crash-looping during the outage
 kubectl get pods -A | grep -E 'CrashLoopBackOff|Error'
-# For each affected deployment/statefulset:
-# kubectl rollout restart deployment -n <namespace> <name>
+# For each affected workload:
+# kubectl rollout restart {deployment|statefulset|daemonset} -n <namespace> <name>
 
 # 5. Run full cluster health check
 python3 scripts/ops/validate-cluster-health.py
