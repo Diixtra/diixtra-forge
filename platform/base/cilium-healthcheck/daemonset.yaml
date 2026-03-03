@@ -84,10 +84,11 @@ spec:
                 return 1
               }
 
-              # Check if probe errors indicate a non-Cilium problem (auth, RBAC).
+              # Check if an error string indicates a non-Cilium problem (auth, RBAC).
               # Returns 0 if the error is NOT a Cilium eBPF issue.
               is_non_cilium_error() {
-                case "${LAST_PROBE_ERR}" in
+                local err="$1"
+                case "${err}" in
                   *Unauthorized*|*Forbidden*|*forbidden*|*certificate*expired*)
                     return 0 ;;
                 esac
@@ -106,7 +107,9 @@ spec:
 
               log "Starting cilium-healthcheck on node ${NODE_NAME}"
               log "Check interval: ${CHECK_INTERVAL}s, retries: ${RETRY_COUNT}, cooldown: ${COOLDOWN_AFTER_RESTART}s, max restarts: ${MAX_RESTARTS}/${RESTART_WINDOW}s window"
-              touch /tmp/healthcheck-alive
+              if ! touch /tmp/healthcheck-alive; then
+                log "ERROR: Cannot create heartbeat file /tmp/healthcheck-alive on startup — filesystem may be unavailable"
+              fi
 
               while true; do
                 sleep "${CHECK_INTERVAL}" &
@@ -154,8 +157,10 @@ spec:
                 log "  DNS probe: ${DNS_ERR}"
 
                 # Skip remediation if the error is auth/RBAC, not a Cilium issue
-                if is_non_cilium_error; then
-                  log "ERROR: Probe failure appears to be auth/RBAC, NOT stale eBPF maps: ${LAST_PROBE_ERR}"
+                if is_non_cilium_error "${CLUSTERIP_ERR}" || is_non_cilium_error "${DNS_ERR}"; then
+                  log "ERROR: Probe failure appears to be auth/RBAC, NOT stale eBPF maps"
+                  log "  ClusterIP stderr: ${CLUSTERIP_ERR}"
+                  log "  DNS stderr: ${DNS_ERR}"
                   sleep "${CHECK_INTERVAL}" &
                   wait $!
                   continue
@@ -169,6 +174,7 @@ spec:
                     log "WARN: Restart window expired. Previous window had ${RESTART_COUNT} restarts. Resetting counter."
                   fi
                   RESTART_COUNT=0
+                  RATE_LIMIT_HITS=0
                   RESTART_WINDOW_START=${NOW}
                 fi
                 if [ "${RESTART_COUNT}" -ge "${MAX_RESTARTS}" ]; then
@@ -215,10 +221,14 @@ spec:
                     ;;
                 esac
 
-                # Skip deletion if Cilium pod is not Running (already restarting)
+                # Skip deletion if Cilium pod is confirmed not Running (already restarting).
+                # Fail-open: if kubectl fails to get status, proceed with deletion.
                 CILIUM_STATUS=$(timeout 30 kubectl get pod -n kube-system "${CILIUM_POD}" \
-                  -o jsonpath='{.status.phase}' 2>/dev/null) || true
-                if [ "${CILIUM_STATUS}" != "Running" ]; then
+                  -o jsonpath='{.status.phase}' 2>&1)
+                CILIUM_STATUS_RC=$?
+                if [ "${CILIUM_STATUS_RC}" -ne 0 ]; then
+                  log "WARN: Could not determine Cilium pod status (kubectl failed): ${CILIUM_STATUS}. Proceeding with deletion."
+                elif [ -n "${CILIUM_STATUS}" ] && [ "${CILIUM_STATUS}" != "Running" ]; then
                   log "WARN: Cilium pod ${CILIUM_POD} is in '${CILIUM_STATUS}' state, not Running. Skipping deletion."
                   sleep "${CHECK_INTERVAL}" &
                   wait $!
@@ -265,6 +275,12 @@ spec:
               valueFrom:
                 fieldRef:
                   fieldPath: spec.nodeName
+            # hostNetwork pods may not get these injected by kubelet;
+            # set explicitly so kubectl can find the API server.
+            - name: KUBERNETES_SERVICE_HOST
+              value: "kubernetes.default.svc"
+            - name: KUBERNETES_SERVICE_PORT
+              value: "443"
           resources:
             requests:
               cpu: 10m
