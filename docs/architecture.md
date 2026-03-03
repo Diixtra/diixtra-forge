@@ -12,7 +12,7 @@ source of truth, reconciled by Kubernetes-native controllers.
 ```
 ┌─────────────────────────────────────────────────────────────────────┐
 │                        Git Repository                               │
-│              diixtra-forge (monorepo)                         │
+│         diixtra-forge (GitOps control plane)                  │
 │                                                                     │
 │  clusters/     infrastructure/    platform/    apps/    terraform/   │
 │  (Flux         (Layer 1:          (Layer 2:    (Layer 3: (Cloud     │

@@ -35,7 +35,7 @@ built-in repository mirroring, container registry, and package registry.
 
 | Option | Pros | Cons |
 |--------|------|------|
-| **Forgejo** | Community-governed fork of Gitea, lightweight (~256MB RAM), built-in mirror sync, OCI package registry, Helm chart available | Younger than Gitea |
+| **Forgejo** | Community-governed fork of Gitea, lightweight (~256MB RAM), built-in mirror sync, OCI package registry, Helm chart available | Smaller community than Gitea; ecosystem tooling (e.g. Terraform providers) lags slightly |
 | Gitea | Mature, same feature set, Helm chart available | Backed by Gitea Ltd (for-profit) — ironic dependency for an independence layer |
 | GitLab CE | Full DevOps platform | 4GB+ RAM, massive overkill for mirroring |
 | Bare `git clone --mirror` on TrueNAS | Zero overhead | No UI, no mirror management, no container registry |
@@ -61,20 +61,20 @@ built-in repository mirroring, container registry, and package registry.
 - Key infrastructure tooling repos as needed
 
 **What git mirroring does NOT cover:**
-- Pre-built container images (requires OCI registry caching — Phase 2)
-- npm packages pulled at runtime via npx (requires vendoring into custom images — Phase 2)
-- Helm charts (requires chart museum or OCI cache — Phase 2)
+- Pre-built container images (requires OCI registry caching — Forgejo Phase 2, below)
+- npm packages pulled at runtime via npx (requires vendoring into custom images — Forgejo Phase 3, below)
+- Helm charts (requires ChartMuseum or OCI cache — Forgejo Phase 2, below)
 
 ### Phased Rollout
 
-**Phase 1 (this ADR):** Deploy Forgejo, configure git mirrors for own repos
-and critical upstream repos. Access at `git.lab.kazie.co.uk`.
+**Forgejo Phase 1 (this ADR):** Deploy Forgejo, configure git mirrors for own
+repos and critical upstream repos. Access at `git.lab.kazie.co.uk`.
 
-**Phase 2 (future):** Use Forgejo's built-in OCI container registry to cache
-critical upstream images. Point deployments at local registry paths.
+**Forgejo Phase 2 (future):** Use Forgejo's built-in OCI container registry to
+cache critical upstream images. Point deployments at local registry paths.
 
-**Phase 3 (future):** Vendor npx-based MCP servers into custom container
-images with dependencies baked in. Eliminate runtime npm pulls entirely.
+**Forgejo Phase 3 (future):** Vendor npx-based MCP servers into custom
+container images with dependencies baked in. Eliminate runtime npm pulls entirely.
 
 ## Deployment
 
@@ -100,10 +100,10 @@ images with dependencies baked in. Eliminate runtime npm pulls entirely.
 **Negative:**
 - Another service to maintain (mitigated: Flux auto-updates, Renovate watches)
 - Mirror sync delay means brief window where local copy is behind upstream
-- Does not solve the container image/npm package disappearance problem alone (Phase 2-3)
+- Does not solve the container image/npm package disappearance problem alone (Forgejo Phase 2-3)
 - GitHub mirror tokens need periodic rotation
 
 ## References
-- ADR-005: Auto-Update Strategy (Phase 2 supply chain security)
-- ADR-009: Multi-Repo Migration (repos that need mirroring)
+- [ADR-005](005-auto-update-strategy.md): Auto-Update Strategy (Phase 2 supply chain security)
+- [ADR-009](009-microservice-repo-migration.md): Multi-Repo Migration (repos that need mirroring)
 - [Forgejo documentation](https://forgejo.org/docs/)
