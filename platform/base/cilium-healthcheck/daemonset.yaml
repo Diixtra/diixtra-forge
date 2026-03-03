@@ -63,25 +63,20 @@ spec:
               RESTART_WINDOW_START=$(date +%s)
               RATE_LIMIT_HITS=0
               CHECKS=0
-              LAST_PROBE_ERR=""
-
               log() { echo "$(date -u '+%Y-%m-%dT%H:%M:%SZ') $*"; }
 
               trap 'log "Received signal, shutting down"; exit 0' TERM INT
 
               # Uses kubectl with mounted SA token and CA — handles TLS and auth.
-              # Captures stderr so callers can inspect error type.
               test_clusterip() {
-                LAST_PROBE_ERR=$(timeout 5 kubectl get --raw /livez 2>&1 >/dev/null) && return 0
-                return 1
+                timeout 5 kubectl get --raw /livez >/dev/null 2>&1
               }
 
               # Tests DNS resolution path: kubectl resolves the FQDN via CoreDNS,
               # exercising a different eBPF service map entry than test_clusterip().
               test_dns() {
-                LAST_PROBE_ERR=$(timeout 5 kubectl get --raw /livez \
-                  --server="https://kubernetes.default.svc.cluster.local:443" 2>&1 >/dev/null) && return 0
-                return 1
+                timeout 5 kubectl get --raw /livez \
+                  --server="https://kubernetes.default.svc.cluster.local:443" >/dev/null 2>&1
               }
 
               # Check if an error string indicates a non-Cilium problem (auth, RBAC).
@@ -277,8 +272,10 @@ spec:
                   fieldPath: spec.nodeName
             # hostNetwork pods may not get these injected by kubelet;
             # set explicitly so kubectl can find the API server.
+            # Must be the ClusterIP (not DNS name) to avoid circular
+            # dependency when Cilium/CoreDNS is broken.
             - name: KUBERNETES_SERVICE_HOST
-              value: "kubernetes.default.svc"
+              value: "10.96.0.1"
             - name: KUBERNETES_SERVICE_PORT
               value: "443"
           resources:
