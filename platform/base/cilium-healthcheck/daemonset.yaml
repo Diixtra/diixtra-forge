@@ -8,9 +8,9 @@
 # Cilium pods show Running, but pod-to-service networking is broken.
 #
 # The check runs on every node, tests ClusterIP connectivity and DNS
-# resolution, and deletes the local Cilium agent pod if both fail
-# persistently (the DaemonSet controller recreates it, rebuilding
-# the eBPF maps).
+# resolution via kubectl (which uses the mounted SA token and CA),
+# and deletes the local Cilium agent pod if both fail persistently
+# (the DaemonSet controller recreates it, rebuilding the eBPF maps).
 # ══════════════════════════════════════════════════════════════════
 apiVersion: apps/v1
 kind: DaemonSet
@@ -62,12 +62,15 @@ spec:
 
               trap 'log "Received signal, shutting down"; exit 0' TERM INT
 
+              # Uses kubectl with mounted SA token and CA — handles TLS and auth.
               test_clusterip() {
-                wget --spider -q -T 5 "https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}/livez" 2>/dev/null
+                timeout 5 kubectl get --raw /livez >/dev/null 2>&1
               }
 
+              # Forces DNS resolution by using the FQDN via --server flag.
               test_dns() {
-                wget --spider -q -T 5 "https://kubernetes.default.svc.cluster.local:443/livez" 2>/dev/null
+                timeout 5 kubectl get --raw /livez \
+                  --server="https://kubernetes.default.svc.cluster.local:443" >/dev/null 2>&1
               }
 
               # Validate prerequisites
@@ -87,6 +90,7 @@ spec:
                 sleep "${CHECK_INTERVAL}" &
                 wait $!
                 CHECKS=$((CHECKS + 1))
+                touch /tmp/healthcheck-alive
 
                 # Quick check — if either passes, networking is fine
                 if test_clusterip || test_dns; then
@@ -102,7 +106,8 @@ spec:
 
                 i=1
                 while [ "$i" -le "${RETRY_COUNT}" ]; do
-                  sleep "${RETRY_DELAY}"
+                  sleep "${RETRY_DELAY}" &
+                  wait $!
                   if test_clusterip || test_dns; then
                     log "Retry ${i}/${RETRY_COUNT}: connectivity restored, false alarm"
                     CONFIRMED_FAILURE=false
@@ -116,8 +121,13 @@ spec:
                   continue
                 fi
 
-                # Persistent failure — delete Cilium agent on this node
+                # Log probe details on confirmed failure for diagnostics
+                CLUSTERIP_ERR=$(timeout 5 kubectl get --raw /livez 2>&1) || true
+                DNS_ERR=$(timeout 5 kubectl get --raw /livez \
+                  --server="https://kubernetes.default.svc.cluster.local:443" 2>&1) || true
                 log "ERROR: ClusterIP routing broken on ${NODE_NAME} after ${RETRY_COUNT} retries"
+                log "  ClusterIP probe: ${CLUSTERIP_ERR}"
+                log "  DNS probe: ${DNS_ERR}"
 
                 # Rate limit restarts to prevent infinite restart loops
                 NOW=$(date +%s)
@@ -127,36 +137,52 @@ spec:
                   RESTART_WINDOW_START=${NOW}
                 fi
                 if [ "${RESTART_COUNT}" -ge "${MAX_RESTARTS}" ]; then
-                  log "ERROR: Already restarted Cilium ${RESTART_COUNT} times in the last ${RESTART_WINDOW}s. Manual intervention required on ${NODE_NAME}."
-                  sleep "${COOLDOWN_AFTER_RESTART}"
+                  log "ERROR: Already restarted Cilium ${RESTART_COUNT} times in the last ${ELAPSED}s. Manual intervention required on ${NODE_NAME}."
+                  sleep "${COOLDOWN_AFTER_RESTART}" &
+                  wait $!
                   continue
                 fi
 
-                KUBECTL_OUTPUT=$(timeout 30 kubectl get pods -n kube-system -l k8s-app=cilium \
+                # Find the Cilium agent pod on this node (separate stdout/stderr)
+                CILIUM_POD=$(timeout 30 kubectl get pods -n kube-system -l k8s-app=cilium \
                   --field-selector "spec.nodeName=${NODE_NAME}" \
-                  -o jsonpath='{.items[0].metadata.name}' 2>&1)
+                  -o jsonpath='{.items[0].metadata.name}' 2>/tmp/kubectl-stderr)
                 KUBECTL_RC=$?
                 if [ "${KUBECTL_RC}" -ne 0 ]; then
-                  log "ERROR: kubectl failed (rc=${KUBECTL_RC}) on ${NODE_NAME}: ${KUBECTL_OUTPUT}"
-                  sleep "${CHECK_INTERVAL}"
+                  KUBECTL_ERR=$(cat /tmp/kubectl-stderr 2>/dev/null)
+                  log "ERROR: kubectl failed (rc=${KUBECTL_RC}) on ${NODE_NAME}: ${KUBECTL_ERR}"
+                  sleep "${CHECK_INTERVAL}" &
+                  wait $!
                   continue
                 fi
-                CILIUM_POD="${KUBECTL_OUTPUT}"
                 if [ -z "${CILIUM_POD}" ]; then
                   log "ERROR: No Cilium agent pod found on ${NODE_NAME} (label k8s-app=cilium)"
-                  sleep "${CHECK_INTERVAL}"
+                  sleep "${CHECK_INTERVAL}" &
+                  wait $!
                   continue
                 fi
+                # Guard against kubectl warnings polluting the pod name
+                case "${CILIUM_POD}" in
+                  *[[:space:]]*)
+                    log "ERROR: Unexpected kubectl output on ${NODE_NAME}: ${CILIUM_POD}"
+                    sleep "${CHECK_INTERVAL}" &
+                    wait $!
+                    continue
+                    ;;
+                esac
 
                 log "Deleting Cilium agent ${CILIUM_POD} to rebuild eBPF maps..."
                 DELETE_OUTPUT=$(timeout 60 kubectl delete pod -n kube-system "${CILIUM_POD}" --grace-period=30 2>&1)
                 DELETE_RC=$?
-                if [ "${DELETE_RC}" -eq 0 ]; then
-                  RESTART_COUNT=$((RESTART_COUNT + 1))
-                  log "Cilium agent ${CILIUM_POD} deleted (${RESTART_COUNT}/${MAX_RESTARTS} in window). DaemonSet will recreate it."
-                else
+                if [ "${DELETE_RC}" -ne 0 ]; then
                   log "ERROR: Failed to delete Cilium agent ${CILIUM_POD} (rc=${DELETE_RC}): ${DELETE_OUTPUT}"
+                  sleep "${CHECK_INTERVAL}" &
+                  wait $!
+                  continue
                 fi
+
+                RESTART_COUNT=$((RESTART_COUNT + 1))
+                log "Cilium agent ${CILIUM_POD} deleted (${RESTART_COUNT}/${MAX_RESTARTS} in window). DaemonSet will recreate it."
 
                 log "Cooldown: sleeping ${COOLDOWN_AFTER_RESTART}s before next check"
                 sleep "${COOLDOWN_AFTER_RESTART}" &
@@ -187,6 +213,15 @@ spec:
               drop:
                 - ALL
             readOnlyRootFilesystem: true
+          livenessProbe:
+            exec:
+              command:
+                - /bin/sh
+                - -c
+                - '[ $(($(date +%s) - $(stat -c %Y /tmp/healthcheck-alive 2>/dev/null || echo 0))) -lt 300 ]'
+            initialDelaySeconds: 120
+            periodSeconds: 60
+            failureThreshold: 3
           volumeMounts:
             - name: tmp
               mountPath: /tmp
