@@ -105,8 +105,9 @@ kubectl rollout restart daemonset -n kube-system cilium
 kubectl rollout status daemonset -n kube-system cilium --timeout=120s
 
 # 3. Verify ClusterIP routing works (from a debug pod)
+#    Tests both DNS resolution AND TCP connectivity to the API server ClusterIP
 kubectl run check-net --rm -it --restart=Never --image=busybox \
-  --overrides='{"spec":{"containers":[{"name":"check-net","image":"busybox","command":["sh","-c","nslookup kubernetes.default && echo OK || echo FAIL"],"resources":{"requests":{"cpu":"50m","memory":"32Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
+  --overrides='{"spec":{"containers":[{"name":"check-net","image":"busybox","command":["sh","-c","nslookup kubernetes.default && nc -z -w5 $KUBERNETES_SERVICE_HOST $KUBERNETES_SERVICE_PORT && echo OK || echo FAIL"],"resources":{"requests":{"cpu":"50m","memory":"32Mi"},"limits":{"cpu":"50m","memory":"32Mi"}}}]}}' \
   -n kube-system
 
 # 4. Restart any pods that were crash-looping during the outage
