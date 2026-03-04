@@ -68,8 +68,29 @@ unnecessary (or harmful) on local NVMe:
 **Packer template** updated: `etcd_disk_storage` variable allows placing the etcd disk on
 a separate storage pool from the OS disk. Set to `local-lvm` in variables file.
 
-### 3. VM Resource Increase
-Control plane resources increased from 2 CPU / 3.8GB RAM to 4 CPU / 5.8GB RAM.
+### 3. Moved OS Disk to Local NVMe (`local-lvm`)
+
+The OS disk (sda) was also on `nas-1`, sharing the same ~250ms fsync latency and TRIM stall
+issues. Even with etcd on local NVMe, the OS disk handles containerd images, kubelet, container
+logs, and systemd operations. Under load, NAS I/O latency and TRIM stalls on sda caused CPU
+soft lockups (kernel `BUG: soft lockup` messages, failed systemd services).
+
+Both disks now use `local-lvm`: `proxmox_disk_storage = "local-lvm"` in the Packer variables.
+
+### 4. VM Resource Right-Sizing
+
+Control plane resources set to 4 CPU / 4GB RAM. The initial reactive bump (4 CPU / 5.8GB)
+was larger than needed — the control plane runs only static pods (etcd, apiserver,
+controller-manager, scheduler) and Cilium DaemonSets, totalling ~750m CPU / ~1.2Gi RAM.
+
+### 5. Disk Right-Sizing
+
+Disk sizes reduced to match actual usage:
+
+| Disk | Old | New | Rationale |
+|---|---|---|---|
+| OS (sda) | 32GB | 20GB | OS ~4GB + containerd images ~8GB + logs ~3GB + headroom |
+| etcd (sdb) | 50GB | 10GB | etcd data was 477MB; 10GB is 20x headroom with weekly defrag |
 
 ## Cascade Effects Fixed
 
@@ -81,7 +102,7 @@ Control plane resources increased from 2 CPU / 3.8GB RAM to 4 CPU / 5.8GB RAM.
 | kube-state-metrics | CrashLoopBackOff — bad deployment revision with Go `map[]` syntax in args | Rolled back to revision 2 |
 | nvidia-device-plugin | ContainerCreating — NVIDIA kernel module not built for azure kernel | Installed `linux-headers-6.17.0-1008-azure`, DKMS rebuilt nvidia module |
 | ollama | Pending — no GPU resources available | Self-resolved once nvidia-device-plugin registered the GPU |
-| node-cleanup CronJob | ImagePullBackOff — `bitnami/kubectl:1.31` not found | Patched to `registry.k8s.io/kubectl:v1.35.1` |
+| node-cleanup CronJob | ImagePullBackOff — `bitnami/kubectl:1.31` not found | Patched to `registry.k8s.io/kubectl:v1.35.2` |
 
 ## Post-Recovery Checklist
 
@@ -115,8 +136,9 @@ python3 scripts/ops/validate-cluster-health.py
 
 ## Prevention
 
-1. **etcd on local NVMe** — Packer template uses `etcd_disk_storage = "local-lvm"` to place
-   etcd on fast local storage. NAS/network storage should never be used for etcd.
+1. **All control plane disks on local NVMe** — Packer variables use `proxmox_disk_storage = "local-lvm"`
+   and `etcd_disk_storage = "local-lvm"`. NAS storage causes ~250ms fsync latency and TRIM stalls
+   that trigger CPU soft lockups under load.
 2. **Packer builds** include dedicated etcd disk with discard enabled and weekly defrag timer
 3. **Monitoring** — GitHub issue #475 created for Slack alerting on cluster health events
 4. **Cilium health check DaemonSet** — automatically detects stale eBPF maps and restarts

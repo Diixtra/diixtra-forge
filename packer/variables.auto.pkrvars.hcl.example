@@ -28,10 +28,11 @@ proxmox_node             = "pve"
 
 # ── Storage ─────────────────────────────────────────────────────────
 proxmox_iso_storage  = "nas-1"
-proxmox_disk_storage = "nas-1"
-# etcd needs <10ms fdatasync latency. NAS storage delivers ~250ms.
-# Point this at local NVMe/SSD storage on the Proxmox node.
-etcd_disk_storage = "local-lvm"
+# Control plane nodes: use local-lvm for both disks. NAS storage causes
+# ~250ms fsync latency and TRIM stalls that trigger CPU soft lockups.
+# Worker nodes: nas-1 is acceptable (lighter I/O, no etcd).
+proxmox_disk_storage = "local-lvm"
+etcd_disk_storage    = "local-lvm"
 
 # ── ISOs ────────────────────────────────────────────────────────────
 ubuntu_iso_file = "Ubuntu_25.10_Live_Server.iso"
