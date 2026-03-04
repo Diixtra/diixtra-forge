@@ -152,6 +152,7 @@ variable "etcd_disk_size" {
 variable "etcd_disk_storage" {
   type        = string
   description = "Storage pool for etcd disk. Must be fast local storage (NVMe) — etcd needs <10ms fsync."
+  default     = ""
 
   validation {
     condition     = var.etcd_disk_storage != ""
@@ -287,7 +288,7 @@ build {
   #   The "shell" provisioner with inline commands runs arbitrary bash.
   #   The "file" provisioner copies files first. We copy then execute
   #   rather than using the "script" provisioner because the script needs
-  #   arguments (--role, --arch) that are easier to pass via inline.
+  #   positional arguments (role, arch) that are easier to pass via inline.
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/provision-k8s-node.sh",

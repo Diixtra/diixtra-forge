@@ -298,9 +298,7 @@ SYSTEMD
 #!/bin/bash
 set -euo pipefail
 
-ETCD_CONTAINER=$(crictl ps --name etcd -q 2>&1)
-CRICTL_EXIT=$?
-if [ $CRICTL_EXIT -ne 0 ]; then
+if ! ETCD_CONTAINER=$(crictl ps --name etcd -q 2>&1); then
     echo "ERROR: crictl failed — container runtime may be unavailable" >&2
     echo "crictl output: $ETCD_CONTAINER" >&2
     exit 1
@@ -318,11 +316,15 @@ CERTS="--endpoints=https://127.0.0.1:2379 \
 --cacert=/etc/kubernetes/pki/etcd/ca.crt"
 
 # Get current revision and compact
-REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>/dev/null \
+REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>&1 \
     | jq -r '.[0].Status.header.revision') || {
     echo "ERROR: Failed to get etcd revision, skipping defrag" >&2
     exit 1
 }
+if [ -z "$REV" ] || [ "$REV" = "null" ]; then
+    echo "ERROR: Failed to parse etcd revision from endpoint status" >&2
+    exit 1
+fi
 echo "Compacting to revision $REV..."
 crictl exec "$ETCD_CONTAINER" etcdctl $CERTS compact "$REV"
 

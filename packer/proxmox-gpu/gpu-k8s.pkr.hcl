@@ -127,6 +127,13 @@ variable "network_bridge" {
   default     = "vmbr0"
 }
 
+# Not used by GPU template (workers don't run etcd), but declared so
+# shared variables files that set etcd_disk_storage don't cause errors.
+variable "etcd_disk_storage" {
+  type    = string
+  default = ""
+}
+
 # ── Source ───────────────────────────────────────────────────────────
 # LEARNING NOTE — BUILD VM vs CLONED VM:
 #   The build VM (this Packer config) is a TEMPORARY VM used only to
