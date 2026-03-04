@@ -69,6 +69,7 @@ unnecessary (or harmful) on local NVMe:
 a separate storage pool from the OS disk. Set to `local-lvm` in variables file.
 
 ### 3. Moved OS Disk to Local NVMe (`local-lvm`)
+
 The OS disk (sda) was also on `nas-1`, sharing the same ~250ms fsync latency and TRIM stall
 issues. Even with etcd on local NVMe, the OS disk handles containerd images, kubelet, container
 logs, and systemd operations. Under load, NAS I/O latency and TRIM stalls on sda caused CPU
@@ -77,11 +78,13 @@ soft lockups (kernel `BUG: soft lockup` messages, failed systemd services).
 Both disks now use `local-lvm`: `proxmox_disk_storage = "local-lvm"` in the Packer variables.
 
 ### 4. VM Resource Right-Sizing
+
 Control plane resources set to 4 CPU / 4GB RAM. The initial reactive bump (4 CPU / 5.8GB)
 was larger than needed — the control plane runs only static pods (etcd, apiserver,
 controller-manager, scheduler) and Cilium DaemonSets, totalling ~750m CPU / ~1.2Gi RAM.
 
 ### 5. Disk Right-Sizing
+
 Disk sizes reduced to match actual usage:
 
 | Disk | Old | New | Rationale |
