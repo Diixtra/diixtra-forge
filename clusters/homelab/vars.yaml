@@ -57,6 +57,9 @@ data:
   GRAFANA_PROMETHEUS_USERNAME: "2972580"
   GRAFANA_LOKI_URL: "https://logs-prod-035.grafana.net/loki/api/v1/push"
   GRAFANA_LOKI_USERNAME: "1481965"
+  # Mimir ruler endpoint — used by Alloy's mimir.rules.kubernetes to
+  # sync PrometheusRule CRDs to Grafana Cloud for alert evaluation.
+  GRAFANA_MIMIR_URL: "https://prometheus-prod-55-prod-gb-south-1.grafana.net"
   # ── Network Configuration ──────────────────────────────────────
   K8S_API_HOST: "10.2.0.35"
   # LoadBalancer IP pool for Cilium L2 announcements (replaces MetalLB).

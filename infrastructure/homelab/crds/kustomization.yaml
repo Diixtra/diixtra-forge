@@ -10,5 +10,8 @@ resources:
   # VolumeSnapshot CRDs — kubeadm doesn't ship these.
   # Required before democratic-csi HelmReleases can create VolumeSnapshotClass resources.
   - ../../base/volume-snapshot-crds
+  # PrometheusRule CRD — required before platform-crds can create
+  # PrometheusRule resources for cluster health alerting.
+  - ../../base/prometheus-rule-crd
   # Crossplane — installs core CRDs (XRDs, Compositions, Providers, Functions, etc.)
   - ../../base/crossplane

@@ -1,0 +1,8 @@
+# PrometheusRule CRD from prometheus-operator v0.80.1
+# Installed standalone (without the full Prometheus Operator) to support
+# mimir.rules.kubernetes in Grafana Alloy, which syncs PrometheusRule
+# resources to Grafana Cloud's Mimir ruler for alerting.
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - prometheusrules.yaml

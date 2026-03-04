@@ -25,6 +25,7 @@ resources:
   - ../../base/node-cleanup
   - ../../base/reloader
   - ../../base/cilium-healthcheck
+  - ../../base/alerting
 patches:
   - target:
       kind: HelmRelease
