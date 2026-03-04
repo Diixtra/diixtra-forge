@@ -33,9 +33,9 @@ spec:
     # Further reduce by dropping per-label and per-condition metrics
     # that create high cardinality without actionable signal.
     metricLabelsAllowlist:
-      pods: [namespace,pod,phase]
-      nodes: [node]
-      deployments: [namespace,deployment]
+      - pods=[namespace,pod,phase]
+      - nodes=[node]
+      - deployments=[namespace,deployment]
     resources:
       requests:
         cpu: 50m
