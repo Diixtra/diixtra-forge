@@ -38,17 +38,19 @@ spec:
       valuesKey: credential
       targetPath: falcosidekick.config.loki.apikey
       optional: true
-    # Loki username/tenant injected from ConfigMap to preserve string type.
-    # Inline ${GRAFANA_LOKI_USERNAME} substitution produces a bare number
-    # in the HelmRelease JSON values, which Helm's b64enc rejects.
-    - kind: ConfigMap
-      name: falco-loki-config
-      valuesKey: GRAFANA_LOKI_USERNAME
+    # Loki username/tenant injected from the same 1Password-synced Secret.
+    # Flux postBuild substitution + YAML/JSON round-trip coerces numeric
+    # strings to numbers, breaking Helm's b64enc. Secrets are immune
+    # because the 1Password operator writes directly to Kubernetes.
+    # See https://github.com/fluxcd/kustomize-controller/issues/554
+    - kind: Secret
+      name: grafana-cloud-credentials
+      valuesKey: username
       targetPath: falcosidekick.config.loki.user
       optional: true
-    - kind: ConfigMap
-      name: falco-loki-config
-      valuesKey: GRAFANA_LOKI_USERNAME
+    - kind: Secret
+      name: grafana-cloud-credentials
+      valuesKey: username
       targetPath: falcosidekick.config.loki.tenant
       optional: true
 
@@ -91,6 +93,6 @@ spec:
           memory: 128Mi
       config:
         loki:
-          # URL is Flux-substituted from cluster-vars.
-          # API key, user, and tenant are injected via valuesFrom above.
+          # URL is Flux-substituted from cluster-vars. API key, user,
+          # and tenant are injected via valuesFrom (Secret) above.
           hostport: "${GRAFANA_LOKI_URL}"
