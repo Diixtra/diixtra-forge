@@ -39,3 +39,19 @@ spec:
   egress:
     - toEntities:
         - kube-apiserver
+---
+# Allow cluster-internal ingress for Prometheus metrics scraping
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kyverno-system-allow-ingress-cluster-metrics
+  namespace: kyverno-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - cluster
+      toPorts:
+        - ports:
+            - port: "8000"
+              protocol: TCP

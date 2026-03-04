@@ -35,6 +35,10 @@ spec:
             - port: "443"
               protocol: TCP
 ---
+# Traefik routes to backend Services across many namespaces via ExternalName
+# Services. Restricting to specific namespaces would break whenever a new
+# IngressRoute is added — ingress policies on each destination namespace
+# provide the narrower security boundary.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -60,7 +64,7 @@ spec:
         - ports:
             - port: "443"       # TrueNAS web UI (HTTPS)
               protocol: TCP
-            - port: "80"        # TrueNAS web UI (HTTP)
+            - port: "80"        # TrueNAS HTTP redirect
               protocol: TCP
             - port: "30109"     # n8n
               protocol: TCP
@@ -95,6 +99,7 @@ spec:
             - port: "8123"
               protocol: TCP
 ---
+# Allow Traefik to reach Let's Encrypt and Cloudflare APIs for TLS certificate issuance (DNS-01)
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -103,9 +108,28 @@ metadata:
 spec:
   endpointSelector: {}
   egress:
-    - toEntities:
-        - world
+    - toFQDNs:
+        - matchPattern: "*.api.letsencrypt.org"
+        - matchName: api.cloudflare.com
       toPorts:
         - ports:
             - port: "443"
+              protocol: TCP
+---
+# Allow Traefik to reach Cloudflare DNS resolver for ACME propagation checks
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-cloudflare-dns
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - 1.1.1.1/32
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
               protocol: TCP

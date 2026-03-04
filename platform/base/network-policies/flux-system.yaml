@@ -74,6 +74,7 @@ spec:
         - matchName: charts.crossplane.io
         - matchName: registry.k8s.io
         - matchPattern: "*.pkg.dev"
+        - matchName: hub.jupyter.org
       toPorts:
         - ports:
             - port: "443"
