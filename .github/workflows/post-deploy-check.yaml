@@ -42,7 +42,12 @@ jobs:
       - name: Install Flux CLI
         run: |
           if ! command -v flux &> /dev/null; then
-            curl -s https://fluxcd.io/install.sh | FLUX_VERSION=2.4.0 bash
+            curl -fsSL https://fluxcd.io/install.sh | FLUX_VERSION=2.4.0 bash
+            if ! command -v flux &> /dev/null; then
+              echo "::error::Flux CLI installation failed — 'flux' binary not found after install"
+              exit 1
+            fi
+            echo "Flux CLI installed: $(flux --version)"
           else
             echo "Flux CLI already available: $(flux --version)"
           fi
@@ -64,7 +69,17 @@ jobs:
         run: |
           echo "Waiting for all Kustomizations to reconcile..."
           for i in $(seq 1 60); do
-            NOT_READY=$(flux get kustomizations --no-header 2>/dev/null | grep -v "True" || true)
+            if ! FLUX_OUTPUT=$(flux get kustomizations --no-header 2>&1); then
+              echo "Attempt $i/60 — flux get kustomizations failed: $FLUX_OUTPUT"
+              sleep 10
+              continue
+            fi
+            if [ -z "$FLUX_OUTPUT" ]; then
+              echo "Attempt $i/60 — flux returned no kustomizations (CRDs may not be ready)"
+              sleep 10
+              continue
+            fi
+            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "True" || true)
             if [ -z "$NOT_READY" ]; then
               echo "All Kustomizations are Ready"
               flux get kustomizations
@@ -82,10 +97,19 @@ jobs:
         run: |
           echo "Waiting for all HelmReleases to reconcile..."
           for i in $(seq 1 60); do
+            if ! FLUX_OUTPUT=$(flux get helmreleases -A --no-header 2>&1); then
+              echo "Attempt $i/60 — flux get helmreleases failed: $FLUX_OUTPUT"
+              sleep 10
+              continue
+            fi
+            if [ -z "$FLUX_OUTPUT" ]; then
+              echo "Attempt $i/60 — flux returned no helmreleases (CRDs may not be ready)"
+              sleep 10
+              continue
+            fi
             # Exclude nvidia-device-plugin: its DaemonSet needs a GPU node
             # with node.kubernetes.io/gpu=true label — schedules 0 pods otherwise
-            NOT_READY=$(flux get helmreleases -A --no-header 2>/dev/null \
-              | grep -v "nvidia-device-plugin" | grep -v "True" || true)
+            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "nvidia-device-plugin" | grep -v "True" || true)
             if [ -z "$NOT_READY" ]; then
               echo "All HelmReleases are Ready"
               flux get helmreleases -A
@@ -106,10 +130,10 @@ jobs:
             --field-selector=status.phase!=Running,status.phase!=Succeeded \
             | grep -v "Completed" || true)
           if [ -n "$FAILED" ]; then
-            echo "WARNING: Unhealthy pods detected:"
+            # Don't fail on pod issues — Flux readiness is the primary gate.
+            # But surface it as a visible warning so operators notice.
+            echo "::warning::Unhealthy pods detected after deploy — review if these are pre-existing or caused by this commit"
             echo "$FAILED"
-            # Don't fail on pod issues — Flux readiness is the primary gate
-            # Pods in CrashLoopBackOff may be pre-existing
           fi
           echo "Pod status summary:"
           kubectl get pods -A --no-headers | awk '{print $4}' | sort | uniq -c | sort -rn

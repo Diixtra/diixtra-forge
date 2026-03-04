@@ -278,6 +278,7 @@ After=containerd.service
 
 [Service]
 Type=oneshot
+SuccessExitStatus=75
 ExecStart=/usr/local/bin/etcd-defrag.sh
 SYSTEMD
 
@@ -298,16 +299,21 @@ SYSTEMD
 #!/bin/bash
 set -euo pipefail
 
-if ! ETCD_CONTAINER=$(crictl ps --name etcd -q 2>&1); then
+CRICTL_STDERR=$(mktemp)
+if ! ETCD_CONTAINER=$(crictl ps --name etcd -q 2>"$CRICTL_STDERR"); then
     echo "ERROR: crictl failed — container runtime may be unavailable" >&2
-    echo "crictl output: $ETCD_CONTAINER" >&2
+    [ -s "$CRICTL_STDERR" ] && echo "crictl stderr: $(cat "$CRICTL_STDERR")" >&2
+    rm -f "$CRICTL_STDERR"
     exit 1
 fi
+[ -s "$CRICTL_STDERR" ] && echo "WARN: crictl stderr: $(cat "$CRICTL_STDERR")" >&2
+rm -f "$CRICTL_STDERR"
 
 if [ -z "$ETCD_CONTAINER" ]; then
     logger -p daemon.warning "etcd-defrag: container not found, skipping"
     echo "etcd container not found, skipping"
-    exit 0
+    # Exit 75 (EX_TEMPFAIL) so systemd distinguishes "skipped" from "success"
+    exit 75
 fi
 
 CERTS="--endpoints=https://127.0.0.1:2379 \
@@ -405,8 +411,11 @@ rm -rf /tmp/*
 
 # Reset cloud-init so it runs on first boot of cloned VMs
 if command -v cloud-init &> /dev/null; then
-    cloud-init clean --logs 2>/dev/null || true
-    ok "cloud-init state reset"
+    if cloud-init clean --logs 2>&1; then
+        ok "cloud-init state reset"
+    else
+        warn "cloud-init clean failed (image may retain stale state)"
+    fi
 fi
 
 # Clear machine-id so each clone gets a unique one
