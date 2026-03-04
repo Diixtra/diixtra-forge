@@ -64,13 +64,11 @@ spec:
 
                   echo "Deleted $((TOTAL - ERRORS))/$TOTAL failed pods ($ERRORS errors)"
 
-                  # Exit non-zero if all deletions failed (indicates systemic issue like RBAC)
-                  if [ "$TOTAL" -gt 0 ] && [ "$ERRORS" -eq "$TOTAL" ]; then
-                    echo "ERROR: All pod deletions failed — check RBAC and API server connectivity"
-                    exit 1
-                  fi
+                  # Exit non-zero on any deletion failure so the job shows as Failed
+                  # in Kubernetes job history, making persistent issues visible.
                   if [ "$ERRORS" -gt 0 ]; then
-                    echo "WARNING: $ERRORS pod deletions failed"
+                    echo "ERROR: $ERRORS/$TOTAL pod deletions failed"
+                    exit 1
                   fi
 
                   echo "=== Cleanup complete ==="

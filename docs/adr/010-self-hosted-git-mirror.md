@@ -15,8 +15,9 @@ disappear without warning:
 - **MCP server images** from solo maintainers (`ghcr.io/alexei-led/k8s-mcp-server`,
   `ghcr.io/grafana/mcp-grafana`, `hashicorp/terraform-mcp-server`) — young
   ecosystem, high churn risk
-- **9 Terasky Backstage plugins** pinned to `*` — single vendor, no version
-  pinning, could pivot or disappear
+- **9 Terasky Backstage plugins** from a single vendor — could pivot or
+  disappear (versions are now pinned, but source code preservation remains
+  important)
 - **npx-at-runtime pattern** for Cloudflare, Stripe, and Memory MCP servers —
   if any of these npm packages is unpublished, pods fail on next restart
 - **GitHub itself** — having a local mirror enables portability if we choose
