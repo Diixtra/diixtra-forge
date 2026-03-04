@@ -1,0 +1,19 @@
+# Falcosidekick Loki values as a YAML document inside a block scalar.
+# Flux's YAML/JSON round-trip coerces bare numeric strings to numbers,
+# and Helm's strvals (used by valuesFrom targetPath) does the same.
+# Wrapping the values in a block scalar preserves the YAML content as a
+# string through Flux's pipeline. The helm-controller then parses the
+# content as YAML, where the double-quoted "..." values stay strings.
+# See https://github.com/fluxcd/kustomize-controller/issues/554
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-loki-values
+  namespace: falco-system
+data:
+  values.yaml: |
+    falcosidekick:
+      config:
+        loki:
+          user: "${GRAFANA_LOKI_USERNAME}"
+          tenant: "${GRAFANA_LOKI_USERNAME}"
