@@ -1,0 +1,52 @@
+# ══════════════════════════════════════════════════════════════════
+# Alerting Pipeline Health (Meta-Alerts)
+# ══════════════════════════════════════════════════════════════════
+# Monitors the alerting system itself. Without these, a broken
+# metrics pipeline (etcd scrape down, KSM not running) would cause
+# all other alerts to silently produce no results — the exact
+# failure mode this alerting system is designed to prevent.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pipeline-health
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: cluster-alerting
+    app.kubernetes.io/managed-by: flux
+spec:
+  groups:
+    - name: pipeline-health
+      interval: 60s
+      rules:
+        # ── Critical: etcd metrics absent ─────────────────────────
+        # If this fires, all etcd alerts (fsync latency, DB size)
+        # are silently inoperative.
+        - alert: EtcdMetricsAbsent
+          expr: |
+            absent(etcd_mvcc_db_total_size_in_bytes{job="etcd"})
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "etcd metrics are missing — etcd alerts are inoperative"
+            description: >-
+              No etcd metrics have been received for 10 minutes.
+              The etcd scrape job may be down, or Alloy may not have
+              hostNetwork access to localhost:2381 on the control plane node.
+
+        # ── Critical: KSM metrics absent ──────────────────────────
+        # If this fires, all pod health, node health, and control
+        # plane restart alerts are silently inoperative.
+        - alert: KsmMetricsAbsent
+          expr: |
+            absent(kube_node_status_condition{condition="Ready"})
+          for: 10m
+          labels:
+            severity: critical
+          annotations:
+            summary: "kube-state-metrics data is missing — pod/node alerts are inoperative"
+            description: >-
+              No kube-state-metrics data has been received for 10 minutes.
+              Check that kube-state-metrics is running in the monitoring namespace
+              and that Alloy can scrape it.

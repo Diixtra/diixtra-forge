@@ -1,0 +1,68 @@
+# ══════════════════════════════════════════════════════════════════
+# Pod Health Alerts
+# ══════════════════════════════════════════════════════════════════
+# Detects unhealthy pods in system namespaces (CrashLoopBackOff,
+# stuck Pending) and ImagePullBackOff across all namespaces.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: pod-health
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: cluster-alerting
+    app.kubernetes.io/managed-by: flux
+spec:
+  groups:
+    - name: pod-health
+      interval: 30s
+      rules:
+        # ── Critical: CrashLoopBackOff in system namespaces ───────
+        # Only alert on infrastructure namespaces to avoid noise
+        # from application pods during development.
+        - alert: SystemPodCrashLooping
+          expr: |
+            kube_pod_container_status_waiting_reason{
+              reason="CrashLoopBackOff",
+              namespace=~"kube-system|flux-system|cilium|democratic-csi|monitoring|onepassword-system|traefik-system"
+            } > 0
+          for: 3m
+          labels:
+            severity: critical
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} is CrashLoopBackOff"
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.pod }}
+              (namespace {{ $labels.namespace }}) is crash-looping.
+              Check logs: `kubectl logs -n {{ $labels.namespace }} {{ $labels.pod }} -c {{ $labels.container }} --previous`
+
+        # ── Warning: pods stuck Pending in system namespaces ────────
+        - alert: PodStuckPending
+          expr: |
+            kube_pod_status_phase{
+              phase="Pending",
+              namespace=~"kube-system|flux-system|cilium|democratic-csi|monitoring|onepassword-system|traefik-system"
+            } > 0
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} stuck Pending for 5+ minutes"
+            description: >-
+              Pod {{ $labels.pod }} in namespace {{ $labels.namespace }}
+              has been Pending for over 5 minutes. Check scheduling
+              constraints, resource availability, and PVC binding.
+
+        # ── Warning: ImagePullBackOff in any namespace ────────────
+        - alert: PodImagePullBackOff
+          expr: |
+            kube_pod_container_status_waiting_reason{reason="ImagePullBackOff"} > 0
+          for: 3m
+          labels:
+            severity: warning
+          annotations:
+            summary: "{{ $labels.namespace }}/{{ $labels.pod }} has ImagePullBackOff"
+            description: >-
+              Container {{ $labels.container }} in pod {{ $labels.pod }}
+              (namespace {{ $labels.namespace }}) cannot pull its image.
+              Check image name, tag, and registry credentials.

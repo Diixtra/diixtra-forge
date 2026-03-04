@@ -1,0 +1,87 @@
+# ══════════════════════════════════════════════════════════════════
+# Resource Pressure Alerts
+# ══════════════════════════════════════════════════════════════════
+# Detects node-level resource pressure (disk, memory) and etcd
+# database size approaching quota limits.
+#
+# Note: precise disk utilisation % requires node-exporter (not deployed).
+# We use kubelet's DiskPressure condition from kube-state-metrics instead,
+# which fires when nodefs.available < 10% (~90% usage) or
+# imagefs.available < 15% (~85% usage). For the etcd database specifically,
+# we check etcd_mvcc_db_total_size_in_bytes against the quota.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: resource-pressure
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/part-of: cluster-alerting
+    app.kubernetes.io/managed-by: flux
+spec:
+  groups:
+    - name: resource-pressure
+      interval: 60s
+      rules:
+        # ── Warning: node disk pressure ───────────────────────────
+        # Kubelet reports DiskPressure when nodefs.available < 10%
+        # (~90% usage) or imagefs.available < 15% (~85% usage).
+        - alert: NodeDiskPressure
+          expr: |
+            kube_node_status_condition{condition="DiskPressure", status="true"} > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has DiskPressure"
+            description: >-
+              Kubelet reports disk pressure on node {{ $labels.node }}.
+              Check disk usage: `df -h` on the node. Consider cleaning
+              container images: `crictl rmi --prune`.
+
+        # ── Warning: node memory pressure ─────────────────────────
+        - alert: NodeMemoryPressure
+          expr: |
+            kube_node_status_condition{condition="MemoryPressure", status="true"} > 0
+          for: 2m
+          labels:
+            severity: warning
+          annotations:
+            summary: "Node {{ $labels.node }} has MemoryPressure"
+            description: >-
+              Kubelet reports memory pressure on node {{ $labels.node }}.
+              Pods may be evicted. Check memory usage: `free -h` on the node.
+
+        # ── Warning: etcd database approaching quota ──────────────
+        # etcd default quota is 2GB. Alert when DB size exceeds 80%.
+        - alert: EtcdDatabaseSizeWarning
+          expr: |
+            (
+              etcd_mvcc_db_total_size_in_bytes{job="etcd"}
+                / on(instance, job) etcd_server_quota_backend_bytes{job="etcd"}
+            ) > 0.8
+          for: 5m
+          labels:
+            severity: warning
+          annotations:
+            summary: "etcd database at {{ $value | humanizePercentage }} of quota"
+            description: >-
+              etcd database size is approaching the backend quota.
+              Run defragmentation: check the etcd-defrag systemd timer on the
+              control plane node, or trigger manually.
+
+        # ── Critical: etcd database nearly full ───────────────────
+        - alert: EtcdDatabaseSizeCritical
+          expr: |
+            (
+              etcd_mvcc_db_total_size_in_bytes{job="etcd"}
+                / on(instance, job) etcd_server_quota_backend_bytes{job="etcd"}
+            ) > 0.95
+          for: 1m
+          labels:
+            severity: critical
+          annotations:
+            summary: "etcd database at {{ $value | humanizePercentage }} of quota — nearly full"
+            description: >-
+              etcd database is critically full. If it hits 100%, the cluster
+              becomes read-only. Run immediate defragmentation and compaction.

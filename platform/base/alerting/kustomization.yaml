@@ -1,0 +1,22 @@
+# ══════════════════════════════════════════════════════════════════
+# Cluster Health Alerting
+# ══════════════════════════════════════════════════════════════════
+#
+# PrometheusRule resources synced to Grafana Cloud's Mimir ruler
+# via Alloy's mimir.rules.kubernetes component.
+#
+# Rules are evaluated in Grafana Cloud and routed to Slack via
+# the contact point configured in the Grafana Cloud UI.
+#
+# Severity labels:
+#   severity=critical  → immediate attention required
+#   severity=warning   → early warning, investigate soon
+# ══════════════════════════════════════════════════════════════════
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - rbac.yaml
+  - rules/control-plane.yaml
+  - rules/pod-health.yaml
+  - rules/resource-pressure.yaml
+  - rules/pipeline-health.yaml

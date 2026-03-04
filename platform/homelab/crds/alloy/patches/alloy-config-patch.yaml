@@ -5,6 +5,11 @@ metadata:
   namespace: monitoring
 spec:
   values:
+    # hostNetwork required for scraping etcd metrics on localhost:2381.
+    # etcd only listens on 127.0.0.1, so Alloy must share the host
+    # network namespace to reach it.
+    controller:
+      hostNetwork: true
     alloy:
       clustering:
         enabled: true
@@ -90,10 +95,10 @@ spec:
           prometheus.relabel "cadvisor_filter" {
             forward_to = [prometheus.remote_write.grafana_cloud.receiver]
 
-            // IMPORTANT: These metrics MUST pass through for DiskPressure alerting:
-            //   container_fs_usage_bytes, container_fs_limit_bytes,
-            //   container_memory_working_set_bytes, container_cpu_usage_seconds_total
-            // Only drop the high-cardinality I/O counters and network packet metrics below.
+            // Drop noisy high-cardinality I/O, network, and lifecycle metrics.
+            // DiskPressure alerting uses kube_node_status_condition from KSM,
+            // not cAdvisor fs metrics. CPU/memory/fs usage metrics are kept
+            // for dashboards.
 
             // Drop noisy filesystem I/O counters (per-device, per-mountpoint)
             rule {
@@ -250,5 +255,54 @@ spec:
             forward_to = [loki.write.grafana_cloud.receiver]
             clustering {
               enabled = true
+            }
+          }
+
+          // ════════════════════════════════════════════════════════════
+          // Metrics — etcd (control plane node only)
+          // ════════════════════════════════════════════════════════════
+          // etcd exposes metrics on http://127.0.0.1:2381/metrics (kubeadm default).
+          // Requires hostNetwork on the Alloy DaemonSet to reach localhost.
+          // On worker nodes this scrape fails silently (up=0) — expected
+          // since only the control plane runs etcd.
+          //
+          // Keeplist: only retain the metrics needed for alerting to
+          // minimise Grafana Cloud series count.
+          prometheus.relabel "etcd_filter" {
+            forward_to = [prometheus.remote_write.grafana_cloud.receiver]
+
+            rule {
+              source_labels = ["__name__"]
+              regex         = "etcd_disk_wal_fsync_duration_seconds_bucket|etcd_disk_wal_fsync_duration_seconds_count|etcd_disk_wal_fsync_duration_seconds_sum|etcd_mvcc_db_total_size_in_bytes|etcd_server_quota_backend_bytes|up"
+              action        = "keep"
+            }
+          }
+
+          prometheus.scrape "etcd" {
+            targets = [{
+              __address__ = "127.0.0.1:2381",
+            }]
+            scrape_interval = "60s"
+            job_name        = "etcd"
+            forward_to      = [prometheus.relabel.etcd_filter.receiver]
+          }
+
+          // ════════════════════════════════════════════════════════════
+          // Alerting — Sync PrometheusRule CRDs to Grafana Cloud
+          // ════════════════════════════════════════════════════════════
+          // Watches for PrometheusRule resources in the cluster and syncs
+          // them to Grafana Cloud's Mimir ruler for evaluation. Rules are
+          // defined as GitOps-managed CRDs in platform/base/alerting/rules/.
+          //
+          // Grafana Cloud evaluates rules and routes alerts via its
+          // built-in Alertmanager to the Slack contact point configured
+          // in the Grafana Cloud UI.
+          mimir.rules.kubernetes "grafana_cloud" {
+            address = "${GRAFANA_MIMIR_URL}"
+            tenant_id = "${GRAFANA_PROMETHEUS_USERNAME}"
+
+            basic_auth {
+              username = "${GRAFANA_PROMETHEUS_USERNAME}"
+              password = remote.kubernetes.secret.grafana_cloud.data["credential"]
             }
           }
