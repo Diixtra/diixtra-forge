@@ -24,6 +24,7 @@ resources:
   - ../../base/policy-reporter
   - ../../base/node-cleanup
   - ../../base/reloader
+  - ../../base/cilium-healthcheck
 patches:
   - target:
       kind: HelmRelease

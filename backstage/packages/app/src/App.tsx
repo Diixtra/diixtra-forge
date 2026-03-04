@@ -1,6 +1,7 @@
 import { Navigate, Route } from 'react-router-dom';
 import {
   CatalogIndexPage,
+  CatalogEntityPage,
   catalogPlugin,
 } from '@backstage/plugin-catalog';
 import { entityPage } from './components/catalog/EntityPage';
@@ -49,7 +50,9 @@ const routes = (
   <FlatRoutes>
     <Route path="/" element={<Navigate to="catalog" />} />
     <Route path="/catalog" element={<CatalogIndexPage />} />
-    <Route path="/catalog/:namespace/:kind/:name" element={entityPage} />
+    <Route path="/catalog/:namespace/:kind/:name" element={<CatalogEntityPage />}>
+      {entityPage}
+    </Route>
     <Route path="/create" element={<ScaffolderPage />} />
     <Route path="/tech-radar" element={<TechRadarPage />} />
     <Route path="/policy-reporter" element={<PolicyReportsPage />} />
