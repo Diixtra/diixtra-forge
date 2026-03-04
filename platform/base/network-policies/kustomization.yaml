@@ -25,3 +25,8 @@ resources:
   - arc-system.yaml
   - packer-runners.yaml
   - nvidia-device-plugin.yaml
+  - traefik-system.yaml
+  - flux-system.yaml
+  - onepassword-system.yaml
+  - kyverno-system.yaml
+  - crossplane-system.yaml
