@@ -1,0 +1,93 @@
+# ══════════════════════════════════════════════════════════════════
+# flux-system — GitOps Controller
+#
+# Flux is the GitOps engine that reconciles cluster state from Git.
+# It needs egress to GitHub (source repositories), Helm chart
+# registries, the Kubernetes API (to apply manifests), and all
+# cluster namespaces (it creates and manages resources everywhere).
+# The Flux Operator web UI is also in this namespace.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-default-deny
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-egress-github
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchPattern: "*.githubusercontent.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-egress-kube-api
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-egress-cluster
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - cluster
+---
+# Allow source-controller to fetch Helm charts from external registries
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-egress-helm-registries
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: helm.cilium.io
+        - matchPattern: "*.github.io"
+        - matchName: ghcr.io
+        - matchPattern: "*.ghcr.io"
+        - matchName: charts.crossplane.io
+        - matchName: registry.k8s.io
+        - matchPattern: "*.pkg.dev"
+        - matchName: hub.jupyter.org
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Allow ingress from cluster for Flux Operator web UI (Traefik ExternalName)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-ingress-cluster
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - cluster

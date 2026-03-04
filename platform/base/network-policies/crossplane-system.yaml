@@ -1,0 +1,74 @@
+# ══════════════════════════════════════════════════════════════════
+# crossplane-system — Universal Control Plane
+#
+# Crossplane reconciles cloud resources via provider CRDs. The
+# controller watches the Kubernetes API for managed resources and
+# calls external cloud provider APIs to provision them.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-default-deny
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-kube-api
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver
+---
+# Allow ingress from kube-apiserver for CRD conversion webhooks
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-ingress-kube-api
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - kube-apiserver
+---
+# Allow cluster-internal ingress for Prometheus metrics scraping
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-ingress-cluster-metrics
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - cluster
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+---
+# Crossplane package downloads from Upbound registry.
+# NOTE: Add cloud provider API egress (AWS, GCP, Azure, etc.) when providers are deployed.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-providers
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: xpkg.upbound.io
+        - matchPattern: "*.xpkg.upbound.io"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

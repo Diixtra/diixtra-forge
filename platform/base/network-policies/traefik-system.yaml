@@ -1,0 +1,135 @@
+# ══════════════════════════════════════════════════════════════════
+# traefik-system — Ingress Controller
+#
+# Traefik is the cluster's ingress controller (LB IP assigned via
+# Cilium LB-IPAM). It accepts external HTTP/HTTPS traffic and routes
+# it to backend services across multiple namespaces. It also needs
+# egress to the internet for Let's Encrypt ACME, to TrueNAS for
+# reverse-proxied apps, and to Home Assistant on a separate VLAN.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-default-deny
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-ingress-world
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEntities:
+        - world
+      toPorts:
+        - ports:
+            - port: "80"
+              protocol: TCP
+            - port: "443"
+              protocol: TCP
+---
+# Traefik routes to backend Services across many namespaces via ExternalName
+# Services. Restricting to specific namespaces would break whenever a new
+# IngressRoute is added — ingress policies on each destination namespace
+# provide the narrower security boundary.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-cluster
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - cluster
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-truenas
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - ${TRUENAS_HOST}/32
+      toPorts:
+        - ports:
+            - port: "443"       # TrueNAS web UI (HTTPS)
+              protocol: TCP
+            - port: "80"        # TrueNAS HTTP redirect
+              protocol: TCP
+            - port: "30109"     # n8n
+              protocol: TCP
+            - port: "30027"     # nextcloud
+              protocol: TCP
+            - port: "31050"     # uptime-kuma
+              protocol: TCP
+            - port: "30037"     # grafana
+              protocol: TCP
+            - port: "30104"     # prometheus
+              protocol: TCP
+            - port: "31015"     # portainer
+              protocol: TCP
+            - port: "30150"     # playwright
+              protocol: TCP
+            - port: "30141"     # auth
+              protocol: TCP
+---
+# Allow Traefik to reach Home Assistant on a separate VLAN
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-home-assistant
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - ${HOME_ASSISTANT_HOST}/32
+      toPorts:
+        - ports:
+            - port: "8123"
+              protocol: TCP
+---
+# Allow Traefik to reach Let's Encrypt and Cloudflare APIs for TLS certificate issuance (DNS-01)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-acme
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchPattern: "*.api.letsencrypt.org"
+        - matchName: api.cloudflare.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Allow Traefik to reach Cloudflare DNS resolver for ACME propagation checks
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: traefik-system-allow-egress-cloudflare-dns
+  namespace: traefik-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toCIDR:
+        - 1.1.1.1/32
+      toPorts:
+        - ports:
+            - port: "53"
+              protocol: UDP
+            - port: "53"
+              protocol: TCP
