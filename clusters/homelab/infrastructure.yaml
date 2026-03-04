@@ -62,7 +62,11 @@ spec:
     name: flux-system
   path: ./infrastructure/homelab
   prune: true
-  wait: true
+  # wait: false — only check explicitly listed healthChecks, not all
+  # resources. falco and nvidia-device-plugin can't reach Ready on
+  # every node (Pi 5 inotify failure, GPU node absent respectively).
+  # wait: true would block the entire reconciliation chain.
+  wait: false
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -88,11 +92,3 @@ spec:
       kind: HelmRelease
       name: arc-runner-set-packer
       namespace: packer-runners
-    # falco intentionally excluded from healthChecks. The DaemonSet
-    # runs on every node but CrashLoops on the Pi 5 (inotify handler
-    # init failure). Including it blocks the entire reconciliation chain.
-    #
-    # nvidia-device-plugin intentionally excluded from healthChecks.
-    # The DaemonSet has a nodeSelector (node.kubernetes.io/gpu=true) so it
-    # schedules 0 pods until the GPU node joins. Including it here would
-    # block all infrastructure reconciliation when no GPU node exists.
