@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════
+# policy-reporter — Policy Report Aggregator
+#
+# Policy Reporter aggregates Kyverno PolicyReport CRDs and exposes
+# them via a REST API. Backstage queries this API to display policy
+# compliance data. Policy Reporter needs egress to the Kubernetes
+# API to watch PolicyReport resources, and ingress from the
+# backstage namespace for API queries.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: policy-reporter-default-deny
+  namespace: policy-reporter
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: policy-reporter-allow-ingress-backstage
+  namespace: policy-reporter
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: backstage
+      toPorts:
+        - ports:
+            - port: "8080"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: policy-reporter-allow-egress-kube-api
+  namespace: policy-reporter
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver

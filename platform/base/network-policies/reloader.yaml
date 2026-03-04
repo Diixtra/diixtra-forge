@@ -1,0 +1,29 @@
+# ══════════════════════════════════════════════════════════════════
+# reloader — ConfigMap/Secret Change Watcher
+#
+# Reloader watches for changes to ConfigMaps and Secrets and
+# triggers rolling restarts of dependent workloads. It only needs
+# egress to the Kubernetes API to watch resources and patch
+# Deployments/StatefulSets/DaemonSets.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: reloader-default-deny
+  namespace: reloader
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: reloader-allow-egress-kube-api
+  namespace: reloader
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver

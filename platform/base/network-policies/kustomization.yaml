@@ -1,0 +1,22 @@
+# ══════════════════════════════════════════════════════════════════
+# CiliumNetworkPolicy — Phased Rollout (ADR-008 Phase 3)
+# ══════════════════════════════════════════════════════════════════
+# Restored from commit c6aa00a^ with minimal modifications.
+# policyAuditMode is enabled globally in the Cilium HelmRelease —
+# these policies log violations without dropping traffic until
+# audit mode is explicitly removed.
+#
+# Phase 1: low-risk namespaces (monitoring, backstage, reloader,
+#   policy-reporter) + cluster-wide DNS allow.
+# Phase 2: core infra (democratic-csi, arc-*, packer-runners, nvidia).
+# Phase 3: critical services (traefik, flux, onepassword, kyverno,
+#   crossplane).
+# ══════════════════════════════════════════════════════════════════
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+resources:
+  - cluster-wide.yaml
+  - monitoring.yaml
+  - backstage.yaml
+  - reloader.yaml
+  - policy-reporter.yaml

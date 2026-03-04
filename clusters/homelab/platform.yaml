@@ -55,3 +55,7 @@ spec:
   wait: true
   dependsOn:
     - name: platform-crds
+  postBuild:
+    substituteFrom:
+      - kind: ConfigMap
+        name: cluster-vars
