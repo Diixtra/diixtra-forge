@@ -1,0 +1,15 @@
+# ConfigMap to hold Grafana Loki settings as string-typed values.
+# Flux postBuild substitutes ${GRAFANA_LOKI_USERNAME} into this ConfigMap.
+# Unlike HelmRelease inline values (where Flux's YAML/JSON round-trip
+# strips quotes and turns numeric strings into numbers), ConfigMap data
+# fields are always strings in Kubernetes — preserving the type for
+# the falcosidekick chart's b64enc in its secrets template.
+# Do NOT move this value into inline HelmRelease values — see
+# https://github.com/fluxcd/kustomize-controller/issues/554
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: falco-loki-config
+  namespace: falco-system
+data:
+  GRAFANA_LOKI_USERNAME: "${GRAFANA_LOKI_USERNAME}"
