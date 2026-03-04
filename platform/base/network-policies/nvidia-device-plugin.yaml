@@ -1,0 +1,29 @@
+# ══════════════════════════════════════════════════════════════════
+# nvidia-device-plugin — NVIDIA GPU Device Plugin
+#
+# The device plugin DaemonSet only schedules on nodes labelled
+# node.kubernetes.io/gpu=true. It communicates with kubelet via
+# Unix socket (host-local, no network) and needs API server access
+# to register Extended Resources. No internet egress required.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: nvidia-device-plugin-default-deny
+  namespace: nvidia-device-plugin
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: nvidia-device-plugin-allow-egress-kube-api
+  namespace: nvidia-device-plugin
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver
