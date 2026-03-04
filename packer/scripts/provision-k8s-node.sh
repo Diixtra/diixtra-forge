@@ -40,7 +40,7 @@
 #   Without jq: Bootstrap and ops scripts can't parse kubectl JSON output.
 #
 # USAGE (called by Packer, not manually):
-#   sudo bash provision-k8s-node.sh [--role control-plane|worker] [--arch amd64|arm64]
+#   sudo bash provision-k8s-node.sh [control-plane|worker] [amd64|arm64]
 #
 # =============================================================================
 
@@ -231,39 +231,16 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
         mkfs.ext4 -q -L etcd-data "${ETCD_DISK}"
 
         # Create mount point and add fstab entry
-        # LEARNING NOTE — NODISCARD MOUNT OPTION:
-        #   Proxmox thin-provisioned QEMU disks support TRIM/discard, but large
-        #   discard requests (up to 1GB) can stall the virtual disk completely —
-        #   100% util with zero throughput. This hangs etcd in uninterruptible I/O
-        #   sleep (D state), taking down the entire control plane. The `nodiscard`
-        #   mount option prevents ext4 from issuing inline TRIM commands. If TRIM
-        #   is needed for space reclamation, use scheduled `fstrim` instead.
+        # LEARNING NOTE — DISCARD ON LOCAL NVMe VS NAS:
+        #   The etcd disk should be on local NVMe (etcd_disk_storage = "local-lvm").
+        #   On local NVMe, discard/TRIM is fast and reclaims thin pool space.
+        #   On NAS (TrueNAS), large TRIM requests stall the virtual disk completely
+        #   (100% util, zero throughput). We previously used `nodiscard` and a udev
+        #   rule to block TRIMs when etcd was on NAS — those workarounds were removed
+        #   when we moved to local NVMe. If you must use NAS storage, add `nodiscard`
+        #   to the mount options and restore the udev rule from git history.
         mkdir -p /var/lib/etcd
-        echo "LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,nodiscard 0 2" >> /etc/fstab
-
-        # Disable discards at the block device level as a belt-and-suspenders
-        # safeguard. The udev rule persists this across reboots.
-        # LEARNING NOTE — WHY BOTH NODISCARD AND UDEV:
-        #   The fstab `nodiscard` prevents the filesystem from sending TRIMs.
-        #   The udev rule sets discard_max_bytes=0 at the block layer, catching
-        #   any other source of discard requests (e.g. blkdiscard, mkfs). Both
-        #   are needed because either one alone has edge cases.
-        echo 'ACTION=="add|change", KERNEL=="sdb", ATTR{queue/discard_max_bytes}="0"' \
-            > /etc/udev/rules.d/99-etcd-nodiscard.rules
-
-        # Force mq-deadline I/O scheduler on both disks.
-        # LEARNING NOTE — WHY MQ-DEADLINE INSTEAD OF NONE:
-        #   Proxmox sets ssd=true on virtual disks, which makes Linux default
-        #   to the `none` scheduler (designed for real NVMe with consistent
-        #   sub-millisecond latency). But thin-provisioned virtual disks have
-        #   variable latency — writes require block allocation at the
-        #   hypervisor, causing spikes of 50-300ms. The `none` scheduler
-        #   provides no request ordering or fairness, so etcd's critical
-        #   fdatasync calls get stuck behind bulk reads. mq-deadline gives
-        #   each request a deadline, preventing starvation.
-        cat > /etc/udev/rules.d/98-disk-scheduler.rules << 'UDEV'
-ACTION=="add|change", KERNEL=="sd[a-z]", ATTR{queue/scheduler}="mq-deadline"
-UDEV
+        echo "LABEL=etcd-data /var/lib/etcd ext4 defaults,noatime,discard 0 2" >> /etc/fstab
 
         # Mount now to verify it works
         mount /var/lib/etcd
@@ -274,10 +251,11 @@ UDEV
 
         ok "etcd disk formatted and mounted at /var/lib/etcd (${ETCD_DISK})"
     else
-        warn "No second disk found at ${ETCD_DISK} — etcd will use root disk"
-        warn "Control plane performance may be degraded under I/O load"
-        mkdir -p /var/lib/etcd
-        chmod 700 /var/lib/etcd
+        echo "ERROR: No dedicated etcd disk found at ${ETCD_DISK}"
+        echo "  Control-plane nodes MUST have a dedicated etcd disk."
+        echo "  Ensure the Packer template includes a second disk block with etcd_disk_storage."
+        echo "  See: docs/troubleshooting/etcd-io-saturation-control-plane-crash.md"
+        exit 1
     fi
 
     # ── etcd Defragmentation Timer ─────────────────────────────────────
@@ -320,8 +298,14 @@ SYSTEMD
 #!/bin/bash
 set -euo pipefail
 
-ETCD_CONTAINER=$(crictl ps --name etcd -q 2>/dev/null)
+if ! ETCD_CONTAINER=$(crictl ps --name etcd -q 2>&1); then
+    echo "ERROR: crictl failed — container runtime may be unavailable" >&2
+    echo "crictl output: $ETCD_CONTAINER" >&2
+    exit 1
+fi
+
 if [ -z "$ETCD_CONTAINER" ]; then
+    logger -p daemon.warning "etcd-defrag: container not found, skipping"
     echo "etcd container not found, skipping"
     exit 0
 fi
@@ -332,8 +316,19 @@ CERTS="--endpoints=https://127.0.0.1:2379 \
 --cacert=/etc/kubernetes/pki/etcd/ca.crt"
 
 # Get current revision and compact
-REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>/dev/null \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Status"]["header"]["revision"])')
+ETCD_STDERR=$(mktemp)
+REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>"$ETCD_STDERR" \
+    | jq -r '.[0].Status.header.revision') || {
+    echo "ERROR: Failed to get etcd revision, skipping defrag" >&2
+    [ -s "$ETCD_STDERR" ] && echo "etcdctl stderr: $(cat "$ETCD_STDERR")" >&2
+    rm -f "$ETCD_STDERR"
+    exit 1
+}
+rm -f "$ETCD_STDERR"
+if [ -z "$REV" ] || [ "$REV" = "null" ]; then
+    echo "ERROR: Failed to parse etcd revision from endpoint status" >&2
+    exit 1
+fi
 echo "Compacting to revision $REV..."
 crictl exec "$ETCD_CONTAINER" etcdctl $CERTS compact "$REV"
 

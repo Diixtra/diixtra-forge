@@ -141,7 +141,7 @@ kubectl get pvc -A
 
 ### 1Password WASM Crash (recurring)
 
-The 1Password Connect operator v2.x uses a WASM-based SDK that is prone to out-of-bounds memory access errors after node restarts. The fix is always to restart the operator pod. Memory limits have been increased to 512Mi to reduce frequency.
+The 1Password Connect operator v2.x uses a WASM-based SDK that is prone to out-of-bounds memory access errors after node restarts. The fix is always to restart the operator pod. Memory limits have been increased to 1Gi to give the WASM runtime headroom.
 
 ### DiskPressure on Worker Nodes
 

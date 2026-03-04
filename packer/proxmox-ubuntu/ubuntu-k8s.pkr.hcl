@@ -149,6 +149,17 @@ variable "etcd_disk_size" {
   default     = "50G"
 }
 
+variable "etcd_disk_storage" {
+  type        = string
+  description = "Storage pool for etcd disk. Must be fast local storage (NVMe) — etcd needs <10ms fsync."
+  default     = ""
+
+  validation {
+    condition     = var.etcd_disk_storage != ""
+    error_message = "etcd_disk_storage must be set explicitly. etcd requires local NVMe storage (<10ms fsync). Do NOT use NAS/network storage — see docs/troubleshooting/etcd-io-saturation-control-plane-crash.md."
+  }
+}
+
 # ── Source: Proxmox ISO Builder ─────────────────────────────────────
 # LEARNING NOTE — HOW THE BUILD WORKS:
 #   1. Packer calls the Proxmox API to create a VM with the ISO attached
@@ -215,8 +226,10 @@ source "proxmox-iso" "ubuntu-k8s" {
   # Dedicated etcd disk — isolates etcd WAL/data I/O from the OS disk.
   # Without this, etcd shares the root disk with containerd, kubelet, and
   # logs, causing fdatasync latency spikes (10-30s) that crash the API server.
+  # Use etcd_disk_storage to place this on fast local NVMe — etcd requires
+  # <10ms fdatasync latency; thin-provisioned shared storage delivers ~250ms.
   disks {
-    storage_pool = var.proxmox_disk_storage
+    storage_pool = var.etcd_disk_storage
     disk_size    = var.etcd_disk_size
     type         = "scsi"
     discard      = true
@@ -275,7 +288,7 @@ build {
   #   The "shell" provisioner with inline commands runs arbitrary bash.
   #   The "file" provisioner copies files first. We copy then execute
   #   rather than using the "script" provisioner because the script needs
-  #   arguments (--role, --arch) that are easier to pass via inline.
+  #   positional arguments (role, arch) that are easier to pass via inline.
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/provision-k8s-node.sh",
