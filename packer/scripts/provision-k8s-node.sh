@@ -316,11 +316,15 @@ CERTS="--endpoints=https://127.0.0.1:2379 \
 --cacert=/etc/kubernetes/pki/etcd/ca.crt"
 
 # Get current revision and compact
-REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>&1 \
+ETCD_STDERR=$(mktemp)
+REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>"$ETCD_STDERR" \
     | jq -r '.[0].Status.header.revision') || {
     echo "ERROR: Failed to get etcd revision, skipping defrag" >&2
+    [ -s "$ETCD_STDERR" ] && echo "etcdctl stderr: $(cat "$ETCD_STDERR")" >&2
+    rm -f "$ETCD_STDERR"
     exit 1
 }
+rm -f "$ETCD_STDERR"
 if [ -z "$REV" ] || [ "$REV" = "null" ]; then
     echo "ERROR: Failed to parse etcd revision from endpoint status" >&2
     exit 1
