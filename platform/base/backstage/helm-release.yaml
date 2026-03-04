@@ -23,7 +23,7 @@ spec:
       image:
         registry: ghcr.io
         repository: diixtra/backstage
-        tag: "build-55" # {"$imagepolicy": "flux-system:backstage:tag"}
+        tag: "build-57" # {"$imagepolicy": "flux-system:backstage:tag"}
       # 1Password item "backstage-github-app" fields must be named exactly:
       # GITHUB_APP_ID, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET,
       # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
