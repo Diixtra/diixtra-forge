@@ -40,7 +40,7 @@ spec:
       optional: true
     # Loki username/tenant injected from ConfigMap to preserve string type.
     # Inline ${GRAFANA_LOKI_USERNAME} substitution produces a bare number
-    # (1481965) in the HelmRelease JSON values, which Helm's b64enc rejects.
+    # in the HelmRelease JSON values, which Helm's b64enc rejects.
     - kind: ConfigMap
       name: falco-loki-config
       valuesKey: GRAFANA_LOKI_USERNAME
