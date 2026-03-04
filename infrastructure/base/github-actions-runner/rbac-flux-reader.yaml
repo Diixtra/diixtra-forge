@@ -20,8 +20,11 @@ rules:
     resources: ["gitrepositories"]
     verbs: ["get", "list", "patch"]
   - apiGroups: [""]
-    resources: ["pods"]
+    resources: ["pods", "nodes"]
     verbs: ["get", "list"]
+  # kubectl cluster-info needs access to /api and /version
+  - nonResourceURLs: ["/api", "/api/*", "/version"]
+    verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
 kind: ClusterRoleBinding
