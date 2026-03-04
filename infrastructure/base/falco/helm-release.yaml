@@ -38,20 +38,15 @@ spec:
       valuesKey: credential
       targetPath: falcosidekick.config.loki.apikey
       optional: true
-    # Loki username/tenant injected from the same 1Password-synced Secret.
-    # Flux postBuild substitution + YAML/JSON round-trip coerces numeric
-    # strings to numbers, breaking Helm's b64enc. Secrets are immune
-    # because the 1Password operator writes directly to Kubernetes.
+    # Loki username/tenant injected from a ConfigMap whose values.yaml
+    # key contains a YAML document inside a block scalar. This bypasses
+    # both Flux's YAML/JSON round-trip (which coerces bare numeric
+    # strings to numbers) and Helm's strvals parser (used by targetPath,
+    # which also coerces). The block scalar preserves quoted strings.
     # See https://github.com/fluxcd/kustomize-controller/issues/554
-    - kind: Secret
-      name: grafana-cloud-credentials
-      valuesKey: username
-      targetPath: falcosidekick.config.loki.user
-      optional: true
-    - kind: Secret
-      name: grafana-cloud-credentials
-      valuesKey: username
-      targetPath: falcosidekick.config.loki.tenant
+    - kind: ConfigMap
+      name: falco-loki-values
+      valuesKey: values.yaml
       optional: true
 
   values:
