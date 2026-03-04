@@ -27,7 +27,8 @@ spec:
     - toEntities:
         - kube-apiserver
 ---
-# Crossplane needs HTTPS egress to cloud provider APIs and package registries
+# Crossplane package downloads from Upbound registry.
+# NOTE: Add cloud provider API egress (AWS, GCP, Azure, etc.) when providers are deployed.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

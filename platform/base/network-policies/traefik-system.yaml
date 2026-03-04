@@ -58,25 +58,25 @@ spec:
         - ${TRUENAS_HOST}/32
       toPorts:
         - ports:
-            - port: "443"
+            - port: "443"       # TrueNAS web UI (HTTPS)
               protocol: TCP
-            - port: "80"
+            - port: "80"        # TrueNAS web UI (HTTP)
               protocol: TCP
-            - port: "30109"
+            - port: "30109"     # n8n
               protocol: TCP
-            - port: "30027"
+            - port: "30027"     # nextcloud
               protocol: TCP
-            - port: "31050"
+            - port: "31050"     # uptime-kuma
               protocol: TCP
-            - port: "30037"
+            - port: "30037"     # grafana
               protocol: TCP
-            - port: "30104"
+            - port: "30104"     # prometheus
               protocol: TCP
-            - port: "31015"
+            - port: "31015"     # portainer
               protocol: TCP
-            - port: "30150"
+            - port: "30150"     # playwright
               protocol: TCP
-            - port: "30141"
+            - port: "30141"     # auth
               protocol: TCP
 ---
 # Allow Traefik to reach Home Assistant on a separate VLAN
