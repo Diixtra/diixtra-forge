@@ -29,6 +29,7 @@ spec:
                 - kyverno-system
                 - democratic-csi
                 - monitoring
+                - falco-system
       validate:
         failureAction: Audit
         podSecurity:

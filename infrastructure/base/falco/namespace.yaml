@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: falco-system
+  labels:
+    app.kubernetes.io/part-of: falco
+    app.kubernetes.io/managed-by: flux
+    # Falco needs privileged access for eBPF-based syscall monitoring.
+    # This label disables namespace-scoped PSA enforcement.
+    pod-security.kubernetes.io/enforce: privileged
