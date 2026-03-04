@@ -32,6 +32,7 @@ spec:
                 - monitoring
                 - packer-runners
                 - nvidia-device-plugin
+                - falco-system
       validate:
         failureAction: Enforce
         podSecurity:

@@ -10,6 +10,7 @@ resources:
   - ../base/packer-runner
   - ../base/nvidia-device-plugin
   - ../base/flux-operator
+  - ../base/falco
   # Cilium L2 announcements — need Cilium CRDs from infrastructure-crds
   - cilium/l2-config.yaml
 patches:

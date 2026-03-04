@@ -1,0 +1,86 @@
+# Falco — eBPF-based runtime security monitoring
+#
+# Deploys Falco as a DaemonSet on every node to detect anomalous
+# container behaviour (shell spawns, sensitive file reads, privilege
+# escalation, etc.) using the modern eBPF driver.
+#
+# Falcosidekick forwards events directly to Grafana Cloud Loki
+# for centralised alerting and dashboarding.
+apiVersion: helm.toolkit.fluxcd.io/v2
+kind: HelmRelease
+metadata:
+  name: falco
+  namespace: falco-system
+spec:
+  interval: 30m
+  chart:
+    spec:
+      chart: falco
+      version: "*"          # Lab: always use latest. Pin in production.
+      sourceRef:
+        kind: HelmRepository
+        name: falcosecurity
+        namespace: flux-system
+      interval: 1h
+  install:
+    timeout: 10m
+  upgrade:
+    timeout: 10m
+
+  # Inject Grafana Cloud API key from the 1Password-synced secret
+  # into Falcosidekick's Loki config. The key never appears in Git.
+  # optional: true lets Falco deploy before the Secret exists —
+  # runtime detection works immediately, Loki forwarding starts
+  # once the 1Password operator syncs the credential.
+  valuesFrom:
+    - kind: Secret
+      name: grafana-cloud-credentials
+      valuesKey: credential
+      targetPath: falcosidekick.config.loki.apikey
+      optional: true
+
+  values:
+    # ── Falco Driver ──────────────────────────────────────────────
+    driver:
+      kind: modern_ebpf
+
+    # ── Falco Engine ──────────────────────────────────────────────
+    # The default rules ship curated detections mapped to MITRE
+    # ATT&CK tactics. json_output and http_output are auto-configured
+    # by the chart when falcosidekick.enabled=true.
+    falco:
+      grpc:
+        enabled: false
+      grpc_output:
+        enabled: false
+
+    # ── Falco Resources ──────────────────────────────────────────
+    resources:
+      requests:
+        cpu: 100m
+        memory: 256Mi
+      limits:
+        cpu: 500m
+        memory: 512Mi
+
+    # ── Falcosidekick ─────────────────────────────────────────────
+    # Forwards Falco events to Grafana Cloud Loki for centralised
+    # log aggregation, alerting, and dashboard integration.
+    falcosidekick:
+      enabled: true
+      replicaCount: 1
+      resources:
+        requests:
+          cpu: 50m
+          memory: 64Mi
+        limits:
+          cpu: 200m
+          memory: 128Mi
+      config:
+        loki:
+          # URL and username are Flux-substituted from cluster-vars.
+          # API key is injected via valuesFrom above.
+          hostport: "${GRAFANA_LOKI_URL}"
+          user: "${GRAFANA_LOKI_USERNAME}"
+          # Tenant header required by Grafana Cloud multi-tenant Loki
+          tenant: "${GRAFANA_LOKI_USERNAME}"

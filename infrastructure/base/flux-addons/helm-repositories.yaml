@@ -169,6 +169,16 @@ spec:
   interval: 24h
   url: https://hub.jupyter.org/helm-chart/
 ---
+# Falco — runtime security monitoring (eBPF-based threat detection)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: falcosecurity
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://falcosecurity.github.io/charts
+---
 # Flux Operator — lifecycle manager and web UI for Flux CD
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository
