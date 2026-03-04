@@ -130,3 +130,9 @@ spec:
         limits:
           cpu: 250m
           memory: 256Mi
+
+    # --- Network Policy Audit Mode ---
+    # Log policy violations without dropping traffic. All CiliumNetworkPolicy
+    # resources are observed-only until this is removed or set to false.
+    # Monitor via Hubble UI at cilium.lab.kazie.co.uk before enforcing.
+    policyAuditMode: true
