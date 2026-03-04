@@ -20,3 +20,8 @@ resources:
   - backstage.yaml
   - reloader.yaml
   - policy-reporter.yaml
+  - democratic-csi.yaml
+  - arc-runners.yaml
+  - arc-system.yaml
+  - packer-runners.yaml
+  - nvidia-device-plugin.yaml

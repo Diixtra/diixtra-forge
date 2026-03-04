@@ -1,0 +1,46 @@
+# ══════════════════════════════════════════════════════════════════
+# arc-system — Actions Runner Controller
+#
+# The ARC controller manages GitHub Actions runner scale sets.
+# It watches the Kubernetes API for AutoScalingRunnerSet CRDs and
+# communicates with GitHub APIs to register/deregister runners.
+# ══════════════════════════════════════════════════════════════════
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-system-default-deny
+  namespace: arc-system
+spec:
+  endpointSelector: {}
+  ingress: []
+  egress: []
+---
+# ARC controller needs GitHub API access to manage runner registrations
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-system-allow-egress-github
+  namespace: arc-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: github.com
+        - matchName: api.github.com
+        - matchPattern: "*.actions.githubusercontent.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-system-allow-egress-kube-api
+  namespace: arc-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - kube-apiserver
