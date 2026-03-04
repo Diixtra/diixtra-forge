@@ -24,7 +24,10 @@ resources:
   - ../../base/policy-reporter
   - ../../base/node-cleanup
   - ../../base/reloader
-  - ../../base/cilium-healthcheck
+  # cilium-healthcheck disabled: registry.k8s.io/kubectl:v1.35.2 is
+  # distroless (no /bin/sh), causing CrashLoopBackOff on all nodes.
+  # Re-enable after switching to a shell-capable kubectl image.
+  # - ../../base/cilium-healthcheck
   - ../../base/alerting
 patches:
   - target:
