@@ -175,6 +175,12 @@ cat > /etc/sysctl.d/k8s.conf << 'EOF'
 net.bridge.bridge-nf-call-iptables  = 1
 net.bridge.bridge-nf-call-ip6tables = 1
 net.ipv4.ip_forward                 = 1
+
+# inotify: raise limits for Falco (eBPF file-event monitoring) and
+# workloads that watch many files (Flux, kubelet, etc.)
+# Raspberry Pi OS defaults are 128/8192 — far too low.
+fs.inotify.max_user_instances = 1024
+fs.inotify.max_user_watches  = 524288
 EOF
 
 sysctl --system > /dev/null 2>&1 || warn "sysctl apply skipped (OK in chroot/container)"
