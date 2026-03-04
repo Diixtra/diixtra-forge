@@ -6,8 +6,9 @@
 #
 # Note: precise disk utilisation % requires node-exporter (not deployed).
 # We use kubelet's DiskPressure condition from kube-state-metrics instead,
-# which fires at ~85% usage. For the etcd database specifically, we
-# check etcd_mvcc_db_total_size_in_bytes against the quota.
+# which fires when nodefs.available < 10% (~90% usage) or
+# imagefs.available < 15% (~85% usage). For the etcd database specifically,
+# we check etcd_mvcc_db_total_size_in_bytes against the quota.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
@@ -23,8 +24,8 @@ spec:
       interval: 60s
       rules:
         # ── Warning: node disk pressure ───────────────────────────
-        # Kubelet reports DiskPressure when node filesystem usage
-        # exceeds its eviction threshold (~85% by default).
+        # Kubelet reports DiskPressure when nodefs.available < 10%
+        # (~90% usage) or imagefs.available < 15% (~85% usage).
         - alert: NodeDiskPressure
           expr: |
             kube_node_status_condition{condition="DiskPressure", status="true"} > 0

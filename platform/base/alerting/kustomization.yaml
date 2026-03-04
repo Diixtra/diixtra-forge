@@ -19,3 +19,4 @@ resources:
   - rules/control-plane.yaml
   - rules/pod-health.yaml
   - rules/resource-pressure.yaml
+  - rules/pipeline-health.yaml

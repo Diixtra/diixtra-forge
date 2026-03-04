@@ -19,14 +19,14 @@ spec:
       interval: 30s
       rules:
         # ── Critical: etcd WAL fsync dangerously slow ─────────────
-        # When fdatasync exceeds 1s, etcd treats it as disk failure
-        # and the entire control plane crash-loops within minutes.
+        # When fdatasync p99 exceeds 1s, etcd falls behind on heartbeats
+        # and raft leader elections, causing the control plane to crash-loop.
         - alert: EtcdFsyncLatencyCritical
           expr: |
             histogram_quantile(0.99,
               rate(etcd_disk_wal_fsync_duration_seconds_bucket{job="etcd"}[5m])
             ) > 1
-          for: 2m
+          for: 1m
           labels:
             severity: critical
           annotations:
@@ -37,13 +37,13 @@ spec:
               Check disk I/O on the control plane node with `iostat -x 1 3`.
 
         # ── Warning: etcd WAL fsync elevated ──────────────────────
-        # Early warning before the situation becomes critical.
+        # Early warning — fires before critical, giving time to investigate.
         - alert: EtcdFsyncLatencyWarning
           expr: |
             histogram_quantile(0.99,
               rate(etcd_disk_wal_fsync_duration_seconds_bucket{job="etcd"}[5m])
             ) > 0.5
-          for: 5m
+          for: 3m
           labels:
             severity: warning
           annotations:
