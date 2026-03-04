@@ -278,6 +278,7 @@ After=containerd.service
 
 [Service]
 Type=oneshot
+SuccessExitStatus=75
 ExecStart=/usr/local/bin/etcd-defrag.sh
 SYSTEMD
 
