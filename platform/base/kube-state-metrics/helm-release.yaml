@@ -8,7 +8,7 @@ spec:
   chart:
     spec:
       chart: kube-state-metrics
-      version: "*"          # Lab: always use latest. Pin in production.
+      version: "<7.0.0"      # 7.x breaks RBAC: grants all resource types instead of collectors subset
       sourceRef:
         kind: HelmRepository
         name: prometheus-community

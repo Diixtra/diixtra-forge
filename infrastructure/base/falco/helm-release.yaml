@@ -38,6 +38,19 @@ spec:
       valuesKey: credential
       targetPath: falcosidekick.config.loki.apikey
       optional: true
+    # Loki username/tenant injected from ConfigMap to preserve string type.
+    # Inline ${GRAFANA_LOKI_USERNAME} substitution produces a bare number
+    # (1481965) in the HelmRelease JSON values, which Helm's b64enc rejects.
+    - kind: ConfigMap
+      name: falco-loki-config
+      valuesKey: GRAFANA_LOKI_USERNAME
+      targetPath: falcosidekick.config.loki.user
+      optional: true
+    - kind: ConfigMap
+      name: falco-loki-config
+      valuesKey: GRAFANA_LOKI_USERNAME
+      targetPath: falcosidekick.config.loki.tenant
+      optional: true
 
   values:
     # ── Falco Driver ──────────────────────────────────────────────
@@ -78,9 +91,6 @@ spec:
           memory: 128Mi
       config:
         loki:
-          # URL and username are Flux-substituted from cluster-vars.
-          # API key is injected via valuesFrom above.
+          # URL is Flux-substituted from cluster-vars.
+          # API key, user, and tenant are injected via valuesFrom above.
           hostport: "${GRAFANA_LOKI_URL}"
-          user: "${GRAFANA_LOKI_USERNAME}"
-          # Tenant header required by Grafana Cloud multi-tenant Loki
-          tenant: "${GRAFANA_LOKI_USERNAME}"
