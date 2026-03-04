@@ -122,13 +122,13 @@ variable "ssh_password" {
 variable "vm_cores" {
   type        = number
   description = "CPU cores for the build VM"
-  default     = 2
+  default     = 4
 }
 
 variable "vm_memory" {
   type        = number
   description = "Memory in MB for the build VM"
-  default     = 2048
+  default     = 4096
 }
 
 variable "vm_disk_size" {
