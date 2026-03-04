@@ -80,7 +80,7 @@ variable "proxmox_iso_storage" {
 
 variable "proxmox_disk_storage" {
   type        = string
-  description = "Storage pool for VM disks"
+  description = "Storage pool for VM disks. Use local NVMe (local-lvm) for control plane nodes to avoid NAS I/O latency and TRIM stalls that cause CPU soft lockups."
 }
 
 variable "ubuntu_iso_file" {
@@ -134,7 +134,7 @@ variable "vm_memory" {
 variable "vm_disk_size" {
   type        = string
   description = "Disk size for the build VM"
-  default     = "32G"
+  default     = "20G"
 }
 
 variable "network_bridge" {
@@ -146,7 +146,7 @@ variable "network_bridge" {
 variable "etcd_disk_size" {
   type        = string
   description = "Dedicated disk size for etcd data (control plane nodes)"
-  default     = "50G"
+  default     = "10G"
 }
 
 variable "etcd_disk_storage" {
