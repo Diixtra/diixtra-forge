@@ -227,7 +227,7 @@ build {
   provisioner "shell" {
     inline = [
       "chmod +x /tmp/provision-k8s-node.sh",
-      "sudo bash /tmp/provision-k8s-node.sh control-plane amd64",
+      "sudo bash /tmp/provision-k8s-node.sh worker amd64",
       "rm -f /tmp/provision-k8s-node.sh",
     ]
   }

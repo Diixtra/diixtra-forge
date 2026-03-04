@@ -40,7 +40,7 @@
 #   Without jq: Bootstrap and ops scripts can't parse kubectl JSON output.
 #
 # USAGE (called by Packer, not manually):
-#   sudo bash provision-k8s-node.sh [--role control-plane|worker] [--arch amd64|arm64]
+#   sudo bash provision-k8s-node.sh [control-plane|worker] [amd64|arm64]
 #
 # =============================================================================
 
@@ -251,10 +251,11 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
 
         ok "etcd disk formatted and mounted at /var/lib/etcd (${ETCD_DISK})"
     else
-        warn "No second disk found at ${ETCD_DISK} — etcd will use root disk"
-        warn "Control plane performance may be degraded under I/O load"
-        mkdir -p /var/lib/etcd
-        chmod 700 /var/lib/etcd
+        echo "ERROR: No dedicated etcd disk found at ${ETCD_DISK}"
+        echo "  Control-plane nodes MUST have a dedicated etcd disk."
+        echo "  Ensure the Packer template includes a second disk block with etcd_disk_storage."
+        echo "  See: docs/troubleshooting/etcd-io-saturation-control-plane-crash.md"
+        exit 1
     fi
 
     # ── etcd Defragmentation Timer ─────────────────────────────────────
@@ -297,8 +298,16 @@ SYSTEMD
 #!/bin/bash
 set -euo pipefail
 
-ETCD_CONTAINER=$(crictl ps --name etcd -q 2>/dev/null)
+ETCD_CONTAINER=$(crictl ps --name etcd -q 2>&1)
+CRICTL_EXIT=$?
+if [ $CRICTL_EXIT -ne 0 ]; then
+    echo "ERROR: crictl failed — container runtime may be unavailable" >&2
+    echo "crictl output: $ETCD_CONTAINER" >&2
+    exit 1
+fi
+
 if [ -z "$ETCD_CONTAINER" ]; then
+    logger -p daemon.warning "etcd-defrag: container not found, skipping"
     echo "etcd container not found, skipping"
     exit 0
 fi
@@ -310,7 +319,10 @@ CERTS="--endpoints=https://127.0.0.1:2379 \
 
 # Get current revision and compact
 REV=$(crictl exec "$ETCD_CONTAINER" etcdctl $CERTS endpoint status --write-out=json 2>/dev/null \
-    | python3 -c 'import json,sys; print(json.load(sys.stdin)[0]["Status"]["header"]["revision"])')
+    | jq -r '.[0].Status.header.revision') || {
+    echo "ERROR: Failed to get etcd revision, skipping defrag" >&2
+    exit 1
+}
 echo "Compacting to revision $REV..."
 crictl exec "$ETCD_CONTAINER" etcdctl $CERTS compact "$REV"
 

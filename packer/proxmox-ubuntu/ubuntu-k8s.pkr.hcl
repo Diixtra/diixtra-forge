@@ -151,8 +151,12 @@ variable "etcd_disk_size" {
 
 variable "etcd_disk_storage" {
   type        = string
-  description = "Storage pool for etcd disk. Use fast local storage (NVMe) — etcd needs <10ms fsync. Falls back to proxmox_disk_storage if empty."
-  default     = ""
+  description = "Storage pool for etcd disk. Must be fast local storage (NVMe) — etcd needs <10ms fsync."
+
+  validation {
+    condition     = var.etcd_disk_storage != ""
+    error_message = "etcd_disk_storage must be set explicitly. etcd requires local NVMe storage (<10ms fsync). Do NOT use NAS/network storage — see docs/troubleshooting/etcd-io-saturation-control-plane-crash.md."
+  }
 }
 
 # ── Source: Proxmox ISO Builder ─────────────────────────────────────
@@ -224,7 +228,7 @@ source "proxmox-iso" "ubuntu-k8s" {
   # Use etcd_disk_storage to place this on fast local NVMe — etcd requires
   # <10ms fdatasync latency; thin-provisioned shared storage delivers ~250ms.
   disks {
-    storage_pool = var.etcd_disk_storage != "" ? var.etcd_disk_storage : var.proxmox_disk_storage
+    storage_pool = var.etcd_disk_storage
     disk_size    = var.etcd_disk_size
     type         = "scsi"
     discard      = true
