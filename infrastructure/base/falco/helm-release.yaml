@@ -108,11 +108,11 @@ spec:
           hostport: "${GRAFANA_LOKI_URL}"
 
       # ── Falcosidekick UI ────────────────────────────────────────────
-      # Web dashboard for browsing Falco events in real time.
-      # Event storage is ephemeral (Redis with no PVC) — events are
-      # lost on pod restart. Loki is the durable store.
+      # Disabled: the chart's init container lacks resource limits
+      # which Kyverno's require-resource-limits policy rejects.
+      # Loki is the durable event store; the ephemeral UI is not needed.
       webui:
-        enabled: true
+        enabled: false
         replicaCount: 1
         resources:
           requests:
