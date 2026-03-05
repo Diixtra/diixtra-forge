@@ -44,7 +44,7 @@ spec:
           memory: 512Mi
       db:
         pvc:
-          storageClassName: truenas-nfs
+          storageClassName: truenas-iscsi
 
     proxy:
       service:
@@ -62,7 +62,7 @@ spec:
       storage:
         capacity: 5Gi
         dynamic:
-          storageClass: truenas-nfs
+          storageClass: truenas-iscsi
       cpu:
         limit: 2
         guarantee: 0.25
