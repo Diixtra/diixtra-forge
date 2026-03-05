@@ -1,0 +1,31 @@
+# Flux Alert — Error Events from All Flux Sources
+#
+# Watches all HelmRelease, Kustomization, GitRepository, and
+# HelmRepository objects across all namespaces for error events.
+# HelmReleases live in their workload namespaces (backstage,
+# kyverno-system, etc.), so namespace: "*" is required.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Alert
+metadata:
+  name: flux-system-errors
+  namespace: flux-system
+  labels:
+    app.kubernetes.io/part-of: flux-notifications
+    app.kubernetes.io/managed-by: flux
+spec:
+  providerRef:
+    name: slack-flux-alerts
+  eventSeverity: error
+  eventSources:
+    - kind: HelmRelease
+      name: "*"
+      namespace: "*"
+    - kind: Kustomization
+      name: "*"
+      namespace: "*"
+    - kind: GitRepository
+      name: "*"
+      namespace: "*"
+    - kind: HelmRepository
+      name: "*"
+      namespace: "*"

@@ -14,6 +14,14 @@ spec:
         name: prometheus-community
         namespace: flux-system
       interval: 1h
+  install:
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 10m
+    remediation:
+      retries: 3
   values:
     # ── Metric Reduction — Grafana Cloud Free Tier (10k series) ──
     # By default KSM exposes ~30 resource types. Most are high-cardinality

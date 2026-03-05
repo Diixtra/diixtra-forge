@@ -22,6 +22,14 @@ spec:
         name: grafana
         namespace: flux-system
       interval: 1h
+  install:
+    timeout: 10m
+    remediation:
+      retries: 3
+  upgrade:
+    timeout: 10m
+    remediation:
+      retries: 3
   values:
     # Run as DaemonSet so every node gets a collection agent
     controller:

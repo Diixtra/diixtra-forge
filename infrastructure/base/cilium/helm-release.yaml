@@ -17,9 +17,13 @@ spec:
   install:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   # LEARNING NOTE — VALUES MUST MATCH BOOTSTRAP:
   #   The bootstrap script (scripts/bootstrap.py) installs Cilium via
   #   Helm CLI before Flux is running. When Flux later deploys this

@@ -21,5 +21,9 @@ spec:
       interval: 1h
   install:
     timeout: 5m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 5m
+    remediation:
+      retries: 3
