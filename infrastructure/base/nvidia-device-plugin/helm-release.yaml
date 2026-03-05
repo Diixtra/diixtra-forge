@@ -7,6 +7,10 @@
 #   3. Reports GPU count as an Extended Resource (nvidia.com/gpu: N)
 #   4. The scheduler can then place GPU-requesting pods on GPU nodes
 #
+# Time-slicing is enabled: each physical GPU is advertised as 4 virtual
+# GPUs, allowing multiple workloads (e.g. Ollama + JupyterHub) to share
+# a single GPU. No memory isolation — all slices share the full VRAM pool.
+#
 # K3s auto-deployed this; kubeadm does not — hence this HelmRelease.
 apiVersion: helm.toolkit.fluxcd.io/v2
 kind: HelmRelease
@@ -48,3 +52,20 @@ spec:
       limits:
         cpu: 200m
         memory: 128Mi
+
+    # GPU time-slicing: advertise each physical GPU as 4 virtual GPUs.
+    # Lets multiple workloads (Ollama + JupyterHub GPU notebooks) share
+    # one GPU via round-robin scheduling on the hardware.
+    # NOTE: no memory isolation — all slices share the full VRAM pool.
+    config:
+      default: "time-slicing"
+      map:
+        time-slicing: |-
+          version: v1
+          flags:
+            migStrategy: none
+          sharing:
+            timeSlicing:
+              resources:
+              - name: nvidia.com/gpu
+                replicas: 4
