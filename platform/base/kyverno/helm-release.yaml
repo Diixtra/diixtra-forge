@@ -40,7 +40,14 @@ spec:
   values:
     # Start with minimal resource footprint for homelab
     replicaCount: 1
+    # Schedule on amd64 nodes only. Pi 4 (2 GB RAM) can't sustain
+    # the admission controller — liveness probes time out under
+    # memory pressure, causing 100+ restarts/day. Each restart
+    # makes the fail-closed webhook unreachable, blocking all Flux
+    # dry-runs and breaking the entire reconciliation chain.
     admissionController:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       container:
         resources:
           requests:
@@ -58,6 +65,8 @@ spec:
             cpu: 250m
             memory: 256Mi
     backgroundController:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       resources:
         requests:
           cpu: 50m
@@ -66,6 +75,8 @@ spec:
           cpu: 250m
           memory: 512Mi
     cleanupController:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       resources:
         requests:
           cpu: 50m
@@ -74,6 +85,8 @@ spec:
           cpu: 250m
           memory: 512Mi
     reportsController:
+      nodeSelector:
+        kubernetes.io/arch: amd64
       resources:
         requests:
           cpu: 50m
