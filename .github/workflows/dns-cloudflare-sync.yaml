@@ -10,7 +10,6 @@ on:
     paths:
       - 'platform/base/traefik-config/**'
       - 'clusters/homelab/vars.yaml'
-      - 'infrastructure/base/traefik/helm-release.yaml'
   workflow_dispatch: {}
 
 concurrency:
@@ -46,10 +45,9 @@ jobs:
           for m in re.finditer(r'^\s+(\w+):\s*"([^"]*)"', vars_text, re.MULTILINE):
               vars_map[m.group(1)] = m.group(2)
 
-          # Extract Traefik LoadBalancer IP from HelmRelease annotation
-          hr_text = pathlib.Path("infrastructure/base/traefik/helm-release.yaml").read_text()
-          lb_match = re.search(r"loadBalancerIPs:\s*(\S+)", hr_text)
-          lb_ip = lb_match.group(1) if lb_match else ""
+          # The Traefik HelmRelease uses a Flux variable ${LB_TRAEFIK_IP}
+          # for io.cilium/lb-ipam-ips, so read the actual IP from cluster vars.
+          lb_ip = vars_map.get("LB_TRAEFIK_IP", "")
 
           # Extract all Host() matches from IngressRoute files
           hostnames = set()
@@ -85,10 +83,22 @@ jobs:
           DOMAIN=$(echo "$DATA" | jq -r '.domain')
           LB_IP=$(echo "$DATA" | jq -r '.lb_ip')
 
+          if [ -z "$DOMAIN" ] || [ -z "$LB_IP" ]; then
+            echo "::error::Missing required data — DOMAIN='$DOMAIN' LB_IP='$LB_IP'"
+            echo "Check clusters/homelab/vars.yaml for DOMAIN and LB_TRAEFIK_IP"
+            exit 1
+          fi
+
           # Look up Cloudflare zone ID from domain name
           ZONE_ID=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
-            | jq -r '.result[0].id')
+            | jq -r '.result[0].id // empty')
+
+          if [ -z "$ZONE_ID" ]; then
+            echo "::error::Cloudflare zone not found for domain '$DOMAIN'"
+            echo "Verify CF_API_TOKEN has Zone:Read permission and the domain exists in this Cloudflare account"
+            exit 1
+          fi
 
           echo "Zone: $DOMAIN ($ZONE_ID)"
           echo "Target IP: $LB_IP"
@@ -105,12 +115,16 @@ jobs:
 
             if [ "$COUNT" -eq 0 ]; then
               echo "++ Creating: $HOST -> $LB_IP"
-              curl -sf -X POST \
+              RESULT=$(curl -sf -X POST \
                 -H "Authorization: Bearer $CF_API_TOKEN" \
                 -H "Content-Type: application/json" \
                 "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-                -d "{\"type\":\"A\",\"name\":\"$HOST\",\"content\":\"$LB_IP\",\"ttl\":1,\"proxied\":false}" \
-                | jq '{success: .success, id: .result.id}'
+                -d "{\"type\":\"A\",\"name\":\"$HOST\",\"content\":\"$LB_IP\",\"ttl\":1,\"proxied\":false}")
+              if [ "$(echo "$RESULT" | jq -r '.success')" != "true" ]; then
+                echo "::error::Failed to create A record for $HOST: $(echo "$RESULT" | jq -r '.errors[]?.message // "unknown error"')"
+                exit 1
+              fi
+              echo "$RESULT" | jq '{success: .success, id: .result.id}'
               CREATED=$((CREATED + 1))
             else
               echo "== Exists:   $HOST"
