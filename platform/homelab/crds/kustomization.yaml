@@ -26,6 +26,7 @@ resources:
   - ../../base/reloader
   - ../../base/cilium-healthcheck
   - ../../base/alerting
+  - ../../base/flux-notifications
 patches:
   - target:
       kind: HelmRelease
