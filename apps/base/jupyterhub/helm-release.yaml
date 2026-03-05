@@ -59,6 +59,8 @@ spec:
             memory: 128Mi
 
     singleuser:
+      cloudMetadata:
+        blockWithIptables: false # No cloud metadata in homelab
       storage:
         capacity: 5Gi
         dynamic:
