@@ -36,6 +36,7 @@ source of truth, reconciled by Kubernetes-native controllers.
     │  │ 1Password │  │ (→ Backstage)    │  │
     │  │ Operator  │  │ (→ Crossplane)   │  │
     │  │ GHA Runner│  │                  │  │
+    │  │ Falco     │  │                  │  │
     │  └──────────┘  └──────────────────┘  │
     │                                      │
     │  ┌──────────────────────────────────┐│
@@ -52,7 +53,7 @@ healthy before the next begins:
 
 | Layer | Directory         | Contents                          | Depends On     |
 |-------|-------------------|-----------------------------------|----------------|
-| 1     | `infrastructure/` | Cilium, Traefik, 1Password, democratic-csi, Flux addons | —  |
+| 1     | `infrastructure/` | Cilium, Traefik, 1Password, democratic-csi, Falco, Flux addons | —  |
 | 2a    | `platform/crds`   | Kyverno HelmRelease, Grafana Alloy | Infrastructure |
 | 2b    | `platform/policies`| Kyverno ClusterPolicies           | Platform CRDs  |
 | 3     | `apps/`           | Diixtra services (future)         | Platform       |
@@ -133,6 +134,21 @@ This separates the monitoring failure domain from the cluster failure domain.
 If the cluster is down, Grafana Cloud still has all historical data and
 can alert on the absence of new data.
 
+## Runtime Security
+
+- **Falco**: eBPF-based runtime security monitoring. DaemonSet on every amd64
+  node detecting anomalous container behaviour (shell spawns, sensitive file
+  reads, privilege escalation) using the modern eBPF driver.
+- **Falcosidekick**: Forwards Falco events to Grafana Cloud Loki for
+  centralised alerting and dashboarding.
+- **Falcosidekick-UI**: Web dashboard for browsing Falco events in real time
+  at `falco.lab.kazie.co.uk`. Exposed via Traefik IngressRoute with
+  basic-auth middleware (1Password-synced credential). Event storage is
+  ephemeral (Redis, no PVC) — Loki is the durable store.
+- **CiliumNetworkPolicy**: falco-system namespace has explicit policies
+  allowing Traefik ingress on port 2802, intra-namespace traffic (UI ↔ Redis),
+  and egress to Grafana Cloud Loki.
+
 ## Storage (ADR-006)
 
 - **democratic-csi** with TrueNAS SCALE at 10.2.0.232
@@ -149,7 +165,7 @@ can alert on the absence of new data.
 | 2     | Policy enforcement, supply chain| Kyverno, Trivy, Cosign |
 | 3     | Developer self-service         | Backstage              |
 | 4     | Declarative everything         | Crossplane, UniFi API  |
-| 5     | Runtime security               | Falco, CSI driver, NetworkPolicies |
+| 5     | Runtime security (in progress)  | Falco ✓, NetworkPolicies ✓, CSI driver |
 
 See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 
@@ -181,6 +197,7 @@ See `docs/adr/005-auto-update-strategy.md` for detailed phase descriptions.
 | Document                        | Purpose                                        |
 |---------------------------------|------------------------------------------------|
 | `traefik-tls-migration.md`     | Caddy→Traefik migration, ACME DNS-01 root cause & fix |
+| `kyverno-webhook-timeout-cascade.md` | Kyverno fail-closed webhook blocking Flux reconciliation |
 
 ## Repository Structure
 
@@ -208,6 +225,7 @@ diixtra-forge/
 │   │   ├── cilium/          CNI (eBPF), kube-proxy replacement, L2 LB (ADR-008)
 │   │   ├── traefik/
 │   │   ├── democratic-csi/  NFS + iSCSI (dataset paths: OVERRIDE_IN_ENV_PATCH)
+│   │   ├── falco/           Runtime security (eBPF), Falcosidekick → Loki, UI
 │   │   ├── onepassword-operator/
 │   │   ├── github-actions-runner/  Self-hosted ARC runner (homelab)
 │   │   ├── packer-runner/   Privileged ARC runner for Packer Pi builds

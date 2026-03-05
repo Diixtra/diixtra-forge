@@ -69,5 +69,5 @@ full procedure, or run `python3 scripts/bootstrap.py` for automated setup.
 | [`docs/runbooks/secrets-management.md`](docs/runbooks/secrets-management.md) | 1Password secrets lifecycle |
 | [`docs/runbooks/truenas-setup.md`](docs/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
 | [`docs/traefik-tls-migration.md`](docs/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–008) |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–010) |
 | [`docs/learning/`](docs/learning/) | Deep-dive educational content |

@@ -109,6 +109,10 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 | debug-flux-helm | `kubectl logs -n flux-system deploy/helm-controller` | debug, flux |
 | debug-flux-image-reflect | `kubectl logs -n flux-system deploy/image-reflector-controller` | debug, flux |
 | debug-flux-image-auto | `kubectl logs -n flux-system deploy/image-automation-controller` | debug, flux |
+| debug-falco | `kubectl logs -n falco-system ds/falco --tail=50` | debug, falco |
+| debug-falcosidekick | `kubectl logs -n falco-system deploy/falco-falcosidekick --tail=50` | debug, falco |
+| debug-falco-ui | `kubectl logs -n falco-system deploy/falco-falcosidekick-ui --tail=50` | debug, falco |
+| falco-events | `kubectl logs -n falco-system ds/falco --tail=20 \| grep -E 'Warning\|Error\|Critical'` | debug, falco |
 | helm-history | `helm history {{name}} -n {{namespace}}` | debug, helm |
 | pvc-status | `kubectl get pvc -A` | debug, storage |
 | describe-onepassworditem | `kubectl describe onepassworditem {{name}} -n {{namespace}}` | debug, 1password |
@@ -132,7 +136,7 @@ Quick reference for all operational commands used to manage the diixtra-forge ho
 
 ---
 
-**Total: 69 commands across 11 categories**
+**Total: 73 commands across 11 categories**
 
 ### Template Variables
 
