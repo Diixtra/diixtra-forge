@@ -44,7 +44,7 @@ spec:
           memory: 512Mi
       db:
         pvc:
-          storageClassName: truenas-iscsi
+          storageClassName: truenas-nfs
 
     proxy:
       service:
