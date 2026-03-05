@@ -13,16 +13,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: kyverno-system-default-deny
-  namespace: kyverno-system
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: kyverno-system-allow-ingress-kube-api
   namespace: kyverno-system
 spec:

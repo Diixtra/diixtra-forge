@@ -11,16 +11,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: flux-system-default-deny
-  namespace: flux-system
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: flux-system-allow-egress-github
   namespace: flux-system
 spec:

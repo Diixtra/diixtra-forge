@@ -11,16 +11,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: traefik-system-default-deny
-  namespace: traefik-system
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: traefik-system-allow-ingress-world
   namespace: traefik-system
 spec:

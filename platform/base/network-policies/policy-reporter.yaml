@@ -11,16 +11,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: policy-reporter-default-deny
-  namespace: policy-reporter
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: policy-reporter-allow-ingress-backstage
   namespace: policy-reporter
 spec:

@@ -9,16 +9,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: crossplane-system-default-deny
-  namespace: crossplane-system
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: crossplane-system-allow-egress-kube-api
   namespace: crossplane-system
 spec:
