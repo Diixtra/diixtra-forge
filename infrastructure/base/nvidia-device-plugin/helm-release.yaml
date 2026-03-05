@@ -9,7 +9,8 @@
 #
 # Time-slicing is enabled: each physical GPU is advertised as 4 virtual
 # GPUs, allowing multiple workloads (e.g. Ollama + JupyterHub) to share
-# a single GPU. No memory isolation — all slices share the full VRAM pool.
+# a single GPU. No memory or fault isolation — a crash in one workload
+# can take down all others on the same GPU.
 #
 # K3s auto-deployed this; kubeadm does not — hence this HelmRelease.
 apiVersion: helm.toolkit.fluxcd.io/v2
@@ -55,8 +56,8 @@ spec:
 
     # GPU time-slicing: advertise each physical GPU as 4 virtual GPUs.
     # Lets multiple workloads (Ollama + JupyterHub GPU notebooks) share
-    # one GPU via round-robin scheduling on the hardware.
-    # NOTE: no memory isolation — all slices share the full VRAM pool.
+    # one GPU via CUDA context switching.
+    # NOTE: no memory or fault isolation — all slices share the full VRAM pool.
     config:
       default: "time-slicing"
       map:
