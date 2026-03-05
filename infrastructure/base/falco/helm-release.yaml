@@ -64,6 +64,12 @@ spec:
       grpc_output:
         enabled: false
 
+    # ── Node Selector ───────────────────────────────────────────
+    # modern_ebpf requires BPF_TRACE_RAW_TP which is not supported
+    # on ARM64 Raspberry Pi kernels.
+    nodeSelector:
+      kubernetes.io/arch: amd64
+
     # ── Falco Resources ──────────────────────────────────────────
     resources:
       requests:
