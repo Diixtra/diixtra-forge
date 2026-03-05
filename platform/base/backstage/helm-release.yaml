@@ -23,7 +23,9 @@ spec:
       image:
         registry: ghcr.io
         repository: diixtra/backstage
-        tag: "build-61" # {"$imagepolicy": "flux-system:backstage:tag"}
+        # Pinned to last known working build. Re-enable image automation
+        # only after adding a CI smoke test that verifies the image starts.
+        tag: "build-49"
       # 1Password item "backstage-github-app" fields must be named exactly:
       # GITHUB_APP_ID, GITHUB_APP_CLIENT_ID, GITHUB_APP_CLIENT_SECRET,
       # GITHUB_APP_PRIVATE_KEY, GITHUB_APP_WEBHOOK_SECRET
@@ -31,6 +33,32 @@ spec:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       extraEnvVarsSecrets:
         - backstage-github-app
+      # The chart defaults give only 30s for startup (failureThreshold=3,
+      # periodSeconds=10). Backstage needs 60-90s to initialise plugins
+      # and connect to PostgreSQL. Override to allow up to 5 minutes.
+      startupProbe:
+        httpGet:
+          path: /.backstage/health/v1/liveness
+          port: 7007
+          scheme: HTTP
+        failureThreshold: 30
+        periodSeconds: 10
+      readinessProbe:
+        httpGet:
+          path: /.backstage/health/v1/readiness
+          port: 7007
+          scheme: HTTP
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 3
+      livenessProbe:
+        httpGet:
+          path: /.backstage/health/v1/liveness
+          port: 7007
+          scheme: HTTP
+        initialDelaySeconds: 0
+        periodSeconds: 10
+        failureThreshold: 3
       podSecurityContext:
         runAsNonRoot: true
         runAsUser: 1000
