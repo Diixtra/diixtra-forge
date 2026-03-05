@@ -30,7 +30,35 @@ spec:
     name: flux-system
   path: ./platform/homelab/crds
   prune: true
-  wait: true
+  # wait: false — only check explicitly listed healthChecks, not all
+  # resources. DaemonSets (grafana-alloy, cilium-healthcheck) on
+  # unreachable nodes stay Unknown indefinitely; wait: true would
+  # block the entire chain.
+  # NOTE: on fresh bootstrap the Kyverno HelmRelease may report Ready
+  # before the API server discovery cache registers Kyverno CRDs.
+  # The platform Kustomization's retryInterval (1m) self-heals this.
+  wait: false
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kyverno
+      namespace: kyverno-system
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kube-state-metrics
+      namespace: monitoring
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: backstage
+      namespace: backstage
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: policy-reporter
+      namespace: policy-reporter
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: reloader
+      namespace: reloader
   dependsOn:
     - name: infrastructure
   postBuild:

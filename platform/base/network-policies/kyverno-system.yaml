@@ -5,7 +5,9 @@
 # Kubernetes API server calls Kyverno's webhook endpoints when
 # resources are created/modified, so Kyverno needs ingress from
 # the API server. Kyverno also needs egress to the API server to
-# watch policy resources and generate reports.
+# watch policy resources and generate reports. The four controllers
+# (admission, background, cleanup, reports) also need cluster-wide
+# egress for cross-namespace operations and leader election.
 # ══════════════════════════════════════════════════════════════════
 ---
 apiVersion: cilium.io/v2
@@ -39,6 +41,22 @@ spec:
   egress:
     - toEntities:
         - kube-apiserver
+---
+# Kyverno controllers need cluster-wide egress: the background controller
+# watches and mutates resources in all namespaces, the reports controller
+# generates PolicyReports in target namespaces, and the cleanup controller
+# removes expired resources cluster-wide. Leader election (intra-namespace)
+# is also covered by this rule.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: kyverno-system-allow-egress-cluster
+  namespace: kyverno-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - cluster
 ---
 # Allow cluster-internal ingress for Prometheus metrics scraping
 apiVersion: cilium.io/v2
