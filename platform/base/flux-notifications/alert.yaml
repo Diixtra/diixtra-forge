@@ -1,9 +1,14 @@
 # Flux Alert — Error Events from All Flux Sources
 #
-# Watches all HelmRelease, Kustomization, GitRepository, and
-# HelmRepository objects across all namespaces for error events.
-# HelmReleases live in their workload namespaces (backstage,
-# kyverno-system, etc.), so namespace: "*" is required.
+# Watches HelmRelease, Kustomization, GitRepository, and HelmRepository
+# objects for error events. HelmReleases live in their workload
+# namespaces, so each namespace must be listed explicitly — the Flux
+# Alert CRD does not support namespace wildcards.
+#
+# Kustomization, GitRepository, and HelmRepository objects all live
+# in flux-system, so omitting namespace defaults correctly.
+#
+# When adding a new HelmRelease in a new namespace, add an entry here.
 apiVersion: notification.toolkit.fluxcd.io/v1beta3
 kind: Alert
 metadata:
@@ -17,15 +22,65 @@ spec:
     name: slack-flux-alerts
   eventSeverity: error
   eventSources:
+    # ── HelmReleases (one entry per namespace) ──────────────────────
     - kind: HelmRelease
       name: "*"
-      namespace: "*"
+      namespace: arc-runners
+    - kind: HelmRelease
+      name: "*"
+      namespace: arc-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: backstage
+    - kind: HelmRelease
+      name: "*"
+      namespace: crossplane-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: democratic-csi
+    - kind: HelmRelease
+      name: "*"
+      namespace: falco-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: flux-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: jupyterhub
+    - kind: HelmRelease
+      name: "*"
+      namespace: kube-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: kyverno-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: monitoring
+    - kind: HelmRelease
+      name: "*"
+      namespace: nvidia-device-plugin
+    - kind: HelmRelease
+      name: "*"
+      namespace: ollama
+    - kind: HelmRelease
+      name: "*"
+      namespace: onepassword-system
+    - kind: HelmRelease
+      name: "*"
+      namespace: packer-runners
+    - kind: HelmRelease
+      name: "*"
+      namespace: policy-reporter
+    - kind: HelmRelease
+      name: "*"
+      namespace: reloader
+    - kind: HelmRelease
+      name: "*"
+      namespace: traefik-system
+    # ── Flux system resources (all in flux-system) ─────────────────
     - kind: Kustomization
       name: "*"
-      namespace: "*"
     - kind: GitRepository
       name: "*"
-      namespace: "*"
     - kind: HelmRepository
       name: "*"
-      namespace: "*"
