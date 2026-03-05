@@ -94,8 +94,6 @@ spec:
     falcosidekick:
       enabled: true
       replicaCount: 1
-      webui:
-        enabled: false
       resources:
         requests:
           cpu: 50m
