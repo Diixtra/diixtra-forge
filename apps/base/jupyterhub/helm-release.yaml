@@ -39,6 +39,17 @@ spec:
           # causing "Could not create PVC" spawn failures.
           k8s_api_request_timeout: 30
           k8s_api_request_retry_timeout: 60
+          # The chart only sets allowPrivilegeEscalation: false for
+          # singleuser pods. Add the remaining fields required by the
+          # restricted Pod Security Standard.
+          container_security_context:
+            allowPrivilegeEscalation: false
+            runAsNonRoot: true
+            capabilities:
+              drop:
+                - ALL
+            seccompProfile:
+              type: RuntimeDefault
       resources:
         requests:
           cpu: 100m
