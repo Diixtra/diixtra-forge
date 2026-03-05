@@ -49,7 +49,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
+        - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
       container:
@@ -72,7 +72,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
+        - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
       resources:
@@ -86,7 +86,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
+        - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
       resources:
@@ -100,7 +100,7 @@ spec:
       nodeSelector:
         kubernetes.io/arch: amd64
       tolerations:
-        - key: node-role.kubernetes.io/control-plane
+        - key: nvidia.com/gpu
           operator: Exists
           effect: NoSchedule
       resources:
