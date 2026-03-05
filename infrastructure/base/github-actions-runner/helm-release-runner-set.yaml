@@ -69,9 +69,9 @@ spec:
   #   - Repository URL (github.com/org/repo): runners serve only that repo
   #   - Organisation URL (github.com/org): runners serve any repo in the org
   #
-  #   Org-level is more flexible but requires broader PAT scope.
-  #   For homelab, repo-level is fine — we only have diixtra-forge.
-  #   Change to org-level when you add more repos.
+  #   Migrated to org-level per ADR-009 so that runners serve all repos
+  #   in the Diixtra org (diixtra-forge, diixtra-packer, etc.).
+  #   Requires a GitHub App or PAT with admin:org scope.
   values:
     # The GitHub entity this runner pool serves
     githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"

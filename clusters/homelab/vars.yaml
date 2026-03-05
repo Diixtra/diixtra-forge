@@ -77,6 +77,6 @@ data:
   HOME_ASSISTANT_HOST: "10.2.20.171"
   # ── GitHub Actions Runner ──────────────────────────────────────
   # URL of the GitHub entity runners will serve.
-  # Repo-level: "https://github.com/Diixtra/diixtra-forge"
-  # Org-level:  "https://github.com/Diixtra"
-  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra/diixtra-forge"
+  # Migrated to org-level per ADR-009 — runners now serve all repos
+  # in the Diixtra org (required before moving workflows to new repos).
+  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra"

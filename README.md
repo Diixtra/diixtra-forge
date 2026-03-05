@@ -1,6 +1,8 @@
 # diixtra-forge
 
-Infrastructure monorepo for the Diixtra homelab and Diixtra platform. Manages Kubernetes clusters, cloud resources, and the Internal Developer Platform (IDP) stack.
+GitOps control plane for the Diixtra homelab. Manages Kubernetes cluster state via Flux CD — what's deployed, where, and how.
+
+Packer golden images have moved to [`diixtra-packer`](https://github.com/Diixtra/diixtra-packer). The `packer-runner` ARC runner set in `infrastructure/base/packer-runner/` remains here (cluster infrastructure).
 
 ## Architecture
 
@@ -54,6 +56,12 @@ Rollback is always `git revert` + Flux reconciliation.
 | Check image updates | `flux get images all -A` |
 | Check HelmReleases | `flux get helmreleases -A` |
 | Validate locally | `kustomize build infrastructure/homelab` |
+
+## Related Repositories
+
+| Repo | Purpose |
+|------|---------|
+| [`diixtra-packer`](https://github.com/Diixtra/diixtra-packer) | Packer golden VM/Pi image templates (HCL, Bash) |
 
 ## Bootstrap
 
