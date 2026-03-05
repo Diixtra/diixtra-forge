@@ -91,3 +91,17 @@ spec:
           # URL is Flux-substituted from cluster-vars. API key, user,
           # and tenant are injected via valuesFrom (Secret) above.
           hostport: "${GRAFANA_LOKI_URL}"
+
+      # ── Falcosidekick UI ────────────────────────────────────────────
+      # Web dashboard for browsing Falco events in real time.
+      # Exposed externally via Traefik IngressRoute.
+      webui:
+        enabled: true
+        replicaCount: 1
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi

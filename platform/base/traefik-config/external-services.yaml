@@ -136,6 +136,17 @@ spec:
   externalName: proxy-public.jupyterhub.svc.cluster.local
 
 ---
+# ── Falco UI (in-cluster, falco-system namespace) ────────────────
+apiVersion: v1
+kind: Service
+metadata:
+  name: falco-ui-external
+  namespace: traefik-system
+spec:
+  type: ExternalName
+  externalName: falco-falcosidekick-ui.falco-system.svc.cluster.local
+
+---
 # ── Flux Operator WebUI (in-cluster, flux-system namespace) ─────
 apiVersion: v1
 kind: Service
