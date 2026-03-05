@@ -28,9 +28,12 @@ jobs:
           set -euo pipefail
           if ! command -v kubectl &> /dev/null; then
             KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
-            curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
-            chmod +x /usr/local/bin/kubectl
-            echo "kubectl installed: $(kubectl version --client)"
+            BIN_DIR="${RUNNER_TEMP:-/tmp}/bin"
+            mkdir -p "$BIN_DIR"
+            curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o "$BIN_DIR/kubectl"
+            chmod +x "$BIN_DIR/kubectl"
+            echo "$BIN_DIR" >> "$GITHUB_PATH"
+            echo "kubectl installed: $("$BIN_DIR/kubectl" version --client)"
           else
             echo "kubectl already available: $(kubectl version --client)"
           fi
