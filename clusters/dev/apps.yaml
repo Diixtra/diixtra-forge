@@ -14,31 +14,9 @@ spec:
   path: ./apps/dev
   prune: true
   wait: true
-  healthChecks:
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-kubernetes
-      namespace: mcp-servers
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-terraform
-      namespace: mcp-servers
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-grafana
-      namespace: mcp-servers
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-cloudflare
-      namespace: mcp-servers
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-stripe
-      namespace: mcp-servers
-    - apiVersion: apps/v1
-      kind: Deployment
-      name: mcp-memory
-      namespace: mcp-servers
+  # MCP server health checks removed — MCP servers are now deployed
+  # via the mcp-servers Kustomization (clusters/dev/mcp-servers.yaml),
+  # not the apps layer.
   postBuild:
     substituteFrom:
       - kind: ConfigMap

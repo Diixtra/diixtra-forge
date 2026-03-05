@@ -18,3 +18,5 @@ resources:
   - infrastructure.yaml
   - platform.yaml
   - apps.yaml
+  # External repo sources (ADR-009 multi-repo)
+  - mcp-servers.yaml

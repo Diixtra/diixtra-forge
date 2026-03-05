@@ -1,6 +1,8 @@
 # diixtra-forge
 
-Infrastructure monorepo for the Diixtra homelab and Diixtra platform. Manages Kubernetes clusters, cloud resources, and the Internal Developer Platform (IDP) stack.
+GitOps control plane for the Diixtra homelab. Manages Kubernetes cluster state via Flux CD — what's deployed, where, and how.
+
+MCP server manifests have moved to [`diixtra-mcp-servers`](https://github.com/Diixtra/diixtra-mcp-servers), consumed via a Flux `GitRepository` source in each cluster.
 
 ## Architecture
 
@@ -54,6 +56,12 @@ Rollback is always `git revert` + Flux reconciliation.
 | Check image updates | `flux get images all -A` |
 | Check HelmReleases | `flux get helmreleases -A` |
 | Validate locally | `kustomize build infrastructure/homelab` |
+
+## Related Repositories
+
+| Repo | Purpose |
+|------|---------|
+| [`diixtra-mcp-servers`](https://github.com/Diixtra/diixtra-mcp-servers) | MCP server Kubernetes manifests |
 
 ## Bootstrap
 
