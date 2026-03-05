@@ -24,8 +24,12 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
   values:
     hub:
       config:

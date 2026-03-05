@@ -26,8 +26,12 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
   values:
     # Only run on nodes that have a GPU attached.
     # The first-boot script applies this label after kubeadm join.

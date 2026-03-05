@@ -63,8 +63,12 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
   # LEARNING NOTE — githubConfigUrl SCOPE:
   #   - Repository URL (github.com/org/repo): runners serve only that repo
   #   - Organisation URL (github.com/org): runners serve any repo in the org
