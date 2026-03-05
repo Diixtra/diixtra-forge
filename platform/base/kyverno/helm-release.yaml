@@ -40,6 +40,37 @@ spec:
   values:
     # Start with minimal resource footprint for homelab
     replicaCount: 1
+    # ── Webhook namespace exclusions ──────────────────────────────
+    # LEARNING NOTE — WHY EXCLUDE NAMESPACES FROM THE WEBHOOK:
+    #   Kyverno's fail-closed validating webhook (failurePolicy: Fail)
+    #   is called by the API server for every dry-run, even in
+    #   namespaces where no Enforce policies apply. If Kyverno is
+    #   unhealthy (crash loop, startup), the webhook times out and
+    #   blocks ALL Flux dry-runs — including flux-system itself.
+    #
+    #   namespaceSelector tells the API server to skip the webhook
+    #   entirely for these namespaces. This is different from
+    #   config.resourceFilters (where Kyverno still receives the
+    #   request and returns an immediate allow — Kyverno must be
+    #   reachable). When Kyverno is down, only the selector prevents
+    #   timeouts.
+    #
+    #   As of this writing, every Enforce policy in kyverno-policies/
+    #   already excludes these namespaces. Adding a new Enforce policy?
+    #   Verify its exclude list covers these namespaces, or the webhook
+    #   exclusion here will create a gap in enforcement.
+    config:
+      webhooks:
+        namespaceSelector:
+          matchExpressions:
+            - key: kubernetes.io/metadata.name
+              operator: NotIn
+              values:
+                - kyverno-system
+                - kube-system
+                - flux-system
+                - monitoring
+                - democratic-csi
     # Schedule on amd64 nodes only. Pi 4 (2 GB RAM) can't sustain
     # the admission controller — liveness probes time out under
     # memory pressure, causing 100+ restarts/day. Each restart
