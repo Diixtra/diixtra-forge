@@ -23,7 +23,7 @@ Thumbs.db
 *.swp
 *.swo
 
-# Node (for Backstage)
+# Node (if any JS tooling is added)
 node_modules/
 dist/
 .next/

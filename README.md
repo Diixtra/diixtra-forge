@@ -1,6 +1,8 @@
 # diixtra-forge
 
-Infrastructure monorepo for the Diixtra homelab and Diixtra platform. Manages Kubernetes clusters, cloud resources, and the Internal Developer Platform (IDP) stack.
+GitOps control plane for the Diixtra homelab. Manages Kubernetes cluster state via Flux CD — what's deployed, where, and how.
+
+Backstage IDP source code has moved to [`diixtra-backstage`](https://github.com/Diixtra/diixtra-backstage). The Helm deployment in `platform/base/backstage/` remains here (it references the container image, not source).
 
 ## Architecture
 
@@ -55,6 +57,12 @@ Rollback is always `git revert` + Flux reconciliation.
 | Check HelmReleases | `flux get helmreleases -A` |
 | Validate locally | `kustomize build infrastructure/homelab` |
 
+## Related Repositories
+
+| Repo | Purpose |
+|------|---------|
+| [`diixtra-backstage`](https://github.com/Diixtra/diixtra-backstage) | Backstage IDP source (TypeScript) |
+
 ## Bootstrap
 
 See [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) for the
@@ -69,5 +77,5 @@ full procedure, or run `python3 scripts/bootstrap.py` for automated setup.
 | [`docs/runbooks/secrets-management.md`](docs/runbooks/secrets-management.md) | 1Password secrets lifecycle |
 | [`docs/runbooks/truenas-setup.md`](docs/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
 | [`docs/traefik-tls-migration.md`](docs/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–008) |
+| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–009) |
 | [`docs/learning/`](docs/learning/) | Deep-dive educational content |
