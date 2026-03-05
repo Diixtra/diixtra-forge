@@ -30,3 +30,4 @@ resources:
   - onepassword-system.yaml
   - kyverno-system.yaml
   - crossplane-system.yaml
+  - falco-system.yaml

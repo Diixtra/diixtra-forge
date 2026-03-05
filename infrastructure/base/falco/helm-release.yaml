@@ -24,8 +24,12 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
 
   # Inject Grafana Cloud API key from the 1Password-synced secret
   # into Falcosidekick's Loki config. The key never appears in Git.
@@ -102,3 +106,26 @@ spec:
           # URL is Flux-substituted from cluster-vars. API key, user,
           # and tenant are injected via valuesFrom (Secret) above.
           hostport: "${GRAFANA_LOKI_URL}"
+
+      # ── Falcosidekick UI ────────────────────────────────────────────
+      # Web dashboard for browsing Falco events in real time.
+      # Event storage is ephemeral (Redis with no PVC) — events are
+      # lost on pod restart. Loki is the durable store.
+      webui:
+        enabled: true
+        replicaCount: 1
+        resources:
+          requests:
+            cpu: 50m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
+        redis:
+          resources:
+            requests:
+              cpu: 50m
+              memory: 64Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi

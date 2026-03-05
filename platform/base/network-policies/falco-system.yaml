@@ -1,0 +1,65 @@
+# ══════════════════════════════════════════════════════════════════
+# falco-system — Runtime Security Monitoring
+#
+# Falco runs as a DaemonSet detecting anomalous container behaviour.
+# Falcosidekick forwards events to Grafana Cloud Loki.
+# Falcosidekick-UI provides a web dashboard exposed via Traefik.
+# ══════════════════════════════════════════════════════════════════
+---
+# Allow Traefik to reach falcosidekick-ui on its service port
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: falco-allow-ingress-traefik-ui
+  namespace: falco-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: traefik-system
+      toPorts:
+        - ports:
+            - port: "2802"
+              protocol: TCP
+---
+# Allow intra-namespace traffic (UI ↔ Redis)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: falco-allow-ingress-intra-namespace
+  namespace: falco-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: falco-system
+---
+# Falcosidekick needs HTTPS egress to push events to Grafana Cloud Loki
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: falco-allow-egress-grafana-cloud
+  namespace: falco-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchPattern: "*.grafana.net"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Allow cluster-internal egress (DNS, Kubernetes API)
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: falco-allow-egress-cluster
+  namespace: falco-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toEntities:
+        - cluster
