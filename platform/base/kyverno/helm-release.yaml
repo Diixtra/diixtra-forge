@@ -48,6 +48,10 @@ spec:
     admissionController:
       nodeSelector:
         kubernetes.io/arch: amd64
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       container:
         resources:
           requests:
@@ -67,6 +71,10 @@ spec:
     backgroundController:
       nodeSelector:
         kubernetes.io/arch: amd64
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       resources:
         requests:
           cpu: 50m
@@ -77,6 +85,10 @@ spec:
     cleanupController:
       nodeSelector:
         kubernetes.io/arch: amd64
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       resources:
         requests:
           cpu: 50m
@@ -87,6 +99,10 @@ spec:
     reportsController:
       nodeSelector:
         kubernetes.io/arch: amd64
+      tolerations:
+        - key: node-role.kubernetes.io/control-plane
+          operator: Exists
+          effect: NoSchedule
       resources:
         requests:
           cpu: 50m
