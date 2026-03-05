@@ -46,10 +46,9 @@ jobs:
           for m in re.finditer(r'^\s+(\w+):\s*"([^"]*)"', vars_text, re.MULTILINE):
               vars_map[m.group(1)] = m.group(2)
 
-          # Extract Traefik LoadBalancer IP from HelmRelease annotation
-          hr_text = pathlib.Path("infrastructure/base/traefik/helm-release.yaml").read_text()
-          lb_match = re.search(r"loadBalancerIPs:\s*(\S+)", hr_text)
-          lb_ip = lb_match.group(1) if lb_match else ""
+          # The Traefik HelmRelease uses a Flux variable ${LB_TRAEFIK_IP}
+          # for io.cilium/lb-ipam-ips, so read the actual IP from cluster vars.
+          lb_ip = vars_map.get("LB_TRAEFIK_IP", "")
 
           # Extract all Host() matches from IngressRoute files
           hostnames = set()
@@ -84,6 +83,12 @@ jobs:
           DATA=$(cat dns-sync-data.json)
           DOMAIN=$(echo "$DATA" | jq -r '.domain')
           LB_IP=$(echo "$DATA" | jq -r '.lb_ip')
+
+          if [ -z "$DOMAIN" ] || [ -z "$LB_IP" ]; then
+            echo "::error::Missing required data — DOMAIN='$DOMAIN' LB_IP='$LB_IP'"
+            echo "Check clusters/homelab/vars.yaml for DOMAIN and LB_TRAEFIK_IP"
+            exit 1
+          fi
 
           # Look up Cloudflare zone ID from domain name
           ZONE_ID=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \

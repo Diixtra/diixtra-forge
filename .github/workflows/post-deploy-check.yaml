@@ -23,6 +23,16 @@ jobs:
     outputs:
       api_reachable: ${{ steps.preflight.outputs.api_reachable }}
     steps:
+      - name: Install kubectl
+        run: |
+          if ! command -v kubectl &> /dev/null; then
+            curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
+            chmod +x /usr/local/bin/kubectl
+            echo "kubectl installed: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+          else
+            echo "kubectl already available: $(kubectl version --client --short 2>/dev/null || kubectl version --client)"
+          fi
+
       - name: Pre-flight — API server reachable
         id: preflight
         run: |
