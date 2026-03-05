@@ -10,7 +10,6 @@ on:
     paths:
       - 'platform/base/traefik-config/**'
       - 'clusters/homelab/vars.yaml'
-      - 'infrastructure/base/traefik/helm-release.yaml'
   workflow_dispatch: {}
 
 concurrency:
@@ -93,7 +92,13 @@ jobs:
           # Look up Cloudflare zone ID from domain name
           ZONE_ID=$(curl -sf -H "Authorization: Bearer $CF_API_TOKEN" \
             "https://api.cloudflare.com/client/v4/zones?name=$DOMAIN" \
-            | jq -r '.result[0].id')
+            | jq -r '.result[0].id // empty')
+
+          if [ -z "$ZONE_ID" ]; then
+            echo "::error::Cloudflare zone not found for domain '$DOMAIN'"
+            echo "Verify CF_API_TOKEN has Zone:Read permission and the domain exists in this Cloudflare account"
+            exit 1
+          fi
 
           echo "Zone: $DOMAIN ($ZONE_ID)"
           echo "Target IP: $LB_IP"
@@ -110,12 +115,16 @@ jobs:
 
             if [ "$COUNT" -eq 0 ]; then
               echo "++ Creating: $HOST -> $LB_IP"
-              curl -sf -X POST \
+              RESULT=$(curl -sf -X POST \
                 -H "Authorization: Bearer $CF_API_TOKEN" \
                 -H "Content-Type: application/json" \
                 "https://api.cloudflare.com/client/v4/zones/$ZONE_ID/dns_records" \
-                -d "{\"type\":\"A\",\"name\":\"$HOST\",\"content\":\"$LB_IP\",\"ttl\":1,\"proxied\":false}" \
-                | jq '{success: .success, id: .result.id}'
+                -d "{\"type\":\"A\",\"name\":\"$HOST\",\"content\":\"$LB_IP\",\"ttl\":1,\"proxied\":false}")
+              if [ "$(echo "$RESULT" | jq -r '.success')" != "true" ]; then
+                echo "::error::Failed to create A record for $HOST: $(echo "$RESULT" | jq -r '.errors[]?.message // "unknown error"')"
+                exit 1
+              fi
+              echo "$RESULT" | jq '{success: .success, id: .result.id}'
               CREATED=$((CREATED + 1))
             else
               echo "== Exists:   $HOST"

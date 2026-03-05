@@ -21,9 +21,14 @@ jobs:
     steps:
       - name: Install kubectl
         run: |
+          set -euo pipefail
           if ! command -v kubectl &> /dev/null; then
-            curl -fsSL "https://dl.k8s.io/release/$(curl -fsSL https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
+            KUBECTL_VERSION=$(curl -fsSL https://dl.k8s.io/release/stable.txt)
+            curl -fsSL "https://dl.k8s.io/release/${KUBECTL_VERSION}/bin/linux/amd64/kubectl" -o /usr/local/bin/kubectl
             chmod +x /usr/local/bin/kubectl
+            echo "kubectl installed: $(kubectl version --client)"
+          else
+            echo "kubectl already available: $(kubectl version --client)"
           fi
 
       - name: Check cluster health
