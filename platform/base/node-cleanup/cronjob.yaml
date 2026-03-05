@@ -23,7 +23,7 @@ spec:
             - operator: Exists
           containers:
             - name: cleanup
-              image: registry.k8s.io/kubectl:v1.35.2
+              image: bitnami/kubectl:1.35.2
               command:
                 - /bin/sh
                 - -c
