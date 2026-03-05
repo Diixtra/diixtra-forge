@@ -1,6 +1,8 @@
 # diixtra-forge
 
-Infrastructure monorepo for the Diixtra homelab and Diixtra platform. Manages Kubernetes clusters, cloud resources, and the Internal Developer Platform (IDP) stack.
+GitOps control plane for the Diixtra homelab. Manages Kubernetes cluster state via Flux CD — what's deployed, where, and how.
+
+All documentation (ADRs, runbooks, learning docs, troubleshooting) has moved to [`diixtra-docs`](https://github.com/Diixtra/diixtra-docs).
 
 ## Architecture
 
@@ -55,19 +57,13 @@ Rollback is always `git revert` + Flux reconciliation.
 | Check HelmReleases | `flux get helmreleases -A` |
 | Validate locally | `kustomize build infrastructure/homelab` |
 
+## Related Repositories
+
+| Repo | Purpose |
+|------|---------|
+| [`diixtra-docs`](https://github.com/Diixtra/diixtra-docs) | ADRs, runbooks, learning docs, troubleshooting |
+
 ## Bootstrap
 
-See [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) for the
-full procedure, or run `python3 scripts/bootstrap.py` for automated setup.
-
-## Documentation
-
-| Doc | Purpose |
-|-----|---------|
-| [`docs/architecture.md`](docs/architecture.md) | System architecture overview |
-| [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) | Flux bootstrap procedure |
-| [`docs/runbooks/secrets-management.md`](docs/runbooks/secrets-management.md) | 1Password secrets lifecycle |
-| [`docs/runbooks/truenas-setup.md`](docs/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
-| [`docs/traefik-tls-migration.md`](docs/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–008) |
-| [`docs/learning/`](docs/learning/) | Deep-dive educational content |
+See the [bootstrap runbook](https://github.com/Diixtra/diixtra-docs/blob/main/runbooks/bootstrap.md)
+in `diixtra-docs`, or run `python3 scripts/bootstrap.py` for automated setup.
