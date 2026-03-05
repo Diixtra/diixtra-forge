@@ -28,6 +28,7 @@ spec:
               namespaces:
                 - kube-system
                 - kyverno-system
+                - flux-system
                 - democratic-csi
                 - monitoring
                 - packer-runners
