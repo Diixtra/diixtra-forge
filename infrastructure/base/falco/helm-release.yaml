@@ -131,6 +131,9 @@ spec:
       webui:
         enabled: true
         replicaCount: 1
+        # Traefik's dashboard-auth middleware already protects the
+        # endpoint; the UI's built-in auth is redundant.
+        disableauth: true
         resources:
           requests:
             cpu: 50m
