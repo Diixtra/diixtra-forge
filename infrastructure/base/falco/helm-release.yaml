@@ -79,6 +79,26 @@ spec:
         operator: Exists
         effect: NoSchedule
 
+    # ── Falcoctl (init + sidecar) ──────────────────────────────
+    falcoctl:
+      artifact:
+        install:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+        follow:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
+
     # ── Falco Resources ──────────────────────────────────────────
     resources:
       requests:
