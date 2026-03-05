@@ -141,7 +141,7 @@ spec:
         # The chart's wait-redis init container ships with empty
         # resources{}. Kyverno's require-resource-limits policy
         # rejects pods without limits on init containers.
-        initContainers:
+        initContainer:
           resources:
             requests:
               cpu: 10m
