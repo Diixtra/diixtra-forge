@@ -1441,24 +1441,24 @@ __metadata:
   languageName: node
   linkType: hard
 
-"@backstage-community/plugin-tech-radar-common@npm:^1.14.0":
-  version: 1.14.0
-  resolution: "@backstage-community/plugin-tech-radar-common@npm:1.14.0"
+"@backstage-community/plugin-tech-radar-common@npm:^1.15.0":
+  version: 1.15.0
+  resolution: "@backstage-community/plugin-tech-radar-common@npm:1.15.0"
   dependencies:
     zod: "npm:^3.20.0"
-  checksum: 10c0/4edfda44aa2b1023861bc6aca69f7d39c40b02a0fc1132563f0345e4c71accaf27681bb25fb747e67561353077190d59b704d8a3205e5d7077d1c013d1f9401f
+  checksum: 10c0/cec5c4ddba2a38541084047d85bbae301ab1cfde36382351f656bd2127c990bb0fc9727a1d79df02673ac23dcacf22ba1471043c51c3d78c8bebe111ef1f983b
   languageName: node
   linkType: hard
 
 "@backstage-community/plugin-tech-radar@npm:^1.15.0":
-  version: 1.15.0
-  resolution: "@backstage-community/plugin-tech-radar@npm:1.15.0"
+  version: 1.16.0
+  resolution: "@backstage-community/plugin-tech-radar@npm:1.16.0"
   dependencies:
-    "@backstage-community/plugin-tech-radar-common": "npm:^1.14.0"
-    "@backstage/core-compat-api": "npm:^0.5.7"
-    "@backstage/core-components": "npm:^0.18.6"
-    "@backstage/core-plugin-api": "npm:^1.12.2"
-    "@backstage/frontend-plugin-api": "npm:^0.13.4"
+    "@backstage-community/plugin-tech-radar-common": "npm:^1.15.0"
+    "@backstage/core-compat-api": "npm:^0.5.8"
+    "@backstage/core-components": "npm:^0.18.7"
+    "@backstage/core-plugin-api": "npm:^1.12.3"
+    "@backstage/frontend-plugin-api": "npm:^0.14.1"
     "@material-ui/core": "npm:^4.12.2"
     "@material-ui/icons": "npm:^4.9.1"
     "@types/react": "npm:^16.13.1 || ^17.0.0 || ^18.0.0"
@@ -1469,7 +1469,7 @@ __metadata:
     react: ^16.13.1 || ^17.0.0 || ^18.0.0
     react-dom: ^16.13.1 || ^17.0.0 || ^18.0.0
     react-router-dom: 6.0.0-beta.0 || ^6.3.0
-  checksum: 10c0/4dc58ff68fa587e588c02b543f5613631bb6547b9c96f7226ad35cab1e6bf9a109e4e3fc29d7a29ff462ab67aac0ab606d1007a23fb37c4aa6f9364565ad8b07
+  checksum: 10c0/0948e108422cade4cf78ad6c189e003e38baa1eddda821902d9049d9ec10a25d2b6c1dd8fab5f237bea2904a889bdbaf42b4d374fde2d44de0ea54eda6a0665c
   languageName: node
   linkType: hard
 
