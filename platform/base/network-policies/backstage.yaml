@@ -10,16 +10,6 @@
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: backstage-default-deny
-  namespace: backstage
-spec:
-  endpointSelector: {}
-  ingress: []
-  egress: []
----
-apiVersion: cilium.io/v2
-kind: CiliumNetworkPolicy
-metadata:
   name: backstage-allow-ingress-traefik
   namespace: backstage
 spec:

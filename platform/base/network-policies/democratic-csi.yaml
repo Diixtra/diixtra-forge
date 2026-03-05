@@ -15,8 +15,12 @@ metadata:
   namespace: democratic-csi
 spec:
   endpointSelector: {}
-  ingress: []
-  egress: []
+  # Explicit ingress deny — democratic-csi has no inbound connections.
+  # ingressDeny takes precedence over ingress allow rules; safe here
+  # because no ingress allow policies exist for this namespace.
+  ingressDeny:
+    - fromEntities:
+        - all
 ---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
