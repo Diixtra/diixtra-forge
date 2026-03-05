@@ -137,6 +137,9 @@ spec:
 
 ---
 # ── Falco UI (in-cluster, falco-system namespace) ────────────────
+# Service name derived from HelmRelease "falco" + chart template:
+#   falco-falcosidekick-ui.falco-system.svc.cluster.local
+# Update externalName if the HelmRelease name changes.
 apiVersion: v1
 kind: Service
 metadata:

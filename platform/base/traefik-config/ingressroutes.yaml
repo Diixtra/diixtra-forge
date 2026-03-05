@@ -324,6 +324,7 @@ spec:
           port: 2802
       middlewares:
         - name: security-headers
+        - name: dashboard-auth
   tls:
     certResolver: letsencrypt
 
