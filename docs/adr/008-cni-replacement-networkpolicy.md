@@ -205,8 +205,30 @@ Cilium's L7 policies could theoretically replace some Traefik middleware (e.g., 
 
 Every namespace gets a default-deny CiliumNetworkPolicy. Pods that need network access get explicit allowlists. This is the only defensible posture for a control-plane cluster.
 
+> **Correction (2026-03-05):** The original template below with empty `ingress: []` /
+> `egress: []` arrays is **invalid** in Cilium 1.19.1. Cilium rejects
+> CiliumNetworkPolicy resources that have empty rule arrays AND standalone
+> `enableDefaultDeny` without rule stanzas. All 14 default-deny policies
+> using this template were `VALID: False` and not enforced.
+>
+> The corrected approach depends on whether the namespace has allow policies:
+>
+> - **Namespaces with both ingress and egress allow policies** (e.g.
+>   backstage, flux-system, traefik-system): No standalone default-deny
+>   policy needed. The presence of an ingress/egress allow policy
+>   implicitly activates Cilium's default deny for that direction.
+>
+> - **Egress-only namespaces with no inbound connections** (e.g.
+>   arc-runners, democratic-csi, onepassword-system): Use explicit
+>   `ingressDeny: [{fromEntities: [all]}]` to deny ingress. The egress
+>   allow policies already activate egress default deny implicitly.
+>
+> See commit 41ec178 (`fix(netpol): fix invalid default-deny policies
+> across all namespaces (#646)`) for the full fix.
+
 ```yaml
-# Template: default-deny for every namespace
+# DEPRECATED — this template is invalid in Cilium 1.19.1.
+# See correction note above for the valid approaches.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
