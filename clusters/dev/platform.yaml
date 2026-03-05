@@ -13,7 +13,15 @@ spec:
     name: flux-system
   path: ./platform/dev/crds
   prune: true
-  wait: true
+  # wait: false — only check explicitly listed healthChecks, not all
+  # resources. DaemonSets (grafana-alloy) on unreachable nodes stay
+  # Unknown indefinitely; wait: true would block the entire chain.
+  wait: false
+  healthChecks:
+    - apiVersion: helm.toolkit.fluxcd.io/v2
+      kind: HelmRelease
+      name: kyverno
+      namespace: kyverno-system
   dependsOn:
     - name: infrastructure
   postBuild:
