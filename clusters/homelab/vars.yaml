@@ -76,7 +76,9 @@ data:
   # ── External Devices ───────────────────────────────────────────
   HOME_ASSISTANT_HOST: "10.2.20.171"
   # ── GitHub Actions Runner ──────────────────────────────────────
-  # URL of the GitHub entity runners will serve.
-  # Repo-level: "https://github.com/Diixtra/diixtra-forge"
-  # Org-level:  "https://github.com/Diixtra"
-  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra/diixtra-forge"
+  # URL of the GitHub entity runners will serve (org-level).
+  # All repos in the Diixtra org can use `runs-on: homelab` / `runs-on: packer`.
+  ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra"
+  # 1Password item containing the GitHub App credentials (app ID,
+  # installation ID, private key). See docs/runbooks/arc-org-runner-setup.md.
+  OP_ITEM_ARC_GITHUB_APP: "github-actions-runner-app"
