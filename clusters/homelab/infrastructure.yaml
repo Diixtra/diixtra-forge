@@ -39,11 +39,32 @@ spec:
       kind: HelmRelease
       name: crossplane
       namespace: crossplane-system
+    # Crossplane provider packages — must be healthy (CRDs registered)
+    # before infrastructure stage applies ProviderConfig resources.
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-aws
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-gcp
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-azure
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-oci
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-terraform-neon
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-terraform-supabase
 ---
 # Stage 2: CRD Consumers
 # Deploys resources that depend on CRDs installed by infrastructure-crds:
 #   - OnePasswordItem (1Password Operator CRD)
 #   - CiliumLoadBalancerIPPool, CiliumL2AnnouncementPolicy (Cilium CRDs)
+#   - ProviderConfig (Crossplane provider CRDs)
 #
 # Dependency chain: infrastructure-crds → infrastructure → platform-crds → platform → apps
 apiVersion: kustomize.toolkit.fluxcd.io/v1
