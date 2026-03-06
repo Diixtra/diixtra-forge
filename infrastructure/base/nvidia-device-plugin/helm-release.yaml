@@ -37,6 +37,52 @@ spec:
     timeout: 10m
     remediation:
       retries: 3
+  # The chart's config-manager initContainers (nvidia-device-plugin-init,
+  # mps-control-daemon-init) lack resource limits. Kyverno's
+  # require-resource-limits policy blocks the upgrade without these patches.
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: nvidia-device-plugin
+            patch: |-
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: nvidia-device-plugin
+              spec:
+                template:
+                  spec:
+                    initContainers:
+                      - name: nvidia-device-plugin-init
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
+          - target:
+              kind: DaemonSet
+              name: nvidia-device-plugin-mps-control-daemon
+            patch: |-
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: nvidia-device-plugin-mps-control-daemon
+              spec:
+                template:
+                  spec:
+                    initContainers:
+                      - name: mps-control-daemon-init
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
   values:
     # Only run on nodes that have a GPU attached.
     # The first-boot script applies this label after kubeadm join.
