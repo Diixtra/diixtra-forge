@@ -12,7 +12,7 @@ resources:
   - ../base/flux-operator
   - ../base/falco
   # Crossplane provider configs — need provider-specific CRDs
-  # (ProviderConfig) registered by Provider packages in infrastructure-crds
+  # (ProviderConfig) registered by Provider packages in infrastructure-providers
   - ../base/crossplane-provider-aws
   - ../base/crossplane-provider-gcp
   - ../base/crossplane-provider-azure
