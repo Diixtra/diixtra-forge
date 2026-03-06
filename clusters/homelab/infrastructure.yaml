@@ -16,7 +16,7 @@ metadata:
 spec:
   interval: 10m
   retryInterval: 1m
-  # 15m to allow Crossplane + 6 provider package downloads on cold bootstrap
+  # 15m to allow Crossplane + 5 provider package downloads on cold bootstrap
   timeout: 15m
   sourceRef:
     kind: GitRepository
@@ -59,13 +59,10 @@ spec:
       name: provider-family-azure
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider
-      name: provider-oci
+      name: provider-family-oci
     - apiVersion: pkg.crossplane.io/v1
       kind: Provider
-      name: provider-terraform-neon
-    - apiVersion: pkg.crossplane.io/v1
-      kind: Provider
-      name: provider-terraform-supabase
+      name: provider-terraform
 ---
 # Stage 2: CRD Consumers
 # Deploys resources that depend on CRDs installed by infrastructure-crds:
