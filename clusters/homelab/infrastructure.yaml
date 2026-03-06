@@ -1,7 +1,8 @@
 ---
 # Stage 1: CRD Providers
-# Deploys HelmReleases that install Custom Resource Definitions.
-# Must complete before stage 2, which creates resources of those types.
+# Deploys operators and provider packages that register Custom Resource
+# Definitions. Must complete before stage 2, which creates resources of
+# those types.
 #
 # This is the same pattern used for platform-crds → platform.
 # Flux Kustomizations are atomic — if any resource fails server-side
@@ -15,13 +16,19 @@ metadata:
 spec:
   interval: 10m
   retryInterval: 1m
-  timeout: 10m
+  # 15m to allow Crossplane + 6 provider package downloads on cold bootstrap
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./infrastructure/homelab/crds
   prune: true
-  wait: true
+  # wait: false — use explicit healthChecks instead of generic kstatus.
+  # wait: true silently ignores healthChecks (Flux docs), and kstatus
+  # may not correctly assess Crossplane Provider readiness (no standard
+  # Ready condition). Other resources (CRD manifests, HelmRepositories)
+  # only need to be applied, not health-checked.
+  wait: false
   postBuild:
     substituteFrom:
       - kind: ConfigMap
@@ -39,11 +46,32 @@ spec:
       kind: HelmRelease
       name: crossplane
       namespace: crossplane-system
+    # Crossplane provider packages — must be healthy (CRDs registered)
+    # before infrastructure stage applies ProviderConfig resources.
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-aws
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-gcp
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-family-azure
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-oci
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-terraform-neon
+    - apiVersion: pkg.crossplane.io/v1
+      kind: Provider
+      name: provider-terraform-supabase
 ---
 # Stage 2: CRD Consumers
 # Deploys resources that depend on CRDs installed by infrastructure-crds:
 #   - OnePasswordItem (1Password Operator CRD)
 #   - CiliumLoadBalancerIPPool, CiliumL2AnnouncementPolicy (Cilium CRDs)
+#   - ProviderConfig (Crossplane provider CRDs)
 #
 # Dependency chain: infrastructure-crds → infrastructure → platform-crds → platform → apps
 apiVersion: kustomize.toolkit.fluxcd.io/v1
