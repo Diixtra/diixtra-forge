@@ -41,17 +41,21 @@ jobs:
       - name: Pre-flight — API server reachable
         id: preflight
         run: |
-          # Diagnostic: show in-cluster config availability
+          set -euo pipefail
+
+          # Verify in-cluster config before attempting kubectl calls
           echo "KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST:-<unset>}"
           echo "KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT:-<unset>}"
-          if [ -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
-            echo "SA token: mounted"
-          else
-            echo "::warning::SA token NOT mounted — kubectl cannot authenticate in-cluster"
+          if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+            echo "::error::SA token NOT mounted — kubectl cannot authenticate in-cluster. Ensure automountServiceAccountToken is true in the runner pod spec."
+            echo "api_reachable=false" >> "$GITHUB_OUTPUT"
+            exit 1
           fi
+          echo "SA token: mounted"
 
           for i in 1 2 3 4 5; do
             if kubectl cluster-info --request-timeout=10s 2>&1; then
+              echo "API server reachable"
               echo "api_reachable=true" >> "$GITHUB_OUTPUT"
               exit 0
             fi

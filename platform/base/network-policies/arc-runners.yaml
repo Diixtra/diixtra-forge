@@ -40,8 +40,10 @@ spec:
             - port: "443"
               protocol: TCP
 ---
-# Workflow steps download CLI tools at runtime (kubectl from dl.k8s.io,
-# Flux CLI from fluxcd.io). dl.k8s.io redirects to storage.googleapis.com.
+# Workflow steps download CLI tools at runtime: kubectl from dl.k8s.io
+# (Fastly CDN; storage.googleapis.com kept as fallback), Flux install
+# script from fluxcd.io (binary itself comes from GitHub releases,
+# covered by the github egress policy above).
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
