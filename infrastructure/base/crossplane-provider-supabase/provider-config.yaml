@@ -1,0 +1,54 @@
+# ══════════════════════════════════════════════════════════════════
+# ProviderConfig — Supabase (Terraform bridge)
+#
+# The `configuration` block declares the supabase/supabase
+# Terraform provider and reads the access token from a credential
+# file written by provider-terraform from the 1Password-synced
+# Secret.
+#
+# Secret chain:
+#   1Password item "${OP_ITEM_SUPABASE_TOKEN}" in ${OP_VAULT}
+#       | (1Password Operator)
+#   Secret "supabase-provider-creds" in crossplane-system
+#       key: accessToken
+#       | (provider-terraform writes to supabase-token.txt)
+#   Terraform supabase/supabase provider reads file and
+#   authenticates to https://api.supabase.com/v1/
+#
+# Generate an access token at:
+#   https://supabase.com/dashboard/account/tokens
+# Store in 1Password with a field named "accessToken".
+# ══════════════════════════════════════════════════════════════════
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: supabase-default
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/component: supabase
+    app.kubernetes.io/managed-by: flux
+spec:
+  configuration: |
+    terraform {
+      required_providers {
+        supabase = {
+          source  = "supabase/supabase"
+          version = "~> 1.0"
+        }
+      }
+      backend "kubernetes" {
+        secret_suffix     = "providerconfig-supabase"
+        namespace         = "crossplane-system"
+        in_cluster_config = true
+      }
+    }
+    provider "supabase" {
+      access_token = file("${path.module}/supabase-token.txt")
+    }
+  credentials:
+    - filename: supabase-token.txt
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: supabase-provider-creds
+        key: accessToken

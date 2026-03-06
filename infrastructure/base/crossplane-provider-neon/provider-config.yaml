@@ -1,0 +1,55 @@
+# ══════════════════════════════════════════════════════════════════
+# ProviderConfig — Neon (Terraform bridge)
+#
+# Configures the provider-terraform instance used for Neon
+# Workspace resources. The `configuration` block declares the
+# kislerdm/neon Terraform provider and reads the API key from
+# a credential file written by provider-terraform from the
+# 1Password-synced Secret.
+#
+# Secret chain:
+#   1Password item "${OP_ITEM_NEON_API_KEY}" in ${OP_VAULT}
+#       | (1Password Operator)
+#   Secret "neon-provider-creds" in crossplane-system
+#       key: apiKey
+#       | (provider-terraform writes to neon-api-key.txt)
+#   Terraform kislerdm/neon provider reads file and authenticates
+#   to https://console.neon.tech/api/v2/
+#
+# Generate an API key at:
+#   https://console.neon.tech/app/settings/api-keys
+# Store in 1Password with a field named "apiKey".
+# ══════════════════════════════════════════════════════════════════
+apiVersion: tf.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: neon-default
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/component: neon
+    app.kubernetes.io/managed-by: flux
+spec:
+  configuration: |
+    terraform {
+      required_providers {
+        neon = {
+          source  = "kislerdm/neon"
+          version = "~> 0.6"
+        }
+      }
+      backend "kubernetes" {
+        secret_suffix     = "providerconfig-neon"
+        namespace         = "crossplane-system"
+        in_cluster_config = true
+      }
+    }
+    provider "neon" {
+      api_key = file("${path.module}/neon-api-key.txt")
+    }
+  credentials:
+    - filename: neon-api-key.txt
+      source: Secret
+      secretRef:
+        namespace: crossplane-system
+        name: neon-provider-creds
+        key: apiKey

@@ -11,6 +11,13 @@ resources:
   - ../base/nvidia-device-plugin
   - ../base/flux-operator
   - ../base/falco
+  # Crossplane providers — need Crossplane CRDs from infrastructure-crds
+  - ../base/crossplane-provider-aws
+  - ../base/crossplane-provider-gcp
+  - ../base/crossplane-provider-azure
+  - ../base/crossplane-provider-oci
+  - ../base/crossplane-provider-neon
+  - ../base/crossplane-provider-supabase
   # Cilium L2 announcements — need Cilium CRDs from infrastructure-crds
   - cilium/l2-config.yaml
 patches:

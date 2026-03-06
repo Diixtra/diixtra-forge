@@ -1,0 +1,34 @@
+# ══════════════════════════════════════════════════════════════════
+# ProviderConfig — Google Cloud Platform
+#
+# Connects the GCP provider to a GCP project using a service
+# account key JSON stored in a 1Password-synced Secret.
+#
+# Secret chain:
+#   1Password item "${OP_ITEM_GCP_SA}" in ${OP_VAULT}
+#       | (1Password Operator)
+#   Secret "gcp-provider-creds" in crossplane-system
+#       key: credentials
+#       | (Crossplane GCP provider reads at reconcile time)
+#   GCP APIs called with service account identity
+#
+# Create the service account key with:
+#   gcloud iam service-accounts keys create key.json \
+#     --iam-account=crossplane@PROJECT.iam.gserviceaccount.com
+# Store the JSON blob in 1Password under the field "credentials".
+# ══════════════════════════════════════════════════════════════════
+apiVersion: gcp.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  projectID: "${GCP_PROJECT_ID}"
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: gcp-provider-creds
+      key: credentials

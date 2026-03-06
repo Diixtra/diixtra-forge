@@ -1,0 +1,31 @@
+# ══════════════════════════════════════════════════════════════════
+# ProviderConfig — Microsoft Azure
+#
+# Secret chain:
+#   1Password item "${OP_ITEM_AZURE_SP}" in ${OP_VAULT}
+#       | (1Password Operator)
+#   Secret "azure-provider-creds" in crossplane-system
+#       key: creds  (Azure provider requires this exact key name)
+#       | (Crossplane Azure provider)
+#   Azure Resource Manager APIs via service principal
+#
+# Create the service principal credentials JSON with:
+#   az ad sp create-for-rbac --role Contributor \
+#     --scopes /subscriptions/<SUBSCRIPTION_ID>
+# The output JSON contains clientId, clientSecret, tenantId, and
+# subscriptionId. Store it in 1Password under the field "creds".
+# ══════════════════════════════════════════════════════════════════
+apiVersion: azure.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: azure-provider-creds
+      key: creds

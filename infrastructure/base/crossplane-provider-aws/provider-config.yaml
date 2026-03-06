@@ -1,0 +1,47 @@
+# ══════════════════════════════════════════════════════════════════
+# ProviderConfig — Amazon Web Services (assume-role pattern)
+#
+# Uses a minimal IAM user (sts:AssumeRole only) to assume a
+# privileged IAM role. This follows AWS best practices: the
+# long-lived credentials in 1Password have no direct permissions,
+# and the role provides short-lived session credentials.
+#
+# Secret chain:
+#   1Password item "${OP_ITEM_AWS_CREDS}" in ${OP_VAULT}
+#       | (1Password Operator)
+#   Secret "aws-provider-creds" in crossplane-system
+#       key: creds  (INI-format IAM user credentials)
+#       | (Crossplane AWS provider reads at reconcile time)
+#   Provider calls sts:AssumeRole -> ${AWS_CROSSPLANE_ROLE_ARN}
+#       | (short-lived session credentials)
+#   AWS APIs called with assumed role identity
+#
+# The 1Password item field must be named "creds" and contain:
+#   [default]
+#   aws_access_key_id = AKIA...
+#   aws_secret_access_key = ...
+#
+# Setup instructions:
+#   1. Create IAM role "crossplane-homelab" with PowerUserAccess
+#   2. Create IAM user "crossplane-homelab-assumer" with only
+#      sts:AssumeRole permission on the role
+#   3. Generate access keys for the user
+#   4. Store access keys in 1Password as INI format (field: "creds")
+#   5. Set AWS_CROSSPLANE_ROLE_ARN in clusters/homelab/vars.yaml
+# ══════════════════════════════════════════════════════════════════
+apiVersion: aws.upbound.io/v1beta1
+kind: ProviderConfig
+metadata:
+  name: default
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  assumeRoleChain:
+    - roleARN: "${AWS_CROSSPLANE_ROLE_ARN}"
+  credentials:
+    source: Secret
+    secretRef:
+      namespace: crossplane-system
+      name: aws-provider-creds
+      key: creds

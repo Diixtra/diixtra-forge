@@ -46,7 +46,6 @@ spec:
               protocol: TCP
 ---
 # Crossplane package downloads from Upbound registry.
-# NOTE: Add cloud provider API egress (AWS, GCP, Azure, etc.) when providers are deployed.
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
@@ -58,6 +57,149 @@ spec:
     - toFQDNs:
         - matchName: xpkg.upbound.io
         - matchPattern: "*.xpkg.upbound.io"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Amazon Web Services APIs.
+# The AWS provider calls per-service endpoints under *.amazonaws.com
+# (e.g. rds.eu-west-2.amazonaws.com, s3.amazonaws.com) and uses
+# STS (sts.amazonaws.com) for credential validation.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-aws
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchPattern: "*.amazonaws.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Neon serverless Postgres management API.
+# All management operations (projects, branches, endpoints, databases)
+# are served from console.neon.tech/api/v2/.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-neon
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: console.neon.tech
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Google Cloud Platform APIs.
+# The GCP provider authenticates via OAuth2/STS and calls per-service
+# REST APIs (compute, storage, container, iam, sqladmin, etc.) — all
+# served under *.googleapis.com.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-gcp
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: googleapis.com
+        - matchPattern: "*.googleapis.com"
+        - matchName: accounts.google.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Microsoft Azure Resource Manager APIs.
+# Authentication via Entra ID (login.microsoftonline.com), resource
+# management via ARM (management.azure.com), graph APIs for service
+# principal lookups, Key Vault per-vault endpoints.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-azure
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: login.microsoftonline.com
+        - matchName: management.azure.com
+        - matchName: graph.microsoft.com
+        - matchName: graph.windows.net
+        - matchPattern: "*.vault.azure.net"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Oracle Cloud Infrastructure APIs.
+# OCI uses regional API endpoints under *.oraclecloud.com
+# (e.g. iaas.eu-london-1.oraclecloud.com) and identity endpoints
+# for authentication.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-oci
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchPattern: "*.oraclecloud.com"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Supabase platform management API.
+# All management operations (projects, branches, settings) are served
+# from api.supabase.com/v1/.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-supabase
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: api.supabase.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
+# Terraform/OpenTofu registry — provider-terraform downloads provider
+# binaries (kislerdm/neon, supabase/supabase) at Workspace execution
+# time. Both registries are included as provider-terraform may use
+# either Terraform or OpenTofu as its runtime.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-egress-terraform-registry
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: registry.terraform.io
+        - matchName: releases.hashicorp.com
+        - matchPattern: "*.releases.hashicorp.com"
+        - matchName: registry.opentofu.org
+        - matchName: get.opentofu.org
+        - matchName: github.com
+        - matchPattern: "*.githubusercontent.com"
       toPorts:
         - ports:
             - port: "443"
