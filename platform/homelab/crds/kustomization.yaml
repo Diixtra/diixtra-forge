@@ -20,6 +20,7 @@ resources:
   - ../../base/kube-state-metrics
   - ../../base/graphite-exporter
   - ../../base/backstage
+  - ../../base/komoplane
   - ../../base/traefik-config
   - ../../base/policy-reporter
   - ../../base/node-cleanup

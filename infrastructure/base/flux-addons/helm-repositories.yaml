@@ -179,6 +179,16 @@ spec:
   interval: 24h
   url: https://falcosecurity.github.io/charts
 ---
+# Komodor — Komoplane (Crossplane visualisation dashboard)
+apiVersion: source.toolkit.fluxcd.io/v1
+kind: HelmRepository
+metadata:
+  name: komodorio
+  namespace: flux-system
+spec:
+  interval: 24h
+  url: https://helm-charts.komodor.io
+---
 # Flux Operator — lifecycle manager and web UI for Flux CD
 apiVersion: source.toolkit.fluxcd.io/v1
 kind: HelmRepository

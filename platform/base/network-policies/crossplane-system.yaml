@@ -45,6 +45,23 @@ spec:
             - port: "8080"
               protocol: TCP
 ---
+# Allow ingress from Traefik for Komoplane web UI
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: crossplane-system-allow-ingress-traefik
+  namespace: crossplane-system
+spec:
+  endpointSelector: {}
+  ingress:
+    - fromEndpoints:
+        - matchLabels:
+            k8s:io.kubernetes.pod.namespace: traefik-system
+      toPorts:
+        - ports:
+            - port: "8090"
+              protocol: TCP
+---
 # Crossplane package downloads from Upbound registry.
 # NOTE: Add cloud provider API egress (AWS, GCP, Azure, etc.) when providers are deployed.
 apiVersion: cilium.io/v2
