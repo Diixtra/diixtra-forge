@@ -105,6 +105,10 @@ spec:
     template:
       spec:
         serviceAccountName: arc-runner-flux-reader
+        # Required for kubectl to authenticate against the API server.
+        # Without this, the in-cluster config has no token and health
+        # check workflows fail with "API server unreachable".
+        automountServiceAccountToken: true
         # Security hardening — runners execute workflow code, so isolate them.
         # The official runner image runs as UID 1001 (runner user) by default.
         # readOnlyRootFilesystem is NOT set because the runner writes to

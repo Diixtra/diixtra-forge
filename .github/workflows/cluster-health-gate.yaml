@@ -40,8 +40,17 @@ jobs:
           set -euo pipefail
           HEALTHY=true
 
+          # Diagnostic: show in-cluster config availability
+          echo "KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST:-<unset>}"
+          echo "KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT:-<unset>}"
+          if [ -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+            echo "SA token: mounted"
+          else
+            echo "::warning::SA token NOT mounted — kubectl cannot authenticate in-cluster"
+          fi
+
           # 1. API server reachable
-          if ! kubectl cluster-info --request-timeout=10s > /dev/null 2>&1; then
+          if ! kubectl cluster-info --request-timeout=10s 2>&1; then
             echo "::error::API server unreachable"
             echo "healthy=false" >> "$GITHUB_OUTPUT"
             exit 0

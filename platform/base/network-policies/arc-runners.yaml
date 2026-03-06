@@ -40,6 +40,27 @@ spec:
             - port: "443"
               protocol: TCP
 ---
+# Workflow steps download CLI tools at runtime (kubectl from dl.k8s.io,
+# Flux CLI from fluxcd.io). dl.k8s.io redirects to storage.googleapis.com.
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-runners-allow-egress-cli-downloads
+  namespace: arc-runners
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: dl.k8s.io
+        - matchPattern: "*.dl.k8s.io"
+        - matchName: storage.googleapis.com
+        - matchName: fluxcd.io
+        - matchPattern: "*.fluxcd.io"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
