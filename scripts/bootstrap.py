@@ -181,6 +181,7 @@ class Config:
     expected_kustomizations: list = field(default_factory=lambda: [
         "flux-system",
         "infrastructure-crds",
+        "infrastructure-providers",
         "infrastructure",
         "platform-crds",
         "platform",
@@ -983,11 +984,11 @@ def verify_reconciliation(config: Config) -> None:
           4. Verified that the applied resources are healthy
           5. Recorded the result as a Kubernetes condition
 
-        We verify ALL 6 layers in the dependency chain:
-          flux-system → infrastructure-crds → infrastructure
-          → platform-crds → platform → apps
+        We verify ALL 7 layers in the dependency chain:
+          flux-system → infrastructure-crds → infrastructure-providers
+          → infrastructure → platform-crds → platform → apps
     """
-    log("🔄", "Verifying Flux reconciliation (all 6 layers)...")
+    log("🔄", "Verifying Flux reconciliation (all 7 layers)...")
 
     if config.dry_run:
         log("  🏜️", "DRY RUN — would verify reconciliation")
