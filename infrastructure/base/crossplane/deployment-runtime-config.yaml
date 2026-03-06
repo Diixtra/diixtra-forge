@@ -11,6 +11,8 @@ metadata:
 spec:
   deploymentTemplate:
     spec:
+      selector:
+        matchLabels: {}
       template:
         spec:
           containers:
