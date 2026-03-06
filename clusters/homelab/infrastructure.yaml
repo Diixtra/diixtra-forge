@@ -64,14 +64,16 @@ spec:
     - name: infrastructure-crds
   interval: 10m
   retryInterval: 1m
-  # 15m to allow 6 provider package downloads on cold bootstrap
-  timeout: 15m
+  timeout: 10m
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./infrastructure/homelab/providers
   prune: true
-  wait: true
+  # wait: false — kstatus cannot detect when provider CRDs are registered
+  # (Crossplane uses Installed/Healthy, not Ready). Stage 3's retryInterval
+  # self-heals the CRD registration race. Consistent with stages 1 and 3.
+  wait: false
   postBuild:
     substituteFrom:
       - kind: ConfigMap
