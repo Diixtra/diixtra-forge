@@ -38,21 +38,33 @@ jobs:
             echo "kubectl already available: $(kubectl version --client)"
           fi
 
+      - name: Configure in-cluster kubectl
+        run: |
+          set -euo pipefail
+          # kubectl ignores in-cluster config when any kubeconfig exists.
+          # The runner image ships a default ~/.kube/config that points to
+          # localhost:8080, so we must build one from the mounted SA creds.
+          if [ -z "${KUBERNETES_SERVICE_HOST:-}" ] || [ -z "${KUBERNETES_SERVICE_PORT:-}" ]; then
+            echo "::error::KUBERNETES_SERVICE_HOST/PORT not set — is the runner running inside the cluster?"
+            exit 1
+          fi
+          if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
+            echo "::error::SA token NOT mounted — ensure automountServiceAccountToken is true in the runner pod spec."
+            exit 1
+          fi
+          kubectl config set-cluster k8s \
+            --server="https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}" \
+            --certificate-authority=/var/run/secrets/kubernetes.io/serviceaccount/ca.crt
+          kubectl config set-credentials runner \
+            --token="$(cat /var/run/secrets/kubernetes.io/serviceaccount/token)"
+          kubectl config set-context default --cluster=k8s --user=runner
+          kubectl config use-context default
+          echo "Configured kubectl → https://${KUBERNETES_SERVICE_HOST}:${KUBERNETES_SERVICE_PORT}"
+
       - name: Pre-flight — API server reachable
         id: preflight
         run: |
           set -euo pipefail
-
-          # Verify in-cluster config before attempting kubectl calls
-          echo "KUBERNETES_SERVICE_HOST=${KUBERNETES_SERVICE_HOST:-<unset>}"
-          echo "KUBERNETES_SERVICE_PORT=${KUBERNETES_SERVICE_PORT:-<unset>}"
-          if [ ! -f /var/run/secrets/kubernetes.io/serviceaccount/token ]; then
-            echo "::error::SA token NOT mounted — kubectl cannot authenticate in-cluster. Ensure automountServiceAccountToken is true in the runner pod spec."
-            echo "api_reachable=false" >> "$GITHUB_OUTPUT"
-            exit 1
-          fi
-          echo "SA token: mounted"
-
           for i in 1 2 3 4 5; do
             if kubectl cluster-info --request-timeout=10s 2>&1; then
               echo "API server reachable"
