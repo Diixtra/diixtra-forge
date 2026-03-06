@@ -43,7 +43,7 @@ spec:
       }
     }
     provider "supabase" {
-      access_token = file("${path.module}/supabase-token.txt")
+      access_token = file("$${path.module}/supabase-token.txt")
     }
   credentials:
     - filename: supabase-token.txt

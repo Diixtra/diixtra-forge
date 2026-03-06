@@ -44,7 +44,7 @@ spec:
       }
     }
     provider "neon" {
-      api_key = file("${path.module}/neon-api-key.txt")
+      api_key = file("$${path.module}/neon-api-key.txt")
     }
   credentials:
     - filename: neon-api-key.txt
