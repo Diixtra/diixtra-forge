@@ -15,3 +15,7 @@ resources:
   - ../../base/prometheus-rule-crd
   # Crossplane — installs core CRDs (XRDs, Compositions, Providers, Functions, etc.)
   - ../../base/crossplane
+  # Crossplane provider packages — register provider-specific CRDs
+  # (ProviderConfig, managed resources). Must be healthy before
+  # infrastructure stage applies ProviderConfig resources.
+  - ../../base/crossplane-providers

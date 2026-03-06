@@ -8,14 +8,14 @@ Useful after merging PRs, recovering from errors, or debugging sync issues.
 
 WHAT IT DOES:
     1. Reconciles the GitRepository source (pulls latest commit)
-    2. Reconciles all 7 Kustomizations in dependency order
+    2. Reconciles all 6 Kustomizations in dependency order
     3. Optionally reconciles all HelmReleases
     4. Reports final status
 
 LEARNING NOTE — WHY DEPENDENCY ORDER MATTERS:
     Flux Kustomizations form a dependency chain:
-      flux-system → infrastructure-crds → infrastructure-providers
-      → infrastructure → platform-crds → platform → apps
+      flux-system → infrastructure-crds → infrastructure
+                  → platform-crds → platform → apps
 
     If you reconcile `infrastructure` before `infrastructure-crds`, it will
     fail because the CRDs it depends on haven't been installed yet. By
@@ -54,7 +54,6 @@ import time
 KUSTOMIZATION_ORDER = [
     "flux-system",
     "infrastructure-crds",
-    "infrastructure-providers",
     "infrastructure",
     "platform-crds",
     "platform",

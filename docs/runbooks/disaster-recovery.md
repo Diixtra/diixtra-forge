@@ -80,7 +80,7 @@ kubectl describe node <node-name> | grep DiskPressure
 
 The Flux dependency chain is:
 ```
-infrastructure-crds → infrastructure-providers → infrastructure → platform-crds → platform → apps
+infrastructure-crds → infrastructure → platform-crds → platform → apps
 ```
 
 A failure at any stage blocks all downstream stages.
@@ -92,7 +92,6 @@ A failure at any stage blocks all downstream stages.
 
 # 2. Reconcile each stage in order
 flux reconcile kustomization infrastructure-crds --timeout=10m
-flux reconcile kustomization infrastructure-providers --timeout=15m
 flux reconcile kustomization infrastructure --timeout=10m
 flux reconcile kustomization platform-crds --timeout=10m
 flux reconcile kustomization platform --timeout=10m
