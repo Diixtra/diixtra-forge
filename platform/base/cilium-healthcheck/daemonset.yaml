@@ -43,49 +43,13 @@ spec:
       serviceAccountName: cilium-healthcheck
       tolerations:
         - operator: Exists
-      initContainers:
-        - name: fetch-kubectl
-          image: alpine:latest
-          command:
-            - sh
-            - -c
-            - |
-              ARCH=$(uname -m)
-              case "$ARCH" in
-                x86_64)  ARCH=amd64 ;;
-                aarch64) ARCH=arm64 ;;
-              esac
-              wget -O /kubectl-bin/kubectl \
-                "https://dl.k8s.io/release/v1.35.1/bin/linux/${ARCH}/kubectl"
-              chmod +x /kubectl-bin/kubectl
-          volumeMounts:
-            - name: kubectl-bin
-              mountPath: /kubectl-bin
-          resources:
-            requests:
-              cpu: 10m
-              memory: 32Mi
-            limits:
-              cpu: 100m
-              memory: 64Mi
-          securityContext:
-            allowPrivilegeEscalation: false
-            runAsNonRoot: true
-            runAsUser: 65534
-            capabilities:
-              drop:
-                - ALL
-            readOnlyRootFilesystem: true
-            seccompProfile:
-              type: RuntimeDefault
       containers:
         - name: healthcheck
-          image: alpine:latest
+          image: docker.io/alpine/k8s:1.35.1
           command:
             - /bin/sh
             - -c
             - |
-              export PATH="/kubectl-bin:${PATH}"
               # No -e: individual check failures must not kill the loop.
               # -u catches typos in variable names.
               set -u
@@ -352,16 +316,10 @@ spec:
           volumeMounts:
             - name: tmp
               mountPath: /tmp
-            - name: kubectl-bin
-              mountPath: /kubectl-bin
-              readOnly: true
       volumes:
         - name: tmp
           emptyDir:
             sizeLimit: 1Mi
-        - name: kubectl-bin
-          emptyDir:
-            sizeLimit: 100Mi
 ---
 apiVersion: v1
 kind: ServiceAccount
