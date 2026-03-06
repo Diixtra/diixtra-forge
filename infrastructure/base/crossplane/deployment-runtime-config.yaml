@@ -1,0 +1,24 @@
+# DeploymentRuntimeConfig sets defaults for all Crossplane provider
+# Deployments. Without resource limits, Kyverno's require-resource-limits
+# policy (enforce mode) blocks provider pod creation.
+#
+# The container name "package-runtime" is Crossplane's default for
+# provider controller containers.
+apiVersion: pkg.crossplane.io/v1beta1
+kind: DeploymentRuntimeConfig
+metadata:
+  name: default
+spec:
+  deploymentTemplate:
+    spec:
+      template:
+        spec:
+          containers:
+            - name: package-runtime
+              resources:
+                limits:
+                  cpu: 500m
+                  memory: 512Mi
+                requests:
+                  cpu: 100m
+                  memory: 256Mi
