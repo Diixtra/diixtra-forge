@@ -29,7 +29,7 @@ spec:
                 - -c
                 - |
                   set -eu
-                  echo "=== Node Cleanup — $(date) ==="
+                  echo "=== Node Cleanup — $$(date) ==="
 
                   # Verify API server connectivity
                   kubectl cluster-info || { echo "ERROR: Cannot reach API server"; exit 1; }
@@ -52,22 +52,22 @@ spec:
                   TOTAL=0
                   ERRORS=0
                   while read -r ns pod; do
-                    if [ -n "$ns" ] && [ -n "$pod" ]; then
-                      TOTAL=$((TOTAL + 1))
-                      echo "  Deleting $ns/$pod"
-                      if ! kubectl delete pod "$pod" -n "$ns" --grace-period=0 --force 2>&1; then
-                        echo "  WARNING: Failed to delete $ns/$pod"
-                        ERRORS=$((ERRORS + 1))
+                    if [ -n "$$ns" ] && [ -n "$$pod" ]; then
+                      TOTAL=$$((TOTAL + 1))
+                      echo "  Deleting $$ns/$$pod"
+                      if ! kubectl delete pod "$$pod" -n "$$ns" --grace-period=0 --force 2>&1; then
+                        echo "  WARNING: Failed to delete $$ns/$$pod"
+                        ERRORS=$$((ERRORS + 1))
                       fi
                     fi
                   done < /tmp/failed-pods.txt
 
-                  echo "Deleted $((TOTAL - ERRORS))/$TOTAL failed pods ($ERRORS errors)"
+                  echo "Deleted $$((TOTAL - ERRORS))/$$TOTAL failed pods ($$ERRORS errors)"
 
                   # Exit non-zero on any deletion failure so the job shows as Failed
                   # in Kubernetes job history, making persistent issues visible.
-                  if [ "$ERRORS" -gt 0 ]; then
-                    echo "ERROR: $ERRORS/$TOTAL pod deletions failed"
+                  if [ "$$ERRORS" -gt 0 ]; then
+                    echo "ERROR: $$ERRORS/$$TOTAL pod deletions failed"
                     exit 1
                   fi
 
