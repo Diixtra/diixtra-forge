@@ -61,7 +61,7 @@ jobs:
           HEALTHY=true
 
           # 1. API server reachable
-          if ! kubectl cluster-info --request-timeout=10s 2>&1; then
+          if ! kubectl get --raw /healthz --request-timeout=10s 2>&1; then
             echo "::error::API server unreachable"
             echo "healthy=false" >> "$GITHUB_OUTPUT"
             exit 0
