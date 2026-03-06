@@ -198,6 +198,8 @@ spec:
         - matchPattern: "*.releases.hashicorp.com"
         - matchName: registry.opentofu.org
         - matchName: get.opentofu.org
+        - matchName: github.com
+        - matchPattern: "*.githubusercontent.com"
       toPorts:
         - ports:
             - port: "443"
