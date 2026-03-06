@@ -37,6 +37,74 @@ spec:
     timeout: 10m
     remediation:
       retries: 3
+  # The chart's config-manager init/sidecar containers lack resource limits.
+  # Kyverno's require-resource-limits policy blocks the upgrade without
+  # these patches. Affected containers (only rendered when config.map is set):
+  #   - nvidia-device-plugin-init      (initContainer, config-manager)
+  #   - nvidia-device-plugin-sidecar   (container, config watcher)
+  #   - mps-control-daemon-init        (initContainer, config-manager)
+  #   - mps-control-daemon-sidecar     (container, config watcher)
+  postRenderers:
+    - kustomize:
+        patches:
+          - target:
+              kind: DaemonSet
+              name: nvidia-device-plugin
+            patch: |-
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: nvidia-device-plugin
+              spec:
+                template:
+                  spec:
+                    initContainers:
+                      - name: nvidia-device-plugin-init
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
+                    containers:
+                      - name: nvidia-device-plugin-sidecar
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
+          - target:
+              kind: DaemonSet
+              name: nvidia-device-plugin-mps-control-daemon
+            patch: |-
+              apiVersion: apps/v1
+              kind: DaemonSet
+              metadata:
+                name: nvidia-device-plugin-mps-control-daemon
+              spec:
+                template:
+                  spec:
+                    initContainers:
+                      - name: mps-control-daemon-init
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
+                    containers:
+                      - name: mps-control-daemon-sidecar
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
   values:
     # Only run on nodes that have a GPU attached.
     # The first-boot script applies this label after kubeadm join.
