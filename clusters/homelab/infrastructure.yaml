@@ -1,7 +1,8 @@
 ---
 # Stage 1: CRD Providers
-# Deploys HelmReleases that install Custom Resource Definitions.
-# Must complete before stage 2, which creates resources of those types.
+# Deploys operators and provider packages that register Custom Resource
+# Definitions. Must complete before stage 2, which creates resources of
+# those types.
 #
 # This is the same pattern used for platform-crds → platform.
 # Flux Kustomizations are atomic — if any resource fails server-side

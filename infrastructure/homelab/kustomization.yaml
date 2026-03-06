@@ -11,7 +11,8 @@ resources:
   - ../base/nvidia-device-plugin
   - ../base/flux-operator
   - ../base/falco
-  # Crossplane providers — need Crossplane CRDs from infrastructure-crds
+  # Crossplane provider configs — need provider-specific CRDs
+  # (ProviderConfig) registered by Provider packages in infrastructure-crds
   - ../base/crossplane-provider-aws
   - ../base/crossplane-provider-gcp
   - ../base/crossplane-provider-azure
