@@ -30,6 +30,7 @@ metadata:
     app.kubernetes.io/part-of: crossplane
     app.kubernetes.io/managed-by: flux
 spec:
+  region: "${OCI_REGION}"
   credentials:
     source: Secret
     secretRef:

@@ -101,3 +101,4 @@ data:
   OP_ITEM_SUPABASE_TOKEN: "crossplane-supabase-access-token"
   GCP_PROJECT_ID: "homelab-489415"
   AWS_CROSSPLANE_ROLE_ARN: "arn:aws:iam::677130120263:role/crossplane-homelab"
+  OCI_REGION: "eu-london-1"
