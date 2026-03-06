@@ -22,8 +22,8 @@ rules:
   - apiGroups: [""]
     resources: ["pods", "nodes"]
     verbs: ["get", "list"]
-  # kubectl cluster-info needs access to /api and /version
-  - nonResourceURLs: ["/api", "/api/*", "/version"]
+  # Health checks and API discovery
+  - nonResourceURLs: ["/healthz", "/api", "/api/*", "/version"]
     verbs: ["get"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
