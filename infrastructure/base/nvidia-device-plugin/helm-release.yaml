@@ -37,9 +37,13 @@ spec:
     timeout: 10m
     remediation:
       retries: 3
-  # The chart's config-manager initContainers (nvidia-device-plugin-init,
-  # mps-control-daemon-init) lack resource limits. Kyverno's
-  # require-resource-limits policy blocks the upgrade without these patches.
+  # The chart's config-manager init/sidecar containers lack resource limits.
+  # Kyverno's require-resource-limits policy blocks the upgrade without
+  # these patches. Affected containers (only rendered when config.map is set):
+  #   - nvidia-device-plugin-init      (initContainer, config-manager)
+  #   - nvidia-device-plugin-sidecar   (container, config watcher)
+  #   - mps-control-daemon-init        (initContainer, config-manager)
+  #   - mps-control-daemon-sidecar     (container, config watcher)
   postRenderers:
     - kustomize:
         patches:
@@ -63,6 +67,15 @@ spec:
                           limits:
                             cpu: 200m
                             memory: 128Mi
+                    containers:
+                      - name: nvidia-device-plugin-sidecar
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
           - target:
               kind: DaemonSet
               name: nvidia-device-plugin-mps-control-daemon
@@ -76,6 +89,15 @@ spec:
                   spec:
                     initContainers:
                       - name: mps-control-daemon-init
+                        resources:
+                          requests:
+                            cpu: 50m
+                            memory: 64Mi
+                          limits:
+                            cpu: 200m
+                            memory: 128Mi
+                    containers:
+                      - name: mps-control-daemon-sidecar
                         resources:
                           requests:
                             cpu: 50m
