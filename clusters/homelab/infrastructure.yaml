@@ -16,13 +16,19 @@ metadata:
 spec:
   interval: 10m
   retryInterval: 1m
-  timeout: 10m
+  # 15m to allow Crossplane + 6 provider package downloads on cold bootstrap
+  timeout: 15m
   sourceRef:
     kind: GitRepository
     name: flux-system
   path: ./infrastructure/homelab/crds
   prune: true
-  wait: true
+  # wait: false — use explicit healthChecks instead of generic kstatus.
+  # wait: true silently ignores healthChecks (Flux docs), and kstatus
+  # may not correctly assess Crossplane Provider readiness (no standard
+  # Ready condition). Other resources (CRD manifests, HelmRepositories)
+  # only need to be applied, not health-checked.
+  wait: false
   postBuild:
     substituteFrom:
       - kind: ConfigMap
