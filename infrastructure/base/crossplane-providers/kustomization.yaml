@@ -5,5 +5,4 @@ resources:
   - provider-gcp.yaml
   - provider-azure.yaml
   - provider-oci.yaml
-  - provider-neon.yaml
-  - provider-supabase.yaml
+  - provider-terraform.yaml

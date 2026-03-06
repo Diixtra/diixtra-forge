@@ -1,19 +1,17 @@
 # ══════════════════════════════════════════════════════════════════
 # Crossplane Provider — Oracle Cloud Infrastructure (OCI)
 #
-# Installs the Upbound OCI provider. Unlike GCP/Azure/AWS, OCI does
-# not use a "family" provider — it ships as a single monolithic
-# provider package containing all resource types.
+# Installs the Upbound OCI family provider.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-oci
+  name: provider-family-oci
   labels:
     app.kubernetes.io/part-of: crossplane
     app.kubernetes.io/managed-by: flux
 spec:
-  package: xpkg.upbound.io/upbound/provider-oci:v0
+  package: xpkg.upbound.io/upbound/provider-family-oci:v0
   packagePullPolicy: IfNotPresent
   revisionActivationPolicy: Automatic
   revisionHistoryLimit: 1

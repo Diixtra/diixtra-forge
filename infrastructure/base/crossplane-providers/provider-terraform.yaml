@@ -1,22 +1,17 @@
 # ══════════════════════════════════════════════════════════════════
-# Crossplane Provider — Neon (via provider-terraform)
+# Crossplane Provider — Terraform Bridge
 #
-# No native Crossplane provider exists for Neon Serverless Postgres
-# as of 2026-03. The Upbound provider-terraform bridge executes
-# Terraform HCL inside Kubernetes, enabling use of the
-# kislerdm/neon Terraform provider to manage Neon projects,
-# branches, and endpoints as Crossplane Workspace resources.
-#
-# Migrate to a native Crossplane provider if one is published
-# to xpkg.upbound.io in future.
+# Shared provider-terraform instance used by both Neon and Supabase
+# ProviderConfigs. Crossplane only allows one Provider CR per package;
+# credential separation is handled by distinct ProviderConfig CRs
+# (neon-default, supabase-default) not by multiple Provider CRs.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: pkg.crossplane.io/v1
 kind: Provider
 metadata:
-  name: provider-terraform-neon
+  name: provider-terraform
   labels:
     app.kubernetes.io/part-of: crossplane
-    app.kubernetes.io/component: neon
     app.kubernetes.io/managed-by: flux
 spec:
   package: xpkg.upbound.io/upbound/provider-terraform:v0
