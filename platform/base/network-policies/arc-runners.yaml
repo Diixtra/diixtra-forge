@@ -40,6 +40,29 @@ spec:
             - port: "443"
               protocol: TCP
 ---
+# Workflow steps download CLI tools at runtime: kubectl from dl.k8s.io
+# (Fastly CDN; storage.googleapis.com kept as fallback), Flux install
+# script from fluxcd.io (binary itself comes from GitHub releases,
+# covered by the github egress policy above).
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: arc-runners-allow-egress-cli-downloads
+  namespace: arc-runners
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: dl.k8s.io
+        - matchPattern: "*.dl.k8s.io"
+        - matchName: storage.googleapis.com
+        - matchName: fluxcd.io
+        - matchPattern: "*.fluxcd.io"
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP
+---
 apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:

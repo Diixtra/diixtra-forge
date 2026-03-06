@@ -105,6 +105,10 @@ spec:
     template:
       spec:
         serviceAccountName: arc-runner-flux-reader
+        # ARC's runner scale set disables SA token mounting by default
+        # for security. We re-enable it because health-check workflows
+        # need in-cluster kubectl access via the arc-runner-flux-reader SA.
+        automountServiceAccountToken: true
         # Security hardening — runners execute workflow code, so isolate them.
         # The official runner image runs as UID 1001 (runner user) by default.
         # readOnlyRootFilesystem is NOT set because the runner writes to
