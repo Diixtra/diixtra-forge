@@ -1,0 +1,21 @@
+# ══════════════════════════════════════════════════════════════════
+# Crossplane Provider — Amazon Web Services
+#
+# Installs the official Upbound AWS provider family. The "family"
+# provider manages ProviderConfig and shared auth machinery; actual
+# AWS service resources are provisioned by sub-providers
+# (provider-aws-rds, provider-aws-s3, etc.) that auto-install
+# as dependencies when AWS managed resources reference them.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-family-aws
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-aws:v2
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1

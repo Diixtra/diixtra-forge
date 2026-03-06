@@ -1,0 +1,25 @@
+# ══════════════════════════════════════════════════════════════════
+# Crossplane Provider — Neon (via provider-terraform)
+#
+# No native Crossplane provider exists for Neon Serverless Postgres
+# as of 2026-03. The Upbound provider-terraform bridge executes
+# Terraform HCL inside Kubernetes, enabling use of the
+# kislerdm/neon Terraform provider to manage Neon projects,
+# branches, and endpoints as Crossplane Workspace resources.
+#
+# Migrate to a native Crossplane provider if one is published
+# to xpkg.upbound.io in future.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-terraform-neon
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/component: neon
+    app.kubernetes.io/managed-by: flux
+spec:
+  package: xpkg.upbound.io/upbound/provider-terraform:v0
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1

@@ -1,0 +1,20 @@
+# ══════════════════════════════════════════════════════════════════
+# Crossplane Provider — Microsoft Azure
+#
+# Installs the official Upbound Azure provider family. Sub-providers
+# (provider-azure-sql, provider-azure-storage, etc.) auto-install
+# as managed resource dependencies. The family provider owns the
+# ProviderConfig CRD and auth machinery.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-family-azure
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-azure:v2
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1

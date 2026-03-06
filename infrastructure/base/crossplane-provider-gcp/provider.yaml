@@ -1,0 +1,25 @@
+# ══════════════════════════════════════════════════════════════════
+# Crossplane Provider — Google Cloud Platform
+#
+# Installs the official Upbound GCP provider family. The "family"
+# provider manages ProviderConfig and shared auth machinery; actual
+# GCP service resources are provisioned by sub-providers
+# (provider-gcp-storage, provider-gcp-sql, etc.) that auto-install
+# as dependencies when GCP managed resources reference them.
+#
+# Package pull: xpkg.upbound.io -> crossplane-system namespace.
+# The CiliumNetworkPolicy crossplane-system-allow-egress-providers
+# already permits egress to xpkg.upbound.io on port 443.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: pkg.crossplane.io/v1
+kind: Provider
+metadata:
+  name: provider-family-gcp
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/managed-by: flux
+spec:
+  package: xpkg.upbound.io/upbound/provider-family-gcp:v2
+  packagePullPolicy: IfNotPresent
+  revisionActivationPolicy: Automatic
+  revisionHistoryLimit: 1
