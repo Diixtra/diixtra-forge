@@ -34,9 +34,13 @@ spec:
   install:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   values:
     # Start with minimal resource footprint for homelab
     replicaCount: 1

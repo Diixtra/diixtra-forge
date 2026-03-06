@@ -63,15 +63,19 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
   # LEARNING NOTE — githubConfigUrl SCOPE:
   #   - Repository URL (github.com/org/repo): runners serve only that repo
   #   - Organisation URL (github.com/org): runners serve any repo in the org
   #
-  #   Org-level is more flexible but requires broader PAT scope.
-  #   For homelab, repo-level is fine — we only have diixtra-forge.
-  #   Change to org-level when you add more repos.
+  #   Currently set to org-level so all Diixtra repos can use these runners.
+  #   Authentication uses a GitHub App (not PAT) — see the OnePasswordItem
+  #   in this directory and docs/runbooks/arc-org-runner-setup.md.
   values:
     # The GitHub entity this runner pool serves
     githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"

@@ -81,3 +81,19 @@ spec:
   ingress:
     - fromEntities:
         - cluster
+---
+# Allow notification-controller to POST error events to Slack
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: flux-system-allow-egress-slack
+  namespace: flux-system
+spec:
+  endpointSelector: {}
+  egress:
+    - toFQDNs:
+        - matchName: hooks.slack.com
+      toPorts:
+        - ports:
+            - port: "443"
+              protocol: TCP

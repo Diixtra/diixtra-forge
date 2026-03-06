@@ -73,6 +73,8 @@ spec:
             capabilities:
               drop:
                 - ALL
+            seccompProfile:
+              type: RuntimeDefault
       volumes:
         - name: memory-data
           persistentVolumeClaim:

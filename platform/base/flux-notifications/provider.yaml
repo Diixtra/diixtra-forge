@@ -1,0 +1,20 @@
+# Flux Notification Provider — Slack
+#
+# Uses Slack's Incoming Webhooks API. The notification-controller
+# POSTs a JSON body formatted for Slack's Block Kit. No bot token
+# needed — only the webhook URL (stored in the Secret).
+#
+# channel is intentionally omitted — the webhook URL already
+# encodes the target channel.
+apiVersion: notification.toolkit.fluxcd.io/v1beta3
+kind: Provider
+metadata:
+  name: slack-flux-alerts
+  namespace: flux-system
+  labels:
+    app.kubernetes.io/part-of: flux-notifications
+    app.kubernetes.io/managed-by: flux
+spec:
+  type: slack
+  secretRef:
+    name: slack-webhook-url

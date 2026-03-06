@@ -40,8 +40,12 @@ spec:
       interval: 1h
   install:
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     timeout: 10m
+    remediation:
+      retries: 3
   values:
     githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"
     githubConfigSecret: github-config-secret

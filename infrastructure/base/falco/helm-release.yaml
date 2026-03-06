@@ -128,12 +128,12 @@ spec:
           hostport: "${GRAFANA_LOKI_URL}"
 
       # ── Falcosidekick UI ────────────────────────────────────────────
-      # Disabled: the chart's init container lacks resource limits
-      # which Kyverno's require-resource-limits policy rejects.
-      # Loki is the durable event store; the ephemeral UI is not needed.
       webui:
-        enabled: false
+        enabled: true
         replicaCount: 1
+        # Traefik's dashboard-auth middleware already protects the
+        # endpoint; the UI's built-in auth is redundant.
+        disableauth: true
         resources:
           requests:
             cpu: 50m
@@ -141,6 +141,17 @@ spec:
           limits:
             cpu: 200m
             memory: 128Mi
+        # The chart's wait-redis init container ships with empty
+        # resources{}. Kyverno's require-resource-limits policy
+        # rejects pods without limits on init containers.
+        initContainer:
+          resources:
+            requests:
+              cpu: 10m
+              memory: 32Mi
+            limits:
+              cpu: 100m
+              memory: 128Mi
         redis:
           resources:
             requests:

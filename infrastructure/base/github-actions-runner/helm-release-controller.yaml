@@ -50,9 +50,13 @@ spec:
   install:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   upgrade:
     crds: CreateReplace
     timeout: 10m
+    remediation:
+      retries: 3
   # LEARNING NOTE — crds: CreateReplace:
   #   ARC bundles its CRDs inside the Helm chart. By default, Helm
   #   installs CRDs on first install but NEVER upgrades them (Helm's
