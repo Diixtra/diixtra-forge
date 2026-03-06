@@ -10,16 +10,17 @@
 #   OCI APIs called with API key authentication
 #
 # The 1Password item field must be named "credentials" and contain
-# an INI-format OCI config:
+# an INI-format OCI config with the private key embedded inline:
 #   [DEFAULT]
 #   user=ocid1.user.oc1..xxx
 #   fingerprint=xx:xx:xx:...
 #   tenancy=ocid1.tenancy.oc1..xxx
 #   region=eu-london-1
-#   key_file=<path>
+#   key_value=<BASE64_PRIVATE_KEY>
 #
-# For the private key, store it in a separate 1Password field or
-# embed it inline. See Upbound OCI provider docs for exact format.
+# Use key_value (not key_file) so the provider reads the key
+# directly from the Secret without needing a file path.
+# See Upbound OCI provider docs for exact format.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: oci.upbound.io/v1beta1
 kind: ProviderConfig

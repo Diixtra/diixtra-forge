@@ -1,7 +1,7 @@
 # ══════════════════════════════════════════════════════════════════
 # ProviderConfig — Supabase (Terraform bridge)
 #
-# The `configuration` block declares the supabase-community
+# The `configuration` block declares the supabase/supabase
 # Terraform provider and reads the access token from a credential
 # file written by provider-terraform from the 1Password-synced
 # Secret.
@@ -12,7 +12,7 @@
 #   Secret "supabase-provider-creds" in crossplane-system
 #       key: accessToken
 #       | (provider-terraform writes to supabase-token.txt)
-#   Terraform supabase-community provider reads file and
+#   Terraform supabase/supabase provider reads file and
 #   authenticates to https://api.supabase.com/v1/
 #
 # Generate an access token at:
