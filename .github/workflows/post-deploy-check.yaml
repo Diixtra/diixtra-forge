@@ -1,5 +1,6 @@
 name: Post-Deploy Health Check
 on:
+  workflow_dispatch:
   push:
     branches: [main]
     paths:
