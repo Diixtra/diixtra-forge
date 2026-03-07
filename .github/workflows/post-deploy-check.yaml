@@ -149,8 +149,7 @@ jobs:
             fi
             # Exclude nvidia-device-plugin: its DaemonSet needs a GPU node
             # with node.kubernetes.io/gpu=true label — schedules 0 pods otherwise
-            # Exclude backstage: suspended while Neon DB provisions via Crossplane
-            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "nvidia-device-plugin" | grep -v "backstage" | grep -v "True" || true)
+            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "nvidia-device-plugin" | grep -v "True" || true)
             if [ -z "$NOT_READY" ]; then
               echo "All HelmReleases are Ready"
               flux get helmreleases -A
