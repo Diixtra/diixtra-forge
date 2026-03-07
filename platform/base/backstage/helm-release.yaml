@@ -37,9 +37,15 @@ spec:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       extraEnvVarsSecrets:
         - backstage-github-app
+      extraEnvVars:
+        - name: NEON_DB_PASSWORD
+          valueFrom:
+            secretKeyRef:
+              name: backstage-neon-db
+              key: password
       # The chart defaults give only 30s for startup (failureThreshold=3,
       # periodSeconds=10). Backstage needs 60-90s to initialise plugins
-      # and connect to PostgreSQL. Override to allow up to 5 minutes.
+      # and connect to Neon PostgreSQL. Override to allow up to 5 minutes.
       startupProbe:
         httpGet:
           path: /.backstage/health/v1/liveness
@@ -94,10 +100,13 @@ spec:
           database:
             client: pg
             connection:
-              host: backstage-postgresql
+              host: ${NEON_BACKSTAGE_HOST}
               port: 5432
               user: backstage
-              password: $${POSTGRES_PASSWORD}
+              password: $${NEON_DB_PASSWORD}
+              ssl:
+                require: true
+                rejectUnauthorized: true
         integrations:
           github:
             - host: github.com
@@ -157,34 +166,4 @@ spec:
             - type: url
               target: https://github.com/Diixtra/diixtra-forge/blob/main/platform/base/backstage/cluster-entity.yaml
     postgresql:
-      enabled: true
-      auth:
-        username: backstage
-        existingSecret: backstage-postgresql
-        secretKeys:
-          userPasswordKey: password
-      primary:
-        podSecurityContext:
-          enabled: true
-          runAsNonRoot: true
-          runAsUser: 1001
-          fsGroup: 1001
-          seccompProfile:
-            type: RuntimeDefault
-        containerSecurityContext:
-          enabled: true
-          allowPrivilegeEscalation: false
-          capabilities:
-            drop:
-              - ALL
-          runAsNonRoot: true
-          runAsUser: 1001
-        resources:
-          requests:
-            cpu: 250m
-            memory: 256Mi
-          limits:
-            cpu: 500m
-            memory: 512Mi
-        persistence:
-          storageClass: truenas-iscsi
+      enabled: false
