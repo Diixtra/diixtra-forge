@@ -10,10 +10,8 @@
 #   database_host     — Neon endpoint hostname
 #   database_password — Role password (sensitive)
 #
-# BOOTSTRAP: After first reconciliation, extract the host and update vars:
-#   kubectl get secret neon-backstage-outputs -n crossplane-system \
-#     -o jsonpath='{.data.database_host}' | base64 -d
-# Set the result as NEON_BACKSTAGE_HOST in clusters/homelab/vars.yaml.
+# The neon-secret-sync CronJob in the backstage namespace copies these
+# credentials automatically — no manual bootstrap step needed.
 # ══════════════════════════════════════════════════════════════════
 apiVersion: tf.upbound.io/v1beta1
 kind: Workspace
