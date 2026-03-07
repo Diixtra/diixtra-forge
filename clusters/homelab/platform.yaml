@@ -47,10 +47,9 @@ spec:
       kind: HelmRelease
       name: kube-state-metrics
       namespace: monitoring
-    - apiVersion: helm.toolkit.fluxcd.io/v2
-      kind: HelmRelease
-      name: backstage
-      namespace: backstage
+    # Backstage excluded from healthChecks: on bootstrap, the neon-secret-sync
+    # CronJob needs time to copy DB credentials before Backstage can start.
+    # The post-deploy workflow checks all HelmReleases independently.
     - apiVersion: helm.toolkit.fluxcd.io/v2
       kind: HelmRelease
       name: policy-reporter
