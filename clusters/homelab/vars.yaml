@@ -97,6 +97,7 @@ data:
   OP_ITEM_AZURE_SP: "crossplane-azure-service-principal"
   OP_ITEM_OCI_CREDS: "crossplane-oci-credentials"
   OP_ITEM_NEON_API_KEY: "crossplane-neon-api-key"
+  NEON_ORG_ID: "org-hidden-glade-59843512"
   OP_ITEM_SUPABASE_TOKEN: "crossplane-supabase-access-token"
   GCP_PROJECT_ID: "homelab-489415"
   AWS_CROSSPLANE_ROLE_ARN: "arn:aws:iam::677130120263:role/crossplane-homelab"
