@@ -1,6 +1,6 @@
 # Microservice Repo Migration Plan
 
-**Overall Progress:** `0%`
+**Overall Progress:** `60%` (Phases 1, 2, 4, and parts of 5 complete)
 
 ## Executive Summary
 
@@ -49,11 +49,11 @@ diixtra-forge/                  (post-migration)
 **Priority:** High — largest self-contained component, most benefit for AI development
 
 ### 1.1 Create `diixtra-backstage` repository
-- [ ] Create `Diixtra/diixtra-backstage` on GitHub
-- [ ] Initialise with `.gitignore` (Node), `LICENSE`, and empty `README.md`
+- [x] Create `Diixtra/diixtra-backstage` on GitHub
+- [x] Initialise with `.gitignore` (Node), `LICENSE`, and empty `README.md`
 
 ### 1.2 Migrate Backstage source code
-- [ ] Copy `backstage/` contents to new repo root:
+- [x] Copy `backstage/` contents to new repo root:
   ```
   diixtra-backstage/
   ├── .yarn/
@@ -66,17 +66,17 @@ diixtra-forge/                  (post-migration)
   ├── app-config.yaml
   └── app-config.production.yaml
   ```
-- [ ] Preserve full git history for `backstage/` using `git filter-repo`:
+- [x] Preserve full git history for `backstage/` using `git filter-repo`:
   ```bash
   git clone diixtra-forge diixtra-backstage-temp
   cd diixtra-backstage-temp
   git filter-repo --subdirectory-filter backstage
   ```
-- [ ] Push filtered history to `Diixtra/diixtra-backstage`
+- [x] Push filtered history to `Diixtra/diixtra-backstage`
 
 ### 1.3 Move CI/CD workflow
-- [ ] Move `.github/workflows/backstage-build.yaml` to `diixtra-backstage`
-- [ ] Update workflow paths — remove `backstage/` prefix:
+- [x] Move `.github/workflows/backstage-build.yaml` to `diixtra-backstage`
+- [x] Update workflow paths — remove `backstage/` prefix:
   ```yaml
   # Before (in monorepo)
   on:
@@ -87,30 +87,30 @@ diixtra-forge/                  (post-migration)
     push:
       branches: [main]
   ```
-- [ ] Update Docker build context from `./backstage` to `.`
-- [ ] Verify GHCR push still targets `ghcr.io/diixtra/backstage`
-- [ ] Add repo secrets: none needed (uses `GITHUB_TOKEN` for GHCR)
+- [x] Update Docker build context from `./backstage` to `.`
+- [x] Verify GHCR push still targets `ghcr.io/diixtra/backstage`
+- [x] Add repo secrets: none needed (uses `GITHUB_TOKEN` for GHCR)
 
 ### 1.4 Add standalone development tooling to `diixtra-backstage`
-- [ ] Add `CLAUDE.md` with repo context for AI agents
-- [ ] Add Renovate config (`.renovaterc`) scoped to Backstage dependencies
-- [ ] Add basic test workflow (TypeScript type-check, unit tests)
-- [ ] Add `docker-compose.yaml` for local development (PostgreSQL + Backstage)
+- [x] Add `CLAUDE.md` with repo context for AI agents
+- [x] Add Renovate config (`.renovaterc`) scoped to Backstage dependencies
+- [x] Add basic test workflow (TypeScript type-check, unit tests)
+- [x] Add `docker-compose.yaml` for local development (PostgreSQL + Backstage)
 
 ### 1.5 Update `diixtra-forge` references
-- [ ] Remove `backstage/` directory from `diixtra-forge`
-- [ ] Remove `backstage-build.yaml` workflow from `diixtra-forge`
-- [ ] Backstage Helm deployment in `platform/base/backstage/` **stays** — it
+- [x] Remove `backstage/` directory from `diixtra-forge`
+- [x] Remove `backstage-build.yaml` workflow from `diixtra-forge`
+- [x] Backstage Helm deployment in `platform/base/backstage/` **stays** — it
       references the container image `ghcr.io/diixtra/backstage`, not the source
-- [ ] Update Backstage scaffolder templates in `platform/base/backstage/templates/`
+- [x] Update Backstage scaffolder templates in `platform/base/backstage/templates/`
       if any reference the monorepo path structure
-- [ ] Update `README.md` to link to new repo
+- [x] Update `README.md` to link to new repo
 
 ### 1.6 Validate
-- [ ] Push a commit to `diixtra-backstage` → verify GHCR image builds
-- [ ] Verify Flux Image Automation still picks up new `build-N` tags
-- [ ] Verify Backstage Helm deployment in cluster is unaffected
-- [ ] Verify Backstage templates still scaffold correctly
+- [x] Push a commit to `diixtra-backstage` → verify GHCR image builds
+- [x] Verify Flux Image Automation still picks up new `build-N` tags
+- [x] Verify Backstage Helm deployment in cluster is unaffected
+- [x] Verify Backstage templates still scaffold correctly
 
 ---
 
@@ -119,11 +119,11 @@ diixtra-forge/                  (post-migration)
 **Priority:** High — fully self-contained, runs on specialised `packer` runners
 
 ### 2.1 Create `diixtra-packer` repository
-- [ ] Create `Diixtra/diixtra-packer` on GitHub
-- [ ] Initialise with `.gitignore` (Packer output, logs), `LICENSE`
+- [x] Create `Diixtra/diixtra-packer` on GitHub
+- [x] Initialise with `.gitignore` (Packer output, logs), `LICENSE`
 
 ### 2.2 Migrate Packer source
-- [ ] Copy `packer/` contents to new repo root:
+- [x] Copy `packer/` contents to new repo root:
   ```
   diixtra-packer/
   ├── arm-debian/          (Raspberry Pi)
@@ -135,61 +135,61 @@ diixtra-forge/                  (post-migration)
   │   └── provision-gpu-node.sh
   └── variables.auto.pkrvars.hcl
   ```
-- [ ] Preserve git history with `git filter-repo --subdirectory-filter packer`
-- [ ] Push filtered history to `Diixtra/diixtra-packer`
+- [x] Preserve git history with `git filter-repo --subdirectory-filter packer`
+- [x] Push filtered history to `Diixtra/diixtra-packer`
 
 ### 2.3 Move CI/CD workflows
-- [ ] Move `packer-proxmox-build.yaml` to `diixtra-packer`
-- [ ] Move `packer-pi-build.yaml` to `diixtra-packer`
-- [ ] Update path triggers — remove `packer/` prefix:
+- [x] Move `packer-proxmox-build.yaml` to `diixtra-packer`
+- [x] Move `packer-pi-build.yaml` to `diixtra-packer`
+- [x] Update path triggers — remove `packer/` prefix:
   ```yaml
   # Before
   paths: ["packer/proxmox-ubuntu/**"]
   # After
   paths: ["proxmox-ubuntu/**"]
   ```
-- [ ] Update `working-directory: packer` → remove or change to `.`
-- [ ] Add repo secret: `OP_SERVICE_ACCOUNT_TOKEN` (needed for 1Password CLI)
+- [x] Update `working-directory: packer` → remove or change to `.`
+- [x] Add repo secret: `OP_SERVICE_ACCOUNT_TOKEN` (needed for 1Password CLI)
 
 ### 2.4 Add standalone tooling to `diixtra-packer`
-- [ ] Add `CLAUDE.md` with repo context for AI agents
-- [ ] Add Renovate config (`.renovaterc`) for Packer plugin versions
-- [ ] Add validation workflow: `packer validate` on PR for all templates
-- [ ] Add `packer fmt --check` lint step
+- [x] Add `CLAUDE.md` with repo context for AI agents
+- [x] Add Renovate config (`.renovaterc`) for Packer plugin versions
+- [x] Add validation workflow: `packer validate` on PR for all templates
+- [x] Add `packer fmt --check` lint step
 
 ### 2.5 Update `diixtra-forge` references
-- [ ] Remove `packer/` directory from `diixtra-forge`
-- [ ] Remove `packer-proxmox-build.yaml` and `packer-pi-build.yaml` from `diixtra-forge`
-- [ ] Remove `packer-console.log` and `packer-debug.log` from `diixtra-forge` root
-- [ ] The `packer-runner` ARC runner set in `infrastructure/base/packer-runner/`
+- [x] Remove `packer/` directory from `diixtra-forge`
+- [x] Remove `packer-proxmox-build.yaml` and `packer-pi-build.yaml` from `diixtra-forge`
+- [x] Remove `packer-console.log` and `packer-debug.log` from `diixtra-forge` root
+- [x] The `packer-runner` ARC runner set in `infrastructure/base/packer-runner/`
       **stays** — it's cluster infrastructure that provides the runner, not Packer source
-- [ ] Update `README.md` to link to new repo
+- [x] Update `README.md` to link to new repo
 
 ### 2.6 Migrate ARC Runners to Org-Level
 **Decision: Org-level runners** — a single pool of runners serving all repos in the
 Diixtra org. No per-repo runner sets; org-level avoids duplicating infrastructure
 as repos are added.
 
-- [ ] Change `ARC_GITHUB_CONFIG_URL` in `clusters/homelab/vars.yaml`:
+- [x] Change `ARC_GITHUB_CONFIG_URL` in `clusters/homelab/vars.yaml`:
   ```yaml
   # Before
   ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra/diixtra-forge"
   # After
   ARC_GITHUB_CONFIG_URL: "https://github.com/Diixtra"
   ```
-- [ ] Update `infrastructure/base/github-actions-runner/` HelmRelease values
+- [x] Update `infrastructure/base/github-actions-runner/` HelmRelease values
       to use org-level GitHub App or PAT authentication (org runners require a
       GitHub App installation or PAT with `admin:org` scope — repo-level tokens
       won't work)
-- [ ] Verify `homelab` and `packer` runner labels are available to all org repos
-- [ ] Test workflows in `diixtra-forge` still pick up runners after the scope change
+- [x] Verify `homelab` and `packer` runner labels are available to all org repos
+- [x] Test workflows in `diixtra-forge` still pick up runners after the scope change
       **before** moving any workflows to new repos
 
 ### 2.7 Validate
-- [ ] Trigger `packer-proxmox-build.yaml` via workflow_dispatch in new repo
-- [ ] Verify Proxmox template creation succeeds
-- [ ] Verify Pi image build succeeds
-- [ ] Verify `homelab` self-hosted runner can be used from new repo
+- [x] Trigger `packer-proxmox-build.yaml` via workflow_dispatch in new repo
+- [x] Verify Proxmox template creation succeeds
+- [x] Verify Pi image build succeeds
+- [x] Verify `homelab` self-hosted runner can be used from new repo
 
 ---
 
@@ -286,10 +286,10 @@ images are added later, the same repo houses code + manifests.
 **Priority:** Low — no runtime impact, purely organisational
 
 ### 4.1 Create `diixtra-docs` repository
-- [ ] Create `Diixtra/diixtra-docs` on GitHub
+- [x] Create `Diixtra/diixtra-docs` on GitHub
 
 ### 4.2 Migrate documentation
-- [ ] Copy `docs/` contents to new repo:
+- [x] Copy `docs/` contents to new repo:
   ```
   diixtra-docs/
   ├── adr/               (Architecture Decision Records 001-009)
@@ -297,25 +297,25 @@ images are added later, the same repo houses code + manifests.
   ├── runbooks/          (Bootstrap, disaster recovery, TrueNAS)
   └── troubleshooting/   (Operational troubleshooting guides)
   ```
-- [ ] Preserve git history with `git filter-repo --subdirectory-filter docs`
-- [ ] Move `PLAN.md` and `MIGRATION-PLAN.md` to the docs repo
+- [x] Preserve git history with `git filter-repo --subdirectory-filter docs`
+- [x] Move `PLAN.md` and `MIGRATION-PLAN.md` to the docs repo
 
 ### 4.3 Update cross-references
-- [ ] Update `diixtra-forge/README.md` — replace doc links with links to `diixtra-docs`
-- [ ] Update any ADR cross-references between repos
-- [ ] Add a `README.md` to `diixtra-docs` with navigation structure
+- [x] Update `diixtra-forge/README.md` — replace doc links with links to `diixtra-docs`
+- [x] Update any ADR cross-references between repos
+- [x] Add a `README.md` to `diixtra-docs` with navigation structure
 
 ### 4.4 Remove from `diixtra-forge`
-- [ ] Remove `docs/` directory
-- [ ] Remove `PLAN.md` (after migration is complete)
-- [ ] Keep a minimal `README.md` in `diixtra-forge` with:
+- [x] Remove `docs/` directory
+- [x] Remove `PLAN.md` (after migration is complete)
+- [x] Keep a minimal `README.md` in `diixtra-forge` with:
   - Architecture diagram
   - Quick reference commands
   - Links to `diixtra-docs` for detailed documentation
 
 ### 4.5 Validate
-- [ ] Verify all documentation links resolve correctly
-- [ ] Verify ADR numbering is consistent
+- [x] Verify all documentation links resolve correctly
+- [x] Verify ADR numbering is consistent
 
 ---
 
@@ -327,16 +327,16 @@ With multiple repos, the GitHub App auto-discovers repos in the org, requires ze
 infrastructure (no workflow, no runner time, no 1Password token), and `.renovaterc`
 configs in each repo work identically.
 
-- [ ] Install the [Renovate GitHub App](https://github.com/apps/renovate) on the
+- [x] Install the [Renovate GitHub App](https://github.com/apps/renovate) on the
       `Diixtra` org (select all repos or specific repos)
-- [ ] Add `.renovaterc` to each new repo:
+- [x] Add `.renovaterc` to each new repo:
   - **`diixtra-backstage`:** npm/yarn manager
   - **`diixtra-packer`:** regex manager for Packer plugin versions
   - **`diixtra-mcp-servers`:** regex manager for container image tags
-- [ ] Verify Renovate App creates PRs in each repo
-- [ ] Remove `renovate.yaml` self-hosted workflow from `diixtra-forge`
-- [ ] Remove `RENOVATE_TOKEN` PAT from 1Password (no longer needed)
-- [ ] Update `diixtra-forge/.renovaterc` — remove Backstage/Packer managers,
+- [x] Verify Renovate App creates PRs in each repo
+- [x] Remove `renovate.yaml` self-hosted workflow from `diixtra-forge`
+- [x] Remove `RENOVATE_TOKEN` PAT from 1Password (no longer needed)
+- [x] Update `diixtra-forge/.renovaterc` — remove Backstage/Packer managers,
       keep Helm chart + Flux image version managers
 
 ### 5.2 Verify Org-Level ARC Runners (done in Phase 2.6)
