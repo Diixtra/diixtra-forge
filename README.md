@@ -55,6 +55,12 @@ Rollback is always `git revert` + Flux reconciliation.
 | Check HelmReleases | `flux get helmreleases -A` |
 | Validate locally | `kustomize build infrastructure/homelab` |
 
+## Related Repositories
+
+| Repository | Purpose |
+|-----------|---------|
+| [`diixtra-backstage`](https://github.com/Diixtra/diixtra-backstage) | Backstage source code, Docker build, and local dev tooling |
+
 ## Bootstrap
 
 See [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) for the
