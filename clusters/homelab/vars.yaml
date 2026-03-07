@@ -50,7 +50,12 @@ data:
   OP_ITEM_TRUENAS: "Truenas API Credential"
   OP_ITEM_GRAFANA_CLOUD: "grafana-cloud-credentials"
   OP_ITEM_BACKSTAGE_DB: "backstage-postgresql"
+  OP_ITEM_BACKSTAGE_NEON_DB: "backstage-neon-db"
   OP_ITEM_BACKSTAGE_GITHUB_APP: "backstage-github-app"
+  # Neon endpoint hostname — populate after Workspace reconciliation:
+  #   kubectl get secret neon-backstage-outputs -n crossplane-system \
+  #     -o jsonpath='{.data.database_host}' | base64 -d
+  NEON_BACKSTAGE_HOST: "REPLACE_AFTER_BOOTSTRAP"
   OP_ITEM_TRAEFIK_BASIC_AUTH: "traefik-basic-auth"
   OP_ITEM_SLACK_WEBHOOK: "flux-slack-webhook"
   # ── Grafana Cloud Configuration ────────────────────────────────
