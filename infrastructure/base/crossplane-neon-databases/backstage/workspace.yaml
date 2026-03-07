@@ -29,15 +29,6 @@ spec:
   forProvider:
     source: Inline
     module: |
-      terraform {
-        required_providers {
-          neon = {
-            source  = "kislerdm/neon"
-            version = "~> 0.6"
-          }
-        }
-      }
-
       resource "neon_project" "backstage" {
         name       = "backstage"
         region_id  = "aws-eu-west-2"
