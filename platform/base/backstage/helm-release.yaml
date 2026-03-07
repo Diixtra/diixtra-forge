@@ -4,7 +4,7 @@ metadata:
   name: backstage
   namespace: backstage
 spec:
-  suspend: true
+  suspend: false
   interval: 30m
   chart:
     spec:
