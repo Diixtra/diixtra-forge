@@ -61,6 +61,7 @@ Rollback is always `git revert` + Flux reconciliation.
 |-----------|---------|
 | [`diixtra-backstage`](https://github.com/Diixtra/diixtra-backstage) | Backstage source code, Docker build, and local dev tooling |
 | [`diixtra-docs`](https://github.com/Diixtra/diixtra-docs) | ADRs, runbooks, troubleshooting guides, and learning resources |
+| [`diixtra-packer`](https://github.com/Diixtra/diixtra-packer) | Packer golden images for Proxmox VMs and Raspberry Pi K8s nodes |
 
 ## Bootstrap
 
