@@ -28,12 +28,10 @@ spec:
       name: neon-backstage-credentials
       valuesKey: database_host
       targetPath: backstage.appConfig.backend.database.connection.host
-      optional: true
     - kind: Secret
       name: neon-backstage-credentials
       valuesKey: database_password
       targetPath: backstage.appConfig.backend.database.connection.password
-      optional: true
 
   values:
     backstage:
