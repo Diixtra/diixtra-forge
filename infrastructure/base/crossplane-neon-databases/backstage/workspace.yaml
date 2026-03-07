@@ -49,7 +49,9 @@ spec:
         }
 
         default_endpoint_settings {
-          suspend_timeout_seconds  = 300
+          # Must exceed Backstage catalog sync interval (600s) to avoid
+          # cold starts on every sync cycle.
+          suspend_timeout_seconds  = 600
           autoscaling_limit_min_cu = 0.25
           autoscaling_limit_max_cu = 1
         }
