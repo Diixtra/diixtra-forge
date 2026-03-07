@@ -49,6 +49,12 @@ spec:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       extraEnvVarsSecrets:
         - backstage-github-app
+      extraEnvVars:
+        - name: GITHUB_APP_PRIVATE_KEY
+          valueFrom:
+            secretKeyRef:
+              name: backstage-github-app
+              key: github_app_private_key.pem
       # The chart defaults give only 30s for startup (failureThreshold=3,
       # periodSeconds=10). Backstage needs 60-90s to initialise plugins
       # and connect to Neon PostgreSQL. Override to allow up to 5 minutes.
