@@ -45,7 +45,7 @@ spec:
               key: password
       # The chart defaults give only 30s for startup (failureThreshold=3,
       # periodSeconds=10). Backstage needs 60-90s to initialise plugins
-      # and connect to PostgreSQL. Override to allow up to 5 minutes.
+      # and connect to Neon PostgreSQL. Override to allow up to 5 minutes.
       startupProbe:
         httpGet:
           path: /.backstage/health/v1/liveness

@@ -49,12 +49,14 @@ data:
   OP_ITEM_CLOUDFLARE: "cloudflare dns API Credentials"
   OP_ITEM_TRUENAS: "Truenas API Credential"
   OP_ITEM_GRAFANA_CLOUD: "grafana-cloud-credentials"
-  OP_ITEM_BACKSTAGE_DB: "backstage-postgresql"
   OP_ITEM_BACKSTAGE_NEON_DB: "backstage-neon-db"
   OP_ITEM_BACKSTAGE_GITHUB_APP: "backstage-github-app"
-  # Neon endpoint hostname — populate after Workspace reconciliation:
+  # Neon endpoint hostname — MUST be populated before merging this PR.
+  # After Workspace reconciliation (PR #703), extract the host:
   #   kubectl get secret neon-backstage-outputs -n crossplane-system \
   #     -o jsonpath='{.data.database_host}' | base64 -d
+  # WARNING: Leaving this as a placeholder will crash Backstage and
+  # trigger the post-deploy auto-rollback.
   NEON_BACKSTAGE_HOST: "REPLACE_AFTER_BOOTSTRAP"
   OP_ITEM_TRAEFIK_BASIC_AUTH: "traefik-basic-auth"
   OP_ITEM_SLACK_WEBHOOK: "flux-slack-webhook"
