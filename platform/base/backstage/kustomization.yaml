@@ -3,5 +3,5 @@ kind: Kustomization
 resources:
   - namespace.yaml
   - helm-release.yaml
-  - onepassword-item-neon-db.yaml
+  - neon-secret-sync.yaml
   - onepassword-item-github-app.yaml

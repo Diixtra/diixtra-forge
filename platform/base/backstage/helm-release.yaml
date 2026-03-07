@@ -22,6 +22,17 @@ spec:
     timeout: 10m
     remediation:
       retries: 3
+
+  valuesFrom:
+    - kind: Secret
+      name: neon-backstage-credentials
+      valuesKey: database_host
+      targetPath: backstage.appConfig.backend.database.connection.host
+    - kind: Secret
+      name: neon-backstage-credentials
+      valuesKey: database_password
+      targetPath: backstage.appConfig.backend.database.connection.password
+
   values:
     backstage:
       image:
@@ -37,12 +48,6 @@ spec:
         reloader.stakater.com/auto: "true" # Auto-restart when referenced Secrets/ConfigMaps change
       extraEnvVarsSecrets:
         - backstage-github-app
-      extraEnvVars:
-        - name: NEON_DB_PASSWORD
-          valueFrom:
-            secretKeyRef:
-              name: backstage-neon-db
-              key: password
       # The chart defaults give only 30s for startup (failureThreshold=3,
       # periodSeconds=10). Backstage needs 60-90s to initialise plugins
       # and connect to Neon PostgreSQL. Override to allow up to 5 minutes.
@@ -100,10 +105,9 @@ spec:
           database:
             client: pg
             connection:
-              host: ${NEON_BACKSTAGE_HOST}
+              # host and password injected via valuesFrom (neon-backstage-credentials)
               port: 5432
               user: backstage
-              password: $${NEON_DB_PASSWORD}
               ssl:
                 require: true
                 rejectUnauthorized: true

@@ -12,6 +12,7 @@ crash.log
 *secret*
 !**/onepassword-item.yaml
 !**/op-service-account-token*
+!**/neon-secret-sync.yaml
 
 # OS files
 .DS_Store
