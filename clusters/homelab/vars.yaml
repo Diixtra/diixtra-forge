@@ -28,7 +28,7 @@
 # USAGE IN MANIFESTS:
 #   itemPath: "vaults/${OP_VAULT}/items/${OP_ITEM_CLOUDFLARE}"
 #   host: ${TRUENAS_HOST}
-#   email ${ACME_EMAIL}
+#   email: ${ACME_EMAIL}
 #
 # ══════════════════════════════════════════════════════════════════
 apiVersion: v1
