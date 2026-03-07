@@ -60,20 +60,22 @@ Rollback is always `git revert` + Flux reconciliation.
 | Repository | Purpose |
 |-----------|---------|
 | [`diixtra-backstage`](https://github.com/Diixtra/diixtra-backstage) | Backstage source code, Docker build, and local dev tooling |
+| [`diixtra-docs`](https://github.com/Diixtra/diixtra-docs) | ADRs, runbooks, troubleshooting guides, and learning resources |
 
 ## Bootstrap
 
-See [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) for the
+See the [bootstrap runbook](https://github.com/Diixtra/diixtra-docs/blob/main/runbooks/bootstrap.md) for the
 full procedure, or run `python3 scripts/bootstrap.py` for automated setup.
 
 ## Documentation
 
+Documentation has moved to [`Diixtra/diixtra-docs`](https://github.com/Diixtra/diixtra-docs).
+
 | Doc | Purpose |
 |-----|---------|
-| [`docs/architecture.md`](docs/architecture.md) | System architecture overview |
-| [`docs/runbooks/bootstrap.md`](docs/runbooks/bootstrap.md) | Flux bootstrap procedure |
-| [`docs/runbooks/secrets-management.md`](docs/runbooks/secrets-management.md) | 1Password secrets lifecycle |
-| [`docs/runbooks/truenas-setup.md`](docs/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
-| [`docs/traefik-tls-migration.md`](docs/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
-| [`docs/adr/`](docs/adr/) | Architecture Decision Records (001–010) |
-| [`docs/learning/`](docs/learning/) | Deep-dive educational content |
+| [Architecture](https://github.com/Diixtra/diixtra-docs/blob/main/architecture.md) | System architecture overview |
+| [Bootstrap](https://github.com/Diixtra/diixtra-docs/blob/main/runbooks/bootstrap.md) | Flux bootstrap procedure |
+| [TrueNAS Setup](https://github.com/Diixtra/diixtra-docs/blob/main/runbooks/truenas-setup.md) | TrueNAS CSI configuration |
+| [Traefik TLS](https://github.com/Diixtra/diixtra-docs/blob/main/traefik-tls-migration.md) | Caddy→Traefik migration & ACME fix |
+| [ADRs](https://github.com/Diixtra/diixtra-docs/tree/main/adr) | Architecture Decision Records (001–010) |
+| [Learning](https://github.com/Diixtra/diixtra-docs/tree/main/learning) | Deep-dive educational content |
