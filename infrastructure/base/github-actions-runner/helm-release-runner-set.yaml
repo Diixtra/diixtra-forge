@@ -75,7 +75,7 @@ spec:
   #
   #   Currently set to org-level so all Diixtra repos can use these runners.
   #   Authentication uses a GitHub App (not PAT) — see the OnePasswordItem
-  #   in this directory and docs/runbooks/arc-org-runner-setup.md.
+  #   in this directory and https://github.com/Diixtra/diixtra-docs/blob/main/runbooks/arc-org-runner-setup.md
   values:
     # The GitHub entity this runner pool serves
     githubConfigUrl: "${ARC_GITHUB_CONFIG_URL}"

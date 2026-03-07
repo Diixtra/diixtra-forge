@@ -3,7 +3,7 @@
 # ══════════════════════════════════════════════════════════════════
 # Detects etcd I/O issues, API server instability, and control
 # plane crash-loops — the exact failure mode from the March 2026
-# outage (see docs/troubleshooting/etcd-io-saturation-control-plane-crash.md).
+# outage (see https://github.com/Diixtra/diixtra-docs/blob/main/troubleshooting/etcd-io-saturation-control-plane-crash.md).
 # ══════════════════════════════════════════════════════════════════
 apiVersion: monitoring.coreos.com/v1
 kind: PrometheusRule
