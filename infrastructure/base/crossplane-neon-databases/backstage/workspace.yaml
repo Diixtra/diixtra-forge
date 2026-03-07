@@ -31,6 +31,7 @@ spec:
     module: |
       resource "neon_project" "backstage" {
         name       = "backstage"
+        org_id     = "${NEON_ORG_ID}"
         region_id  = "aws-eu-west-2"
         pg_version = 16
 
