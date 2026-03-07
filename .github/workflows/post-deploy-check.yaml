@@ -149,7 +149,10 @@ jobs:
             fi
             # Exclude nvidia-device-plugin: its DaemonSet needs a GPU node
             # with node.kubernetes.io/gpu=true label — schedules 0 pods otherwise
-            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "nvidia-device-plugin" | grep -v "True" || true)
+            # Exclude crossplane-provider-*: Terraform providers take 2-5 min to
+            # download and become healthy on first deploy; they have healthChecks
+            # in the infrastructure Kustomization that handle readiness.
+            NOT_READY=$(echo "$FLUX_OUTPUT" | grep -v "nvidia-device-plugin" | grep -v "crossplane-provider-" | grep -v "True" || true)
             if [ -z "$NOT_READY" ]; then
               echo "All HelmReleases are Ready"
               flux get helmreleases -A

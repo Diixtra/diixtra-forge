@@ -260,7 +260,7 @@ if [ "${NODE_ROLE}" = "control-plane" ]; then
         echo "ERROR: No dedicated etcd disk found at ${ETCD_DISK}"
         echo "  Control-plane nodes MUST have a dedicated etcd disk."
         echo "  Ensure the Packer template includes a second disk block with etcd_disk_storage."
-        echo "  See: docs/troubleshooting/etcd-io-saturation-control-plane-crash.md"
+        echo "  See: https://github.com/Diixtra/diixtra-docs/blob/main/troubleshooting/etcd-io-saturation-control-plane-crash.md"
         exit 1
     fi
 
