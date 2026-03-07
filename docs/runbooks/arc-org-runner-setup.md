@@ -65,16 +65,69 @@ API rate limits.
 
 ## Step 4: Create the 1Password Item
 
-Create a new item in the `Homelab` vault named **`github-actions-runner-app`** with three fields:
+Create a new item in the `Homelab` vault named **`github-actions-runner-app`**.
 
-| Field name | Value |
-|---|---|
-| `github_app_id` | The App ID from Step 1 (e.g., `123456`) |
-| `github_app_installation_id` | The Installation ID from Step 3 (e.g., `654321`) |
-| `github_app_private_key` | The full contents of the `.pem` file from Step 2 |
+> **Important**: The private key **must** be stored as a **file attachment**,
+> not a text field. The 1Password operator strips newlines from text fields,
+> which breaks PEM parsing. File attachments preserve formatting.
+> See `docs/troubleshooting/arc-org-runner-crash-loop.md` (Stage 3).
 
-> **Important**: The field names must match exactly — ARC uses these as
-> Kubernetes secret keys. Underscores, not hyphens.
+Using the `op` CLI (recommended):
+
+```bash
+# Download the .pem file from Step 2, then:
+op item create \
+  --vault Homelab \
+  --category Login \
+  --title "github-actions-runner-app" \
+  "github_app_id[text]=<APP_ID>" \
+  "github_app_installation_id[text]=<INSTALLATION_ID>" \
+  "github_app_private_key[file]=</path/to/private-key.pem>"
+```
+
+Or if the item already exists and needs to be fixed (e.g. the private key was
+stored as a text field):
+
+```bash
+# 1. Save the PEM to a temp file (skip if you still have the original .pem)
+op read "op://Homelab/github-actions-runner-app/github_app_private_key" \
+  > /tmp/github_app_private_key.pem
+
+# 2. Delete the broken text field
+op item edit "github-actions-runner-app" --vault Homelab \
+  "github_app_private_key[delete]"
+
+# 3. Re-add as a file attachment (preserves newlines)
+op item edit "github-actions-runner-app" --vault Homelab \
+  "github_app_private_key[file]=/tmp/github_app_private_key.pem"
+
+# 4. Clean up the temp file
+rm /tmp/github_app_private_key.pem
+
+# 5. Force the 1Password operator to resync the secret
+kubectl annotate onepassworditem github-config-secret -n arc-runners \
+  force-sync=$(date +%s) --overwrite
+kubectl annotate onepassworditem github-config-secret -n packer-runners \
+  force-sync=$(date +%s) --overwrite
+
+# 6. Verify the secret has properly-formatted PEM
+kubectl get secret github-config-secret -n arc-runners \
+  -o jsonpath='{.data.github_app_private_key}' | base64 -d | head -2
+# Expected:
+#   -----BEGIN RSA PRIVATE KEY-----
+#   <base64 line>
+```
+
+| Field name | Type | Value |
+|---|---|---|
+| `github_app_id` | text | The App ID from Step 1 (e.g., `123456`) |
+| `github_app_installation_id` | text | The Installation ID from Step 3 (e.g., `654321`) |
+| `github_app_private_key` | **file** | The `.pem` file from Step 2 |
+
+> **Why file, not text?** The 1Password operator syncs text fields as
+> single-line strings (newlines become spaces). PEM keys require line breaks
+> between the header, base64 body, and footer. File attachments are synced
+> verbatim, preserving the required formatting.
 
 After creating the item, you can delete the downloaded `.pem` file — 1Password
 is now the source of truth.
@@ -173,7 +226,8 @@ GitHub App (diixtra-arc-runners)
        ▼
 1Password vault "Homelab"
   item: "github-actions-runner-app"
-  fields: github_app_id, github_app_installation_id, github_app_private_key
+  fields: github_app_id (text), github_app_installation_id (text),
+          github_app_private_key (file attachment — NOT text field)
        │
        │  1Password Operator syncs to K8s
        ▼

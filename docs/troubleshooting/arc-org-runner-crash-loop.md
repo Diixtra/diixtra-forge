@@ -53,19 +53,32 @@ failed to parse RSA private key from PEM: invalid key: Key must be a PEM encoded
 
 The same 1Password item also contained the key as a `.pem` file attachment (`Diixtra-Arc-Runners-Private-Key-Mar-05-2026.pem`), which preserved the correct formatting.
 
-**Fix:** Patch the secret to use the properly-formatted PEM from the file attachment:
+**Fix:** The root cause is that the `github_app_private_key` was stored as a text field in 1Password. The operator strips newlines from text fields. The permanent fix is to store the PEM as a **file attachment** instead:
+
 ```bash
-PEM_B64=$(kubectl get secret github-config-secret -n arc-runners -o json | python3 -c "
-import sys, json
-d = json.load(sys.stdin)['data']
-for k, v in d.items():
-    if k.endswith('.pem'):
-        print(v)
-        break
-")
-kubectl patch secret github-config-secret -n arc-runners --type=json \
-  -p="[{\"op\":\"replace\",\"path\":\"/data/github_app_private_key\",\"value\":\"$PEM_B64\"}]"
+# 1. Save the PEM (from the existing .pem attachment or from the text field)
+op read "op://Homelab/github-actions-runner-app/github_app_private_key" \
+  > /tmp/github_app_private_key.pem
+
+# 2. Delete the text field
+op item edit "github-actions-runner-app" --vault Homelab \
+  "github_app_private_key[delete]"
+
+# 3. Re-add as a file attachment (preserves newlines through operator syncs)
+op item edit "github-actions-runner-app" --vault Homelab \
+  "github_app_private_key[file]=/tmp/github_app_private_key.pem"
+
+# 4. Clean up
+rm /tmp/github_app_private_key.pem
+
+# 5. Force resync
+kubectl annotate onepassworditem github-config-secret -n arc-runners \
+  force-sync=$(date +%s) --overwrite
+kubectl annotate onepassworditem github-config-secret -n packer-runners \
+  force-sync=$(date +%s) --overwrite
 ```
+
+See `docs/runbooks/arc-org-runner-setup.md` Step 4 for full details.
 
 ### Stage 4: Stale Scale Set Registration
 
@@ -111,6 +124,6 @@ EOF
 
 - Monitor 1Password operator health — the WASM crash is a known issue that requires operator restart
 - When changing `githubConfigUrl` scope (repo to org or vice versa), always uninstall and reinstall the Helm release to re-register the scale set
-- Store PEM keys as file attachments in 1Password, not as text fields, to preserve formatting
+- Store PEM keys as **file attachments** in 1Password, not as text fields — the operator strips newlines from text fields (see `docs/runbooks/arc-org-runner-setup.md` Step 4 for the `op` CLI commands)
 - After any ARC configuration change, verify listeners are stable for >60 seconds before considering the change complete
 - Ensure runner group settings match repo visibility (`allows_public_repositories` must be `true` if any target repo is public)
