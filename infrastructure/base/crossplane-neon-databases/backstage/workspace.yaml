@@ -1,0 +1,73 @@
+# ══════════════════════════════════════════════════════════════════
+# Neon Database — Backstage
+#
+# Provisions a Neon project named "backstage" in aws-eu-west-2
+# (London). Creates project, default branch, endpoint, role, and
+# database in a single neon_project resource.
+#
+# Outputs written to Secret "neon-backstage-outputs" in
+# crossplane-system:
+#   database_host     — Neon endpoint hostname
+#   database_password — Role password (sensitive)
+#
+# BOOTSTRAP: After first reconciliation, extract the host and update vars:
+#   kubectl get secret neon-backstage-outputs -n crossplane-system \
+#     -o jsonpath='{.data.database_host}' | base64 -d
+# Set the result as NEON_BACKSTAGE_HOST in clusters/homelab/vars.yaml.
+# ══════════════════════════════════════════════════════════════════
+apiVersion: tf.upbound.io/v1beta1
+kind: Workspace
+metadata:
+  name: neon-backstage
+  annotations:
+    crossplane.io/external-name: neon-backstage
+  labels:
+    app.kubernetes.io/part-of: crossplane
+    app.kubernetes.io/component: neon
+    app.kubernetes.io/managed-by: flux
+spec:
+  providerConfigRef:
+    name: neon-default
+  forProvider:
+    source: Inline
+    module: |
+      terraform {
+        required_providers {
+          neon = {
+            source  = "kislerdm/neon"
+            version = "~> 0.6"
+          }
+        }
+      }
+
+      resource "neon_project" "backstage" {
+        name       = "backstage"
+        region_id  = "aws-eu-west-2"
+        pg_version = 16
+
+        branch {
+          database_name = "backstage"
+          role_name     = "backstage"
+        }
+
+        default_endpoint_settings {
+          # At least equal to Backstage catalog sync interval (600s) to
+          # avoid cold starts on every sync cycle.
+          suspend_timeout_seconds  = 600
+          autoscaling_limit_min_cu = 0.25
+          autoscaling_limit_max_cu = 1
+        }
+      }
+
+      output "database_host" {
+        value     = neon_project.backstage.database_host
+        sensitive = false
+      }
+
+      output "database_password" {
+        value     = neon_project.backstage.database_password
+        sensitive = true
+      }
+  writeConnectionSecretToRef:
+    namespace: crossplane-system
+    name: neon-backstage-outputs

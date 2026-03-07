@@ -19,6 +19,8 @@ resources:
   - ../base/crossplane-provider-oci
   - ../base/crossplane-provider-neon
   - ../base/crossplane-provider-supabase
+  # Crossplane-managed databases
+  - ../base/crossplane-neon-databases/backstage
   # Cilium L2 announcements — need Cilium CRDs from infrastructure-crds
   - cilium/l2-config.yaml
 patches:
