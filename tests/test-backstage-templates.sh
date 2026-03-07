@@ -680,7 +680,7 @@ test_required_fields \
 test_required_fields \
   "Flux resources use \${VAR} format for substitution" \
   "platform/base/backstage/helm-release.yaml" \
-  "\${LAB_DOMAIN}" "\${POSTGRES_PASSWORD}"
+  "\${LAB_DOMAIN}"
 
 echo ""
 
@@ -694,7 +694,7 @@ test_required_fields \
 test_required_fields \
   "Kustomization includes all required resources" \
   "platform/base/backstage/kustomization.yaml" \
-  "namespace.yaml" "helm-release.yaml" "onepassword-item.yaml" "onepassword-item-github-app.yaml"
+  "namespace.yaml" "helm-release.yaml" "neon-secret-sync.yaml" "onepassword-item-github-app.yaml"
 
 test_required_fields \
   "vars.yaml defines OP_ITEM_BACKSTAGE_GITHUB_APP variable" \
@@ -708,7 +708,7 @@ echo "── Test 9: Security and Best Practices ──"
 test_required_fields \
   "HelmRelease uses secrets for sensitive data" \
   "platform/base/backstage/helm-release.yaml" \
-  "existingSecret" "extraEnvVarsSecrets"
+  "extraEnvVarsSecrets"
 
 test_required_fields \
   "Templates include reviewer checklist" \
